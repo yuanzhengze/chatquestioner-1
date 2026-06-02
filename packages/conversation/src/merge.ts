@@ -33,7 +33,8 @@ export interface StateDelta {
 }
 
 function uniqMerge(existing: string[], incoming?: string[]): string[] {
-  if (!incoming) return existing;
+  // 鲁棒：LLM 可能把数组字段误写成字符串/对象，非数组一律忽略（绝不逐字符拆散污染状态）。
+  if (!Array.isArray(incoming)) return existing;
   const out = [...existing];
   for (const v of incoming) {
     const t = typeof v === "string" ? v.trim() : "";

@@ -56,4 +56,13 @@ describe("advance", () => {
     expect(res.state.stage).toBe(1);
     expect(res.warnings.length).toBeGreaterThan(0);
   });
+
+  it("无 sentinel 时 onToken 拼接 == 完整 reply（不漏结尾回扣字符）", async () => {
+    const llm = scriptedLlm(["这是一段没有状态块的纯人话回复内容内容内容内容"]);
+    const tokens: string[] = [];
+    const res = await advance(createInitialState(), "hi", {
+      llm, systemPrompt: SYS, onToken: (t) => tokens.push(t),
+    });
+    expect(tokens.join("")).toBe(res.reply);
+  });
 });

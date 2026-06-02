@@ -49,4 +49,12 @@ describe("mergeStateDelta", () => {
     const s = createInitialState();
     expect(mergeStateDelta(s, { pitch: "x" })).toBe(s);
   });
+
+  it("数组字段被 LLM 误写成字符串时不被逐字符拆散（鲁棒）", () => {
+    const s = createInitialState();
+    mergeStateDelta(s, { references: "纪念碑谷" as unknown as string[] });
+    expect(s.references).toEqual([]);
+    mergeStateDelta(s, { engineering: { modalities: "image" as unknown as [] } });
+    expect(s.engineering.modalities).toEqual([]);
+  });
 });

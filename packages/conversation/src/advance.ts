@@ -46,6 +46,10 @@ async function collectStream(
       }
     }
   }
+  // 流结束仍未见哨兵：把被回扣的结尾补发（此时全文皆属 reply，补发安全）。
+  if (onToken && !stopped && full.length > emitted) {
+    onToken(full.slice(emitted));
+  }
   return full;
 }
 
