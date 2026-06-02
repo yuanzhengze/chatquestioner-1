@@ -1,0 +1,19 @@
+{
+  "name": "@cq/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@cq/conversation": "workspace:*",
+    "@cq/dsl": "workspace:*",
+    "@cq/gdd": "workspace:*",
+    "@cq/resolver": "workspace:*",
+    "fastify": "^5.0.0",
+    "openai": "^4.67.0",
+    "dotenv": "^16.4.0"
+  }
+}
