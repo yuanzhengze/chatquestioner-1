@@ -1,0 +1,7 @@
+{
+  "name": "@cq/dsl",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "zod": "^3.23.0" }
+}
