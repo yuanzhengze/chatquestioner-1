@@ -33,7 +33,8 @@ export class FileSessionStore implements SessionStore {
     if (!existsSync(p)) return null;
     try {
       return JSON.parse(readFileSync(p, "utf8")) as ConversationState;
-    } catch {
+    } catch (err) {
+      console.warn(`[sessionStore] 会话文件损坏，无法解析 (id=${id}):`, err);
       return null;
     }
   }
