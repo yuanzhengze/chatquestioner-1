@@ -7,5 +7,6 @@ export * from "./catalog/build.js";
 export * from "./rules/skillRules.js";
 export * from "./rules/mcpRules.js";
 export * from "./resolve.js";
+export * from "./bundle.js";
 export type { GameDSL, ResolutionResult } from "@cq/dsl";
 export { ResolutionResultSchema, GameDslSchema } from "@cq/dsl";
