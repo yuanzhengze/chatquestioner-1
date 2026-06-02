@@ -13,7 +13,7 @@ export class OpenAiLlmClient implements LlmClient {
   private readonly model: string;
 
   constructor(opts: OpenAiOptions) {
-    this.client = new OpenAI({ baseURL: opts.baseURL, apiKey: opts.apiKey });
+    this.client = new OpenAI({ baseURL: opts.baseURL, apiKey: opts.apiKey, timeout: 120_000 });
     this.model = opts.model;
   }
 

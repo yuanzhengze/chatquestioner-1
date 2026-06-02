@@ -18,8 +18,11 @@ async function start(): Promise<void> {
   const llm = new OpenAiLlmClient({ baseURL: cfg.LLM_BASE_URL, apiKey: cfg.LLM_API_KEY, model: cfg.LLM_MODEL });
   const store = new FileSessionStore(resolve(repoRoot, "data"));
 
-  const app = buildServer({ llm, store, catalog, systemPrompt, profile: "workbench" });
-  await app.listen({ port: cfg.PORT, host: "0.0.0.0" });
+  const app = buildServer({
+    llm, store, catalog, systemPrompt, profile: "workbench",
+    exportDir: resolve(repoRoot, "data", "exports"),
+  });
+  await app.listen({ port: cfg.PORT, host: "127.0.0.1" });
   console.log(`[server] listening on http://localhost:${cfg.PORT} — ${catalog.templates.length} templates`);
 }
 
