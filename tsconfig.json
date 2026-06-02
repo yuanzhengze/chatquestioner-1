@@ -8,13 +8,16 @@
     "paths": {
       "@cq/dsl": ["packages/dsl/src/index.ts"],
       "@cq/gdd": ["packages/gdd/src/index.ts"],
-      "@cq/resolver": ["packages/resolver/src/index.ts"]
+      "@cq/resolver": ["packages/resolver/src/index.ts"],
+      "@cq/conversation": ["packages/conversation/src/index.ts"]
     }
   },
   "include": [
     "packages/dsl/src",
+    "packages/dsl/scripts",
     "packages/gdd/src",
     "packages/resolver/src",
-    "packages/resolver/scripts"
+    "packages/resolver/scripts",
+    "packages/conversation/src"
   ]
 }
