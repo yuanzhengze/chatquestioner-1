@@ -55,7 +55,8 @@ describe("resolve()", () => {
     };
     const r = resolveDsl(odd, fixtureCatalog, { profile: "workbench" });
     // 3D 候选里只有 tower-defense-3d；intent 不匹配 → 退 basic
-    expect(["basic/threejs-3d", "tower-defense-3d"]).toContain(r.template.primary);
+    expect(r.template.primary).toBe("basic/threejs-3d");
+    expect(r.warnings.length).toBeGreaterThan(0);
   });
 
   it("records unmatched free intent_terms (lossless)", () => {

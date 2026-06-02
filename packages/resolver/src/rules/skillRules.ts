@@ -21,10 +21,7 @@ export const SKILL_RULES: Record<string, SkillRule> = {
   "3D_AssetLibrary": { layer: "L0", phase: "production", defaultLoad: "gated" },
   "bgm-lifecycle": { layer: "L0", phase: "production", defaultLoad: "gated" },
   // L1/L2 条件触发（节选；可扩展）
-  "vfx-3d": { layer: "L1", phase: "production", defaultLoad: "gated" },
-  "2D_vfx": { layer: "L1", phase: "production", defaultLoad: "gated" },
   "2D_ai_pixel_generation": { layer: "L2", phase: "production", defaultLoad: "gated" },
-  "h-3d-world-builder": { layer: "L1", phase: "production", defaultLoad: "gated" },
   "towerdefense-tower": { layer: "L2", phase: "production", defaultLoad: "gated" },
   "2D_sidescroller_assets": { layer: "L2", phase: "production", defaultLoad: "gated" },
 };
