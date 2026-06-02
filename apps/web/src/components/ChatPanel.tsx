@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "../types.js";
 
 interface Props {
@@ -9,6 +9,12 @@ interface Props {
 
 export function ChatPanel({ messages, busy, onSend }: Props) {
   const [draft, setDraft] = useState("");
+  const streamRef = useRef<HTMLDivElement>(null);
+  // 跟随最新消息：消息数变化（新气泡）或最后一条内容增长（流式 token）时滚到底。
+  useEffect(() => {
+    const el = streamRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, messages[messages.length - 1]?.content]);
   const submit = () => {
     const t = draft.trim();
     if (!t || busy) return;
@@ -17,7 +23,7 @@ export function ChatPanel({ messages, busy, onSend }: Props) {
   };
   return (
     <div className="chat">
-      <div className="chat-stream">
+      <div className="chat-stream" ref={streamRef}>
         {messages.map((m, i) => (
           <div key={i} className={`bubble ${m.role}`}>
             <div className="bubble-role">{m.role === "user" ? "你" : "NewBee"}</div>

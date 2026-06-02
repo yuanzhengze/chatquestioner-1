@@ -31,4 +31,4 @@ body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", 
 .res-block { font-size: 13px; margin: 8px 0; }
 .res-block ul { margin: 4px 0 0; padding-left: 18px; }
 .res-warn { color: #ffb454; font-size: 12px; margin-top: 8px; }
-.gdd-draft pre { max-height: 240px; overflow: auto; background: #0b0d12; padding: 10px; border-radius: 8px; font-size: 12px; }
+.gdd-draft pre { max-height: 240px; overflow: auto; background: #0b0d12; padding: 10px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
