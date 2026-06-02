@@ -18,6 +18,7 @@
     "packages/gdd/src",
     "packages/resolver/src",
     "packages/resolver/scripts",
-    "packages/conversation/src"
+    "packages/conversation/src",
+    "apps/server/src"
   ]
 }
