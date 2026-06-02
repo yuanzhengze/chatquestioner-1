@@ -25,8 +25,12 @@ function candidateTemplates(dsl: GameDSL, catalog: CatalogIndex): TemplateEntry[
 
 /** intent/signature 词加权打分。 */
 function scoreTemplate(dsl: GameDSL, t: TemplateEntry): { score: number; matched: string[] } {
-  const terms = [...dsl.intent_terms, ...(dsl.genre ? [dsl.genre] : [])].map((x) => x.toLowerCase());
-  const sig = dsl.signature_terms.map((x) => x.toLowerCase());
+  const terms = [...dsl.intent_terms, ...(dsl.genre ? [dsl.genre] : [])]
+    .map((x) => x.trim().toLowerCase())
+    .filter((x) => x.length >= 2);
+  const sig = dsl.signature_terms
+    .map((x) => x.trim().toLowerCase())
+    .filter((x) => x.length >= 2);
   const matched: string[] = [];
   let score = 0;
   for (const it of t.intentTerms) {
@@ -74,9 +78,11 @@ export function resolve(dsl: GameDSL, catalog: CatalogIndex, opts: ResolveOption
   const allTemplateTerms = new Set(
     candidates.flatMap((t) => [...t.intentTerms, ...t.signatureTerms]).map((x) => x.toLowerCase()),
   );
-  const unmatched = dsl.intent_terms.filter(
-    (q) => ![...allTemplateTerms].some((t) => t.includes(q.toLowerCase()) || q.toLowerCase().includes(t)),
-  );
+  const unmatched = dsl.intent_terms.filter((raw) => {
+    const q = raw.trim().toLowerCase();
+    if (q.length < 2) return false;
+    return ![...allTemplateTerms].some((t) => t.includes(q) || q.includes(t));
+  });
 
   // ---- skills ----
   const skillIds = new Set<string>();

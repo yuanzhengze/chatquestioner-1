@@ -13,8 +13,10 @@ export function normalizeVocabField(
   raw: string,
   vocab: readonly string[],
 ): NormalizedVocab {
-  const cleaned = raw.trim().toLowerCase();
+  const trimmed = raw.trim();
+  const cleaned = trimmed.toLowerCase();
   const hit = vocab.find((v) => v.toLowerCase() === cleaned);
   if (hit) return { known: hit, fallback: [] };
-  return { fallback: [raw.trim()] };
+  if (trimmed.length === 0) return { fallback: [] };
+  return { fallback: [trimmed] };
 }

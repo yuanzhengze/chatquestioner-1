@@ -62,4 +62,15 @@ describe("resolve()", () => {
     const r = resolveDsl({ ...catMatch3, intent_terms: ["candy crush", "无法匹配词zzz"] }, fixtureCatalog, { profile: "workbench" });
     expect(r.unmatched).toContain("无法匹配词zzz");
   });
+
+  it("ignores blank/too-short free terms (no scoring poisoning, not in unmatched)", () => {
+    const r = resolveDsl(
+      { ...catMatch3, intent_terms: ["candy crush", "", "  ", "x"] },
+      fixtureCatalog,
+      { profile: "workbench" },
+    );
+    expect(r.template.primary).toBe("match3-candy"); // not poisoned into a wrong pick
+    expect(r.unmatched).not.toContain("");
+    expect(r.unmatched).not.toContain("x");
+  });
 });

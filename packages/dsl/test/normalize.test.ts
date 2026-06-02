@@ -18,4 +18,10 @@ describe("normalizeVocabField (enum + free-word fallback, D7)", () => {
     const r = normalizeVocabField("  TOWER-DEFENSE ", GENRES);
     expect(r.known).toBe("tower-defense");
   });
+
+  it("does not emit a blank fallback for whitespace-only input", () => {
+    const r = normalizeVocabField("   ", GENRES);
+    expect(r.known).toBeUndefined();
+    expect(r.fallback).toEqual([]);
+  });
 });
