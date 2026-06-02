@@ -4,3 +4,5 @@ export * from "./catalog/templates.js";
 export * from "./catalog/mcp.js";
 export * from "./catalog/skills.js";
 export * from "./catalog/build.js";
+export * from "./rules/skillRules.js";
+export * from "./rules/mcpRules.js";
