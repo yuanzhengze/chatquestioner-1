@@ -18,11 +18,17 @@ const CORE_PLATFORM_MCP: McpEntry[] = [
 
 export function readMcpServers(forgeaxRoot: string): McpEntry[] {
   const path = resolve(forgeaxRoot, "packages/vag_mcp/deploy/mcp-services.json");
-  const vag: McpEntry[] = existsSync(path)
-    ? ((JSON.parse(readFileSync(path, "utf8")) as RawMcpServices).apps ?? [])
+  let vag: McpEntry[] = [];
+  if (existsSync(path)) {
+    try {
+      const raw = JSON.parse(readFileSync(path, "utf8")) as RawMcpServices;
+      vag = (raw.apps ?? [])
         .filter((a): a is { name: string; env?: { MCP_PORT?: string } } => typeof a.name === "string")
-        .map((a) => ({ server: a.name, port: a.env?.MCP_PORT }))
-    : [];
+        .map((a) => ({ server: a.name, port: a.env?.MCP_PORT }));
+    } catch {
+      vag = [];
+    }
+  }
   const seen = new Set(vag.map((m) => m.server));
   return [...vag, ...CORE_PLATFORM_MCP.filter((m) => !seen.has(m.server))];
 }

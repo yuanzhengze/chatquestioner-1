@@ -26,4 +26,17 @@ describe.skipIf(!hasForgeax)("catalog readers (real forgeax dirs)", () => {
     expect(gemini).toBeDefined();
     expect(gemini!.port).toBe("3100");
   });
+
+  it("uses the -2d/-3d directory suffix as the authoritative dimension (overrides desc)", () => {
+    const templates = readGameplayTemplates(FORGEAX);
+    const cr2d = templates.find((t) => t.id === "clash-royale-2d");
+    expect(cr2d).toBeDefined();
+    expect(cr2d!.dimension).toBe("2D");   // desc mentions a 3D sibling — suffix must win
+    expect(cr2d!.engine).toBe("pixijs");
+    // every -2d/-3d suffixed template must infer the matching dimension
+    for (const t of templates) {
+      if (t.id.endsWith("-3d")) expect(t.dimension).toBe("3D");
+      if (t.id.endsWith("-2d")) expect(t.dimension).toBe("2D");
+    }
+  });
 });
