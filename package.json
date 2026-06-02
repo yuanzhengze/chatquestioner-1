@@ -7,7 +7,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build:catalog": "tsx packages/resolver/scripts/build-catalog.ts"
   },
   "devDependencies": {
