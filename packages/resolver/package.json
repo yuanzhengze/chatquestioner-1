@@ -1,0 +1,7 @@
+{
+  "name": "@cq/resolver",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@cq/dsl": "workspace:*", "yaml": "^2.5.0" }
+}

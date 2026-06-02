@@ -40,6 +40,15 @@ importers:
         specifier: workspace:*
         version: link:../dsl
 
+  packages/resolver:
+    dependencies:
+      '@cq/dsl':
+        specifier: workspace:*
+        version: link:../dsl
+      yaml:
+        specifier: ^2.5.0
+        version: 2.9.0
+
 packages:
 
   '@esbuild/aix-ppc64@0.21.5':
