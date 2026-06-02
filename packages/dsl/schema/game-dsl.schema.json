@@ -1,0 +1,145 @@
+{
+  "$ref": "#/definitions/GameDSL",
+  "definitions": {
+    "GameDSL": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string"
+        },
+        "constraints": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PC",
+                  "mobile",
+                  "web"
+                ]
+              },
+              "minItems": 1
+            },
+            "dimension": {
+              "type": "string",
+              "enum": [
+                "2D",
+                "3D"
+              ]
+            },
+            "engine": {
+              "type": "string",
+              "enum": [
+                "pixijs",
+                "threejs",
+                "phaser",
+                "canvas",
+                "dom"
+              ]
+            },
+            "networking": {
+              "type": "string",
+              "enum": [
+                "singleplayer",
+                "multiplayer"
+              ],
+              "default": "singleplayer"
+            },
+            "orientation": {
+              "type": "string",
+              "enum": [
+                "Landscape",
+                "Portrait"
+              ]
+            }
+          },
+          "required": [
+            "platform",
+            "dimension",
+            "engine"
+          ],
+          "additionalProperties": false
+        },
+        "genre": {
+          "type": "string"
+        },
+        "mechanics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "art_style": {
+          "type": "string"
+        },
+        "modalities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "image",
+              "audio",
+              "ui",
+              "3d",
+              "pixel",
+              "sidescroller",
+              "narrative",
+              "video"
+            ]
+          },
+          "default": []
+        },
+        "intent_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "signature_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "mvp_scope": {
+          "type": "object",
+          "properties": {
+            "must": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "cut": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            }
+          },
+          "additionalProperties": false,
+          "default": {
+            "must": [],
+            "cut": []
+          }
+        },
+        "constitution_ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "constraints"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

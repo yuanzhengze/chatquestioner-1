@@ -1,0 +1,236 @@
+{
+  "$ref": "#/definitions/ResolutionResult",
+  "definitions": {
+    "ResolutionResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "0.2"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "template": {
+          "type": "object",
+          "properties": {
+            "primary": {
+              "type": "string"
+            },
+            "references": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "basis": {
+              "type": "object",
+              "properties": {
+                "matched_terms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
+                "constraints": {
+                  "type": "object",
+                  "properties": {
+                    "dimension": {
+                      "type": "string",
+                      "enum": [
+                        "2D",
+                        "3D"
+                      ]
+                    },
+                    "engine": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "dimension",
+                    "engine"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "constraints"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "primary",
+            "basis"
+          ],
+          "additionalProperties": false
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "layer": {
+                "type": "string",
+                "enum": [
+                  "L0",
+                  "L1",
+                  "L2",
+                  "L3"
+                ]
+              },
+              "phase": {
+                "type": "string",
+                "enum": [
+                  "boot",
+                  "production",
+                  "coding"
+                ]
+              },
+              "load": {
+                "type": "string",
+                "enum": [
+                  "eager",
+                  "gated",
+                  "lazy"
+                ]
+              },
+              "trigger": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "layer",
+              "phase",
+              "load"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "mcp": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "server": {
+                "type": "string"
+              },
+              "layer": {
+                "type": "string",
+                "enum": [
+                  "L0",
+                  "L1",
+                  "L2",
+                  "L3",
+                  "L4",
+                  "L5"
+                ]
+              },
+              "phase": {
+                "$ref": "#/definitions/ResolutionResult/properties/skills/items/properties/phase"
+              },
+              "load": {
+                "$ref": "#/definitions/ResolutionResult/properties/skills/items/properties/load"
+              },
+              "trigger": {
+                "type": "string"
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "server",
+              "layer",
+              "phase",
+              "load"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "load": {
+                "$ref": "#/definitions/ResolutionResult/properties/skills/items/properties/load"
+              },
+              "trigger": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "load"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "unmatched": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "install_packs": {
+          "type": "object",
+          "properties": {
+            "primary_template": {
+              "type": "string"
+            },
+            "reference_templates": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "package_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            }
+          },
+          "required": [
+            "primary_template"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile",
+        "template",
+        "install_packs"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
