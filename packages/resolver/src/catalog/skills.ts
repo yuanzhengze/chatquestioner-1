@@ -12,7 +12,14 @@ interface RawFrontmatter {
 function parseFrontmatter(md: string): RawFrontmatter | undefined {
   const m = md.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return undefined;
-  return parseYaml(m[1]) as RawFrontmatter;
+  // 真实仓库存在 frontmatter 格式损坏的 SKILL.md（如以 `## name:` 充当键），
+  // 解析失败时跳过该文件，而非让整个 catalog 构建崩溃。
+  try {
+    const parsed = parseYaml(m[1]) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as RawFrontmatter) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** 递归找 SKILL.md，抽 frontmatter。 */
