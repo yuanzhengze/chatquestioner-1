@@ -1,0 +1,20 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# deps / build
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# resolver build artifact (regenerated via `pnpm build:catalog`)
+packages/resolver/catalog-index.json
+
+# session data
+data/
+*.local
+
+# os / editor
+.DS_Store
