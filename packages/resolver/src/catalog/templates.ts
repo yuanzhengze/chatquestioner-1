@@ -32,8 +32,9 @@ export function readGameplayTemplates(forgeaxRoot: string): TemplateEntry[] {
       engine: (pc?.engine as TemplateEntry["engine"]) ?? inferred.engine,
       inferred: !pc?.dimension || !pc?.engine,
       mobileSupport: raw["mobile-support"] === true,
-      intentTerms: raw.intent_terms ?? [],
-      signatureTerms: raw.signature_terms ?? [],
+      // 真实 yaml 有裸数字词条（如 2048-3d 的 `- 2048` 被解析成 number）→ 强转字符串，守住 string[] 契约
+      intentTerms: (raw.intent_terms ?? []).map((t) => String(t)),
+      signatureTerms: (raw.signature_terms ?? []).map((t) => String(t)),
     });
   }
   return out;
