@@ -3,8 +3,8 @@ import type { RecognizedState, SynthesisPayload } from "./types.js";
 
 const BASE = "/api";
 
-export async function createSession(): Promise<{ id: string; opening: string }> {
-  const r = await fetch(`${BASE}/session`, { method: "POST" });
+export async function createSession(signal?: AbortSignal): Promise<{ id: string; opening: string }> {
+  const r = await fetch(`${BASE}/session`, { method: "POST", signal });
   if (!r.ok) throw new Error(`createSession failed: ${r.status}`);
   return r.json();
 }
@@ -37,25 +37,36 @@ function dispatch(ev: SseEvent, h: SseHandlers): void {
   }
 }
 
-/** POST 一条消息并消费 SSE 流。 */
-export async function sendMessage(id: string, message: string, handlers: SseHandlers): Promise<void> {
+/** POST 一条消息并消费 SSE 流。signal 可中断在途请求与读流。 */
+export async function sendMessage(
+  id: string,
+  message: string,
+  handlers: SseHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
   const res = await fetch(`${BASE}/session/${id}/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
+    signal,
   });
   if (!res.ok || !res.body) throw new Error(`sendMessage failed: ${res.status}`);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const { events, rest } = parseSseEvents(buffer);
-    buffer = rest;
-    for (const ev of events) dispatch(ev, handlers);
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { events, rest } = parseSseEvents(buffer);
+      buffer = rest;
+      for (const ev of events) dispatch(ev, handlers);
+    }
+  } finally {
+    // 无论正常结束、handler 抛错还是 abort，都释放锁，避免流挂死。
+    reader.releaseLock();
   }
 }
 

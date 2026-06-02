@@ -13,6 +13,11 @@ export interface UseSession {
   doExport: () => Promise<void>;
 }
 
+/** fetch/abort 取消会抛 AbortError（DOMException），属预期、不应作为用户可见错误。 */
+function isAbortError(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { name?: unknown }).name === "AbortError";
+}
+
 export function useSession(): UseSession {
   const [id, setId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -22,14 +27,27 @@ export function useSession(): UseSession {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const streamingRef = useRef<string>("");
+  const sendAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    createSession()
+    // StrictMode（dev）会 mount→unmount→mount。用 AbortController 取消首挂的在途
+    // createSession，并在 .then 前用 signal.aborted 守门，确保最终只采用一个会话。
+    const controller = new AbortController();
+    createSession(controller.signal)
       .then(({ id, opening }) => {
+        if (controller.signal.aborted) return;
         setId(id);
         setMessages([{ role: "assistant", content: opening }]);
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => {
+        if (isAbortError(e)) return;
+        setError(String(e));
+      });
+    return () => {
+      controller.abort();
+      // 卸载时中断仍在进行的 send 流，避免悬挂的 SSE 读取。
+      sendAbortRef.current?.abort();
+    };
   }, []);
 
   const send = useCallback(async (text: string) => {
@@ -38,6 +56,9 @@ export function useSession(): UseSession {
     setError(null);
     setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     streamingRef.current = "";
+
+    const controller = new AbortController();
+    sendAbortRef.current = controller;
 
     await sendMessage(id, text, {
       onToken: (t) => {
@@ -53,7 +74,9 @@ export function useSession(): UseSession {
       onSynthesis: (p) => setSynthesis(p),
       onError: (msg) => setError(msg),
       onDone: () => setBusy(false),
-    }).catch((e) => {
+    }, controller.signal).catch((e) => {
+      // 主动 abort（卸载）走 AbortError，不应冒泡为用户错误。
+      if (isAbortError(e)) return;
       setError(String(e));
       setBusy(false);
     });
