@@ -9,6 +9,8 @@ export interface UseSession {
   synthesis: SynthesisPayload | null;
   busy: boolean;
   error: string | null;
+  /** 解析告警计数（缺哨兵/STATE 块不可解析）；每次告警 +1，供形象触发 parse-warning。 */
+  warnTick: number;
   send: (text: string) => Promise<void>;
   doExport: () => Promise<void>;
 }
@@ -26,6 +28,7 @@ export function useSession(): UseSession {
   const [synthesis, setSynthesis] = useState<SynthesisPayload | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warnTick, setWarnTick] = useState(0);
   const streamingRef = useRef<string>("");
   const sendAbortRef = useRef<AbortController | null>(null);
 
@@ -72,6 +75,7 @@ export function useSession(): UseSession {
       onState: (s) => setState(s),
       onStage: (info) => setStage(info),
       onSynthesis: (p) => setSynthesis(p),
+      onWarning: () => setWarnTick((t) => t + 1),
       onError: (msg) => setError(msg),
       onDone: () => setBusy(false),
     }, controller.signal).catch((e) => {
@@ -95,5 +99,5 @@ export function useSession(): UseSession {
   // 刷新页面后可按需补拉快照（保留 hook，UI 暂不触发）
   void getSession;
 
-  return { messages, state, stage, synthesis, busy, error, send, doExport };
+  return { messages, state, stage, synthesis, busy, error, warnTick, send, doExport };
 }

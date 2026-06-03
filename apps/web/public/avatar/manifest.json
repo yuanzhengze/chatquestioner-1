@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "size": 512,
+  "primitives": {
+    "calm": {
+      "webm": "/avatar/calm.webm",
+      "hevc": "/avatar/calm.mov",
+      "poster": "/avatar/calm.png"
+    },
+    "watching": {
+      "webm": "/avatar/watching.webm",
+      "hevc": "/avatar/watching.mov",
+      "poster": "/avatar/watching.png"
+    },
+    "thinking": {
+      "webm": "/avatar/thinking.webm",
+      "hevc": "/avatar/thinking.mov",
+      "poster": "/avatar/thinking.png"
+    },
+    "talking": {
+      "webm": "/avatar/talking.webm",
+      "hevc": "/avatar/talking.mov",
+      "poster": "/avatar/talking.png"
+    },
+    "starstruck": {
+      "webm": "/avatar/starstruck.webm",
+      "hevc": "/avatar/starstruck.mov",
+      "poster": "/avatar/starstruck.png"
+    },
+    "warm-hug": {
+      "webm": "/avatar/warm-hug.webm",
+      "hevc": "/avatar/warm-hug.mov",
+      "poster": "/avatar/warm-hug.png"
+    },
+    "love": {
+      "webm": "/avatar/love.webm",
+      "hevc": "/avatar/love.mov",
+      "poster": "/avatar/love.png"
+    },
+    "inspect": {
+      "webm": "/avatar/inspect.webm",
+      "hevc": "/avatar/inspect.mov",
+      "poster": "/avatar/inspect.png"
+    },
+    "point": {
+      "webm": "/avatar/point.webm",
+      "hevc": "/avatar/point.mov",
+      "poster": "/avatar/point.png"
+    },
+    "ok": {
+      "webm": "/avatar/ok.webm",
+      "hevc": "/avatar/ok.mov",
+      "poster": "/avatar/ok.png"
+    },
+    "fire": {
+      "webm": "/avatar/fire.webm",
+      "hevc": "/avatar/fire.mov",
+      "poster": "/avatar/fire.png"
+    },
+    "clap": {
+      "webm": "/avatar/clap.webm",
+      "hevc": "/avatar/clap.mov",
+      "poster": "/avatar/clap.png"
+    },
+    "seal": {
+      "webm": "/avatar/seal.webm",
+      "hevc": "/avatar/seal.mov",
+      "poster": "/avatar/seal.png"
+    },
+    "party": {
+      "webm": "/avatar/party.webm",
+      "hevc": "/avatar/party.mov",
+      "poster": "/avatar/party.png"
+    },
+    "grimace": {
+      "webm": "/avatar/grimace.webm",
+      "hevc": "/avatar/grimace.mov",
+      "poster": "/avatar/grimace.png"
+    },
+    "no-gesture": {
+      "webm": "/avatar/no-gesture.webm",
+      "hevc": "/avatar/no-gesture.mov",
+      "poster": "/avatar/no-gesture.png"
+    },
+    "shrug": {
+      "webm": "/avatar/shrug.webm",
+      "hevc": "/avatar/shrug.mov",
+      "poster": "/avatar/shrug.png"
+    },
+    "facepalm": {
+      "webm": "/avatar/facepalm.webm",
+      "hevc": "/avatar/facepalm.mov",
+      "poster": "/avatar/facepalm.png"
+    },
+    "persevere": {
+      "webm": "/avatar/persevere.webm",
+      "hevc": "/avatar/persevere.mov",
+      "poster": "/avatar/persevere.png"
+    },
+    "wave": {
+      "webm": "/avatar/wave.webm",
+      "hevc": "/avatar/wave.mov",
+      "poster": "/avatar/wave.png"
+    },
+    "flex": {
+      "webm": "/avatar/flex.webm",
+      "hevc": "/avatar/flex.mov",
+      "poster": "/avatar/flex.png"
+    },
+    "raise": {
+      "webm": "/avatar/raise.webm",
+      "hevc": "/avatar/raise.mov",
+      "poster": "/avatar/raise.png"
+    },
+    "bandage": {
+      "webm": "/avatar/bandage.webm",
+      "hevc": "/avatar/bandage.mov",
+      "poster": "/avatar/bandage.png"
+    }
+  }
+}

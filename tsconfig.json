@@ -9,7 +9,8 @@
       "@cq/dsl": ["packages/dsl/src/index.ts"],
       "@cq/gdd": ["packages/gdd/src/index.ts"],
       "@cq/resolver": ["packages/resolver/src/index.ts"],
-      "@cq/conversation": ["packages/conversation/src/index.ts"]
+      "@cq/conversation": ["packages/conversation/src/index.ts"],
+      "@cq/avatar": ["packages/avatar/src/index.ts"]
     }
   },
   "include": [
@@ -19,6 +20,8 @@
     "packages/resolver/src",
     "packages/resolver/scripts",
     "packages/conversation/src",
+    "packages/avatar/src",
+    "packages/avatar/scripts",
     "apps/server/src"
   ]
 }

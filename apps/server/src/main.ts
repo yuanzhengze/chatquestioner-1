@@ -1,4 +1,4 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildCatalog } from "@cq/resolver";
@@ -10,6 +10,10 @@ import { buildServer } from "./server.js";
 
 const here = dirname(fileURLToPath(import.meta.url)); // apps/server/src
 const repoRoot = resolve(here, "../../.."); // chat-questioner/
+
+// 从仓库根加载 .env：dev 经 `pnpm --filter` 启动时 cwd 是 apps/server，
+// 默认的 dotenv/config（按 cwd 查找）会漏掉根目录的 .env。
+dotenv.config({ path: resolve(repoRoot, ".env") });
 
 async function start(): Promise<void> {
   const cfg = loadConfig();
