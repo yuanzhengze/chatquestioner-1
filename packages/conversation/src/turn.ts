@@ -8,10 +8,17 @@ export interface TurnControl {
   readyForSynthesis: boolean;
 }
 
+export interface TurnOption {
+  id: string;
+  label: string;
+  detail: string;
+}
+
 export interface ParsedTurn {
   reply: string;
   control: TurnControl;
   warnings: string[];
+  options?: TurnOption[];
 }
 
 function emptyControl(): TurnControl {
@@ -35,6 +42,23 @@ function extractJson(tail: string): Record<string, unknown> | null {
   }
 }
 
+function nonEmptyStr(v: unknown): v is string {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+/** 仅接受恰好 2 项、每项含非空 id/label/detail 的数组；否则返回 undefined（静默忽略）。 */
+function parseOptions(raw: unknown): TurnOption[] | undefined {
+  if (!Array.isArray(raw) || raw.length !== 2) return undefined;
+  const out: TurnOption[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return undefined;
+    const o = item as Record<string, unknown>;
+    if (!nonEmptyStr(o.id) || !nonEmptyStr(o.label) || !nonEmptyStr(o.detail)) return undefined;
+    out.push({ id: o.id, label: o.label, detail: o.detail });
+  }
+  return out;
+}
+
 export function parseTurnOutput(raw: string): ParsedTurn {
   const idx = raw.indexOf(STATE_SENTINEL);
   if (idx === -1) {
@@ -53,5 +77,6 @@ export function parseTurnOutput(raw: string): ParsedTurn {
       readyForSynthesis: json.ready_for_synthesis === true,
     },
     warnings: [],
+    options: parseOptions(json.options),
   };
 }
