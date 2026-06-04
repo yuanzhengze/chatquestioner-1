@@ -3,6 +3,12 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface TurnOption {
+  id: string;
+  label: string;
+  detail: string;
+}
+
 /** ConversationState 的渲染子集（与 server 的完整快照结构兼容，取所需字段）。 */
 export interface RecognizedState {
   stage: number;

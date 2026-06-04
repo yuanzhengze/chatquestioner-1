@@ -1,5 +1,5 @@
 import { parseSseEvents, type SseEvent } from "./sse.js";
-import type { RecognizedState, SynthesisPayload } from "./types.js";
+import type { RecognizedState, SynthesisPayload, TurnOption } from "./types.js";
 
 const BASE = "/api";
 
@@ -19,6 +19,7 @@ export interface SseHandlers {
   onToken?: (text: string) => void;
   onState?: (state: RecognizedState) => void;
   onStage?: (info: { stage: number; label: string; readyForSynthesis: boolean }) => void;
+  onOptions?: (options: TurnOption[]) => void;
   onSynthesis?: (payload: SynthesisPayload) => void;
   onWarning?: (messages: string[]) => void;
   onError?: (message: string) => void;
@@ -30,6 +31,7 @@ function dispatch(ev: SseEvent, h: SseHandlers): void {
     case "token": h.onToken?.((ev.data as { text: string }).text); break;
     case "state": h.onState?.(ev.data as RecognizedState); break;
     case "stage": h.onStage?.(ev.data as { stage: number; label: string; readyForSynthesis: boolean }); break;
+    case "options": h.onOptions?.((ev.data as { options: TurnOption[] }).options); break;
     case "synthesis": h.onSynthesis?.(ev.data as SynthesisPayload); break;
     case "warning": h.onWarning?.((ev.data as { messages: string[] }).messages); break;
     case "error": h.onError?.((ev.data as { message: string }).message); break;

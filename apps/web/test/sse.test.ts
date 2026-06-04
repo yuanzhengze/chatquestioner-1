@@ -19,4 +19,12 @@ describe("parseSseEvents", () => {
     expect(events).toEqual([]);
     expect(rest).toBe("event: token\ndata: {");
   });
+
+  it("解析 options 帧", () => {
+    const buf = `event: options\ndata: {"options":[{"id":"A","label":"a","detail":"da"},{"id":"B","label":"b","detail":"db"}]}\n\n`;
+    const { events } = parseSseEvents(buf);
+    expect(events).toHaveLength(1);
+    expect(events[0].event).toBe("options");
+    expect((events[0].data as { options: unknown[] }).options).toHaveLength(2);
+  });
 });
