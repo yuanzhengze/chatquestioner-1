@@ -70,4 +70,31 @@ describe("toGameDsl", () => {
     expect(dsl).toBeNull();
     expect(missing).toEqual(["dimension", "engine", "platform"]);
   });
+
+  it("LLM 枚举噪声鲁棒：modalities 含非法 '2d' 不再打死整份 DSL", () => {
+    const s = readyState();
+    s.engineering.modalities = ["image", "2d", "audio", "sidescroller", "ui", "啥也不是"] as never;
+    const { dsl, missing } = toGameDsl(s);
+    expect(missing).toEqual([]);
+    expect(dsl).not.toBeNull();
+    // 非法成员被丢弃，合法成员保留
+    expect(dsl!.modalities).toEqual(["image", "audio", "sidescroller", "ui"]);
+  });
+
+  it("硬约束大小写容错：dimension '2d' / engine 'PixiJS' 归一后仍可编译", () => {
+    const s = readyState();
+    s.engineering.dimension = "2d" as never;
+    s.engineering.engine = "PixiJS" as never;
+    const { dsl, missing } = toGameDsl(s);
+    expect(missing).toEqual([]);
+    expect(dsl!.constraints).toMatchObject({ dimension: "2D", engine: "pixijs" });
+  });
+
+  it("platform 含非法值：过滤后仍有合法项即可编译", () => {
+    const s = readyState();
+    s.engineering.platform = ["mobile", "switch"] as never;
+    const { dsl, missing } = toGameDsl(s);
+    expect(missing).toEqual([]);
+    expect(dsl!.constraints.platform).toEqual(["mobile"]);
+  });
 });
