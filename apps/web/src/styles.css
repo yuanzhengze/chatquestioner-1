@@ -113,6 +113,11 @@ body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", 
 .drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #232734; font-size: 14px; }
 .drawer-close { background: transparent; color: #cdd3df; border: 0; font-size: 22px; line-height: 1; cursor: pointer; }
 .drawer-body { flex: 1; overflow-y: auto; }
+/* ===== Markdown 容器（预留改造钩子；本轮仅最小适配，不风格化） ===== */
+.cq-md { color: inherit; font-size: inherit; }
+.cq-md :where(p, ul, ol, h1, h2, h3, h4, blockquote, pre):first-child { margin-top: 0; }
+.cq-md :where(p, ul, ol, h1, h2, h3, h4, blockquote, pre):last-child { margin-bottom: 0; }
+
 /* 上下文流气泡（ContextStream 复用） */
 .bubble { max-width: 78%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; line-height: 1.5; }
 .bubble.user { align-self: flex-end; background: #2b6ef2; }
