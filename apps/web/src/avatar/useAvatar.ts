@@ -56,6 +56,14 @@ export function useAvatar(session: UseSession, typing: boolean): {
     }
   }, [session.synthesis, dispatch]);
 
+  // 选项冒出：形象做"端出两个方向"的指向手势。
+  const hadOptionsRef = useRef(false);
+  useEffect(() => {
+    const has = !!session.options && session.options.length > 0;
+    if (has && !hadOptionsRef.current) dispatch(emote("idea-feed"));
+    hadOptionsRef.current = has;
+  }, [session.options, dispatch]);
+
   // 出错
   useEffect(() => {
     if (session.error) dispatch(emote("error"));
