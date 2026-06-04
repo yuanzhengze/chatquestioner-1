@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ChatMessage } from "../types.js";
+import { Markdown } from "./Markdown.js";
 
 interface Props {
   messages: ChatMessage[];
@@ -18,7 +19,11 @@ export function ContextStream({ messages, busy }: Props) {
         return (
           <div key={i} className={`bubble ${m.role}`}>
             <div className="bubble-role">{m.role === "user" ? "你" : "NewBee"}</div>
-            <div className="bubble-text">{m.content || (streamingPlaceholder ? "…" : "")}</div>
+            <div className="bubble-text">
+              {m.content
+                ? <Markdown content={m.content} final={!(m.role === "assistant" && i === lastIdx && busy)} />
+                : (streamingPlaceholder ? "…" : "")}
+            </div>
           </div>
         );
       })}
