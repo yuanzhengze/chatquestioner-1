@@ -20,9 +20,20 @@ export function loadCuratedCards(dataDir: string): KnowledgeCard[] {
   const out: KnowledgeCard[] = [];
   for (const f of readdirSync(dataDir)) {
     if (!f.endsWith(".yaml") && !f.endsWith(".yml")) continue;
-    const doc = parse(readFileSync(resolve(dataDir, f), "utf8"));
-    const arr = Array.isArray(doc) ? doc : [doc];
-    for (const raw of arr) out.push(KnowledgeCardSchema.parse(raw));
+    let arr: unknown[];
+    try {
+      const doc = parse(readFileSync(resolve(dataDir, f), "utf8"));
+      arr = Array.isArray(doc) ? doc : [doc];
+    } catch (err) {
+      throw new Error(`知识卡 YAML 解析失败 (${f}): ${err instanceof Error ? err.message : String(err)}`);
+    }
+    arr.forEach((raw, i) => {
+      try {
+        out.push(KnowledgeCardSchema.parse(raw));
+      } catch (err) {
+        throw new Error(`知识卡校验失败 (${f}#${i}): ${err instanceof Error ? err.message : String(err)}`);
+      }
+    });
   }
   return out;
 }
