@@ -34,12 +34,18 @@ export function cosine(a: number[], b: number[]): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-// 仅按 stage→type 预筛；tag 不参与预筛，只在 createRetriever 的排序里作软加权
+// 预筛同时按 type（STAGE_CARD_TYPES）与 per-card stageAffinity 门控；
+// tag 不参与预筛，只在 createRetriever 的排序里作软加权
 // （spec §6 把 tag 描述为软过滤，实现中改为软排序加权，避免误把候选过早裁掉）。
 export function prefilter(cards: KnowledgeCard[], state: RetrievalState): KnowledgeCard[] {
   const types = STAGE_CARD_TYPES[state.stage] ?? [];
   if (types.length === 0) return [];
-  return cards.filter((c) => types.includes(c.type));
+  return cards.filter(
+    (c) =>
+      types.includes(c.type) &&
+      // stageAffinity 为空 = 不限阶段；否则必须包含当前阶段
+      (c.stageAffinity.length === 0 || c.stageAffinity.includes(state.stage)),
+  );
 }
 
 /** 当前 state 与卡 tag 的重叠计数，用作微弱排序加权。 */

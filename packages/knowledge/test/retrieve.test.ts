@@ -45,6 +45,16 @@ describe("prefilter", () => {
   it("returns empty when the stage has no mapping (e.g. stage 0)", () => {
     expect(prefilter([card({ id: "a", type: "reference-game", embedding: [1, 0] })], { ...state2, stage: 0 })).toEqual([]);
   });
+
+  it("respects per-card stageAffinity (empty = all stages, else must include current stage)", () => {
+    const cards = [
+      card({ id: "any", type: "reference-game", embedding: [1, 0] }),                       // stageAffinity 默认 []：不限阶段
+      card({ id: "s2", type: "reference-game", embedding: [1, 0], stageAffinity: [2] }),     // 仅阶段 2
+      card({ id: "s5", type: "reference-game", embedding: [1, 0], stageAffinity: [5] }),     // 仅阶段 5 —— 阶段 2 应排除
+    ];
+    const kept = prefilter(cards, state2).map((c) => c.id); // state2.stage === 2
+    expect(kept.sort()).toEqual(["any", "s2"]);
+  });
 });
 
 describe("createRetriever", () => {
