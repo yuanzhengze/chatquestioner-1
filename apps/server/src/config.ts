@@ -6,6 +6,8 @@ const EnvSchema = z.object({
   LLM_MODEL: z.string().default("gemini-3.1-pro"),
   FORGEAX_ROOT: z.string().default("../forgeax-studio"),
   PORT: z.coerce.number().default(8420),
+  KB_EMBEDDING_MODEL: z.string().optional(),
+  KB_TOP_K: z.coerce.number().default(3),
 });
 
 export type ServerConfig = z.infer<typeof EnvSchema>;
