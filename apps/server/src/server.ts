@@ -95,6 +95,8 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           readyForSynthesis: res.readyForSynthesis,
         });
 
+        if (res.options?.length) sendEvent(reply, SSE_EVENTS.options, { options: res.options });
+
         // 工程信号齐备（DSL 可编译）即发预览，不再等 LLM 显式置 ready_for_synthesis：
         // 后者是 LLM 对“对话已收敛”的主观判断，常漏置，会让预览空着；而 export 端点本就
         // 只要求 DSL 完整。这里与之对齐——有完整 DSL 就给“精确选择预览”。
