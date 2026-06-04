@@ -24,3 +24,6 @@ data/
 
 # os / editor
 .DS_Store
+
+# brainstorming companion drafts
+.superpowers/
