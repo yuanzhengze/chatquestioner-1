@@ -1,6 +1,6 @@
 import type { ChatMessage, LlmClient } from "./llm.js";
 import { TURN_DIRECTIVE } from "./llm.js";
-import { parseTurnOutput, STATE_SENTINEL } from "./turn.js";
+import { parseTurnOutput, STATE_SENTINEL, type TurnOption } from "./turn.js";
 import { mergeStateDelta } from "./merge.js";
 import { nextStage } from "./stages.js";
 import { toGameDsl } from "./compile.js";
@@ -21,6 +21,7 @@ export interface AdvanceResult {
   state: ConversationState;
   readyForSynthesis: boolean;
   warnings: string[];
+  options?: TurnOption[];
 }
 
 /** 消费流：累积全文；onToken 只转发 sentinel 之前、且不会泄露半截哨兵的安全前缀。 */
@@ -89,5 +90,5 @@ export async function advance(
   const dslReady = toGameDsl(state).missing.length === 0;
   const readyForSynthesis = parsed.control.readyForSynthesis && dslReady;
 
-  return { reply: parsed.reply, state, readyForSynthesis, warnings: parsed.warnings };
+  return { reply: parsed.reply, state, readyForSynthesis, warnings: parsed.warnings, options: parsed.options };
 }
