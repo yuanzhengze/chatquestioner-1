@@ -42,4 +42,15 @@ describe("advance with retriever", () => {
     await advance(createInitialState(), "hi", { llm, systemPrompt: "SYS", retrieve: async () => [] });
     expect(lastSystem()).not.toContain("[F2 投喂素材]");
   });
+
+  it("degrades gracefully when the retriever rejects (no knowledge block, turn still completes)", async () => {
+    const { llm, lastSystem } = recordingLlm();
+    const res = await advance(createInitialState(), "hi", {
+      llm,
+      systemPrompt: "SYS",
+      retrieve: async () => { throw new Error("embedding timeout"); },
+    });
+    expect(lastSystem()).not.toContain("[F2 投喂素材]");
+    expect(res.reply).toBe("好的！");
+  });
 });

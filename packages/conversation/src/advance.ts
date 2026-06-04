@@ -66,8 +66,12 @@ export async function advance(
 
   let knowledgeBlock = "";
   if (deps.retrieve) {
-    const cards = await deps.retrieve(state, userInput);
-    if (cards.length > 0) knowledgeBlock = `\n\n${buildKnowledgeContext(cards)}`;
+    try {
+      const cards = await deps.retrieve(state, userInput);
+      if (cards.length > 0) knowledgeBlock = `\n\n${buildKnowledgeContext(cards)}`;
+    } catch {
+      // 检索是 best-effort：失败则本轮不注入知识、照常投喂（spec §9）
+    }
   }
 
   const messages: ChatMessage[] = [
