@@ -12,6 +12,9 @@ dist/
 # resolver build artifact (regenerated via `pnpm build:catalog`)
 packages/resolver/catalog-index.json
 
+# knowledge build artifact (regenerated via `pnpm build:knowledge`)
+packages/knowledge/knowledge-index.json
+
 # session data
 data/
 # curated knowledge source data (read by build script, must be tracked)

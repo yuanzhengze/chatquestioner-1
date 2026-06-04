@@ -14,7 +14,8 @@
     "dev:web": "pnpm --filter @cq/web dev",
     "build:catalog": "tsx packages/resolver/scripts/build-catalog.ts",
     "build:schema": "tsx packages/dsl/scripts/build-schema.ts",
-    "build:avatar": "tsx packages/avatar/scripts/build-avatar-assets.ts"
+    "build:avatar": "tsx packages/avatar/scripts/build-avatar-assets.ts",
+    "build:knowledge": "tsx packages/knowledge/scripts/build-knowledge.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
