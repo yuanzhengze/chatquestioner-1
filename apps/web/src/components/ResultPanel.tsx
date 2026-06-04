@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTypewriter } from "../hooks/useTypewriter.js";
+import { Markdown } from "./Markdown.js";
 import type { SynthesisPayload } from "../types.js";
 
 interface Props {
@@ -14,7 +15,7 @@ export function GddPanel({ synthesis }: { synthesis: SynthesisPayload }) {
   return (
     <div className="result-panel" onClick={() => !tw.done && tw.skip()}>
       <div className="result-head gdd">📄 GDD · 游戏设计文档</div>
-      <pre className="result-body">{tw.shown}{!tw.done && <i className="tw-caret" />}</pre>
+      <div className="result-body"><Markdown content={tw.shown} final={tw.done} /></div>
     </div>
   );
 }
