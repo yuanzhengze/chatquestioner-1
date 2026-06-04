@@ -5,12 +5,15 @@ import { mergeStateDelta } from "./merge.js";
 import { nextStage } from "./stages.js";
 import { toGameDsl } from "./compile.js";
 import type { ConversationState } from "./state.js";
+import { buildKnowledgeContext, type Retriever } from "./retrieval.js";
 
 export interface AdvanceDeps {
   llm: LlmClient;
   systemPrompt: string;
   /** 流式回调：仅转发 sentinel 之前的人话分片。 */
   onToken?: (token: string) => void;
+  /** 可选：每轮检索设计知识注入提示词。缺省则行为与现状一致。 */
+  retrieve?: Retriever;
 }
 
 export interface AdvanceResult {
@@ -61,8 +64,14 @@ export async function advance(
   const state: ConversationState = structuredClone(prev);
   state.history.push({ role: "user", content: userInput });
 
+  let knowledgeBlock = "";
+  if (deps.retrieve) {
+    const cards = await deps.retrieve(state, userInput);
+    if (cards.length > 0) knowledgeBlock = `\n\n${buildKnowledgeContext(cards)}`;
+  }
+
   const messages: ChatMessage[] = [
-    { role: "system", content: `${deps.systemPrompt}\n\n${TURN_DIRECTIVE}` },
+    { role: "system", content: `${deps.systemPrompt}\n\n${TURN_DIRECTIVE}${knowledgeBlock}` },
     ...state.history,
   ];
 
