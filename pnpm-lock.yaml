@@ -42,6 +42,9 @@ importers:
       '@cq/gdd':
         specifier: workspace:*
         version: link:../../packages/gdd
+      '@cq/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       '@cq/resolver':
         specifier: workspace:*
         version: link:../../packages/resolver
