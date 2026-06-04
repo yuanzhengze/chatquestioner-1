@@ -23,6 +23,7 @@ export const STAGE_CARD_TYPES: Record<number, CardType[]> = {
 };
 
 export function cosine(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
@@ -33,6 +34,8 @@ export function cosine(a: number[], b: number[]): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
+// 仅按 stage→type 预筛；tag 不参与预筛，只在 createRetriever 的排序里作软加权
+// （spec §6 把 tag 描述为软过滤，实现中改为软排序加权，避免误把候选过早裁掉）。
 export function prefilter(cards: KnowledgeCard[], state: RetrievalState): KnowledgeCard[] {
   const types = STAGE_CARD_TYPES[state.stage] ?? [];
   if (types.length === 0) return [];
@@ -51,6 +54,8 @@ function tagOverlap(card: KnowledgeCard, state: RetrievalState): number {
   return n;
 }
 
+// 只纳入 coreEmotion/genre/mechanics：有意聚焦最强语义信号，
+// 刻意排除 modalities/artStyle 以免稀释 query 的主题相关性。
 export function buildQuery(state: RetrievalState, userInput: string): string {
   return [userInput, state.coreEmotion, state.engineering.genre, ...state.engineering.mechanics]
     .filter((s): s is string => Boolean(s))

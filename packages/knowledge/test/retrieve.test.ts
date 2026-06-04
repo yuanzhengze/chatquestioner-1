@@ -25,6 +25,10 @@ describe("cosine", () => {
     expect(cosine([1, 0], [1, 0])).toBeCloseTo(1);
     expect(cosine([1, 0], [0, 1])).toBeCloseTo(0);
   });
+
+  it("returns 0 (not NaN) when dimensions differ", () => {
+    expect(cosine([1, 0], [1, 0, 0])).toBe(0);
+  });
 });
 
 describe("prefilter", () => {
@@ -61,6 +65,19 @@ describe("createRetriever", () => {
     const index: KnowledgeIndex = { generatedAt: "t", model: "m", dim: 2, cards: [card({ id: "x", type: "reference-game", embedding: [1, 0] })] };
     const retrieve = createRetriever({ index, embedQuery: async () => [1, 0] });
     expect(await retrieve({ ...state2, stage: 0 }, "hi")).toEqual([]);
+  });
+
+  it("breaks cosine ties via tag overlap (coreEmotion match wins)", async () => {
+    const index: KnowledgeIndex = {
+      generatedAt: "t", model: "m", dim: 2,
+      cards: [
+        card({ id: "plain", type: "reference-game", embedding: [1, 0] }),
+        card({ id: "tagged", type: "reference-game", embedding: [1, 0], tags: { emotion: ["治愈"] } }),
+      ],
+    };
+    const retrieve = createRetriever({ index, embedQuery: async () => [1, 0], topK: 1 });
+    const out = await retrieve(state2, "治愈");
+    expect(out).toEqual([{ title: "tagged", body: "body-tagged" }]);
   });
 });
 
