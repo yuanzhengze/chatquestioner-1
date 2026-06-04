@@ -14,6 +14,9 @@ packages/resolver/catalog-index.json
 
 # session data
 data/
+# curated knowledge source data (read by build script, must be tracked)
+!packages/knowledge/data/
+!packages/knowledge/data/**
 *.local
 
 # os / editor

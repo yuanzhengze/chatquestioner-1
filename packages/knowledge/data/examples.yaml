@@ -1,0 +1,18 @@
+- id: ref-stardew-valley
+  type: reference-game
+  title: 星露谷物语
+  body: 治愈系农场经营，核心爽点是缓慢积累与完全自由的节奏，失败惩罚极轻。
+  tags:
+    genre: [farming-sim]
+    mechanics: [collect, upgrade]
+    modalities: [audio]
+    emotion: [治愈, 解压]
+    artStyle: [pixel-cozy]
+  stageAffinity: [1, 2]
+- id: emo-cozy-low-pressure
+  type: emotion-anchor
+  title: 低压治愈
+  body: 用柔和音乐、无倒计时、可随时存档营造“被治愈”的安全感，避免任何突发惊吓。
+  tags:
+    emotion: [治愈, 解压]
+  stageAffinity: [2]
