@@ -6,3 +6,4 @@ export * from "./turn.js";
 export * from "./advance.js";
 export * from "./compile.js";
 export * from "./prompt.js";
+export * from "./retrieval.js";
