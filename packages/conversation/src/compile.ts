@@ -17,14 +17,16 @@ import type { GddModel } from "@cq/gdd";
 import type { ConversationState } from "./state.js";
 
 /** 单值枚举校验：能解析则返回归一值，否则 undefined（不让坏值传染整份 DSL）。 */
-function coerceEnum<T extends z.ZodTypeAny>(value: string | undefined, schema: T): z.infer<T> | undefined {
-  if (value === undefined) return undefined;
+function coerceEnum<T extends z.ZodTypeAny>(value: string | null | undefined, schema: T): z.infer<T> | undefined {
+  if (value === undefined || value === null) return undefined;
   const r = schema.safeParse(value);
   return r.success ? (r.data as z.infer<T>) : undefined;
 }
 
 /** 数组枚举过滤：只保留合法成员，丢弃 LLM 偶发的非法枚举（如把 "2d" 误塞进 modalities）。 */
-function keepValid<T extends z.ZodTypeAny>(values: string[], schema: T): z.infer<T>[] {
+function keepValid<T extends z.ZodTypeAny>(values: string[] | null | undefined, schema: T): z.infer<T>[] {
+  // 防御：调用方理应传数组（类型已保证），但非数组/缺失一律按空集处理，绝不在迭代处抛错。
+  if (!Array.isArray(values)) return [];
   const out: z.infer<T>[] = [];
   for (const v of values) {
     const r = schema.safeParse(v);
@@ -54,6 +56,12 @@ export function toGddModel(state: ConversationState): GddModel {
 
 export interface CompileDslResult {
   dsl: GameDSL | null;
+  /**
+   * 阻断 DSL 生成的原因。两类语义：
+   * - 硬约束缺失：裸字段名，如 "dimension" / "engine" / "platform"；
+   * - schema 校验失败：带 "schema:" 前缀 + 路径，如 "schema:constraints.engine"。
+   * 仅用于判空（length===0）与诊断回传，消费方不应解析其格式。
+   */
   missing: string[];
 }
 
