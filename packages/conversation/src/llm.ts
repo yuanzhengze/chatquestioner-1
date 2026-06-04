@@ -31,7 +31,11 @@ ${STATE_SENTINEL}
 {
   "state_delta": { /* 本轮新识别或更新的字段（camelCase），只填你有把握的，没把握的不要编 */ },
   "stage_complete": false,        // 本阶段关键信息是否已聊清
-  "ready_for_synthesis": false    // 是否可进入收敛（关键工程信号都已明确）
+  "ready_for_synthesis": false,   // 是否可进入收敛（关键工程信号都已明确）
+  "options": [                    // 可选：本轮给用户的两个方向，省略则本轮无选项
+    { "id": "A", "label": "≤8字短标题", "detail": "一句话方向描述" },
+    { "id": "B", "label": "≤8字短标题", "detail": "一句话方向描述" }
+  ]
 }
 
 state_delta 允许的键（全部可选）：
@@ -50,4 +54,6 @@ state_delta 允许的键（全部可选）：
 规则：
 - 只有当 dimension、engine、platform 三者都已明确，才允许把 ready_for_synthesis 设为 true。
 - 信息不全时把 stage_complete / ready_for_synthesis 设为 false，本轮按协议回环补问，绝不编造工程信号。
+- options 要么恰好 2 项（id 固定 "A"/"B"，各含非空 label 与 detail），要么整体省略（破冰或纯开放问题时省略）。
+- 当本轮给了 options 时，面向用户的人话回复里【不要】再展开两个方向的描述，只保留共情承接与那一个收敛提问；方向描述只放进 options 的 detail。
 `.trim();
