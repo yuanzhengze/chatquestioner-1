@@ -1,0 +1,12 @@
+{
+  "name": "@cq/knowledge",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@cq/resolver": "workspace:*",
+    "@huggingface/transformers": "^3.0.0",
+    "yaml": "^2.5.0",
+    "zod": "^3.23.0"
+  }
+}
