@@ -10,6 +10,7 @@
   "dependencies": {
     "@cq/conversation": "workspace:*",
     "@cq/dsl": "workspace:*",
+    "@cq/knowledge": "workspace:*",
     "@cq/gdd": "workspace:*",
     "@cq/resolver": "workspace:*",
     "fastify": "^5.0.0",

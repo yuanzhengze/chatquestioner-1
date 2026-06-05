@@ -17,4 +17,10 @@ describe("loadConfig", () => {
     const cfg = loadConfig({ LLM_BASE_URL: "https://x/v1", LLM_API_KEY: "k", PORT: "9000" });
     expect(cfg.PORT).toBe(9000);
   });
+
+  it("defaults KB_TOP_K to 3 and leaves KB_EMBEDDING_MODEL optional", () => {
+    const cfg = loadConfig({ LLM_BASE_URL: "https://x/v1", LLM_API_KEY: "k" });
+    expect(cfg.KB_TOP_K).toBe(3);
+    expect(cfg.KB_EMBEDDING_MODEL).toBeUndefined();
+  });
 });

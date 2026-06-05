@@ -10,7 +10,10 @@
       "@cq/gdd": ["packages/gdd/src/index.ts"],
       "@cq/resolver": ["packages/resolver/src/index.ts"],
       "@cq/conversation": ["packages/conversation/src/index.ts"],
-      "@cq/avatar": ["packages/avatar/src/index.ts"]
+      "@cq/avatar": ["packages/avatar/src/index.ts"],
+      "@cq/modules": ["packages/modules/src/index.ts"],
+      "@cq/module-index": ["packages/module-index/src/index.ts"],
+      "@cq/orchestrator": ["packages/orchestrator/src/index.ts"]
     }
   },
   "include": [
@@ -22,6 +25,9 @@
     "packages/conversation/src",
     "packages/avatar/src",
     "packages/avatar/scripts",
+    "packages/modules/src",
+    "packages/module-index/src",
+    "packages/orchestrator/src",
     "apps/server/src"
   ]
 }

@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { resolve } from "node:path";
 import {
   advance, createInitialState, toGddModel, toGameDsl, OPENING_MESSAGE, STAGE_LABELS,
-  type ConversationState, type LlmClient,
+  type ConversationState, type LlmClient, type Retriever,
 } from "@cq/conversation";
 import { renderGdd } from "@cq/gdd";
 import {
@@ -18,6 +18,8 @@ export interface ServerDeps {
   store: SessionStore;
   catalog: CatalogIndex;
   systemPrompt: string;
+  /** 可选：对话期知识检索器（缺省则不注入知识）。 */
+  retrieve?: Retriever;
   profile?: string;
   /** 导出 bundle 落盘根目录，默认 ./data/exports */
   exportDir?: string;
@@ -80,6 +82,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
         const res = await advance(state, message, {
           llm: deps.llm,
           systemPrompt: deps.systemPrompt,
+          retrieve: deps.retrieve,
           onToken: (text) => sendEvent(reply, SSE_EVENTS.token, { text }),
         });
         await deps.store.save(req.params.id, res.state);
@@ -91,6 +94,8 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           label: STAGE_LABELS[res.state.stage] ?? String(res.state.stage),
           readyForSynthesis: res.readyForSynthesis,
         });
+
+        if (res.options?.length) sendEvent(reply, SSE_EVENTS.options, { options: res.options });
 
         // 工程信号齐备（DSL 可编译）即发预览，不再等 LLM 显式置 ready_for_synthesis：
         // 后者是 LLM 对“对话已收敛”的主观判断，常漏置，会让预览空着；而 export 端点本就

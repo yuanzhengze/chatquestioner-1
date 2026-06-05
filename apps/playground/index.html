@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DSL 编排引擎 · Playground</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "PingFang SC", sans-serif;
+        background: #0f1115;
+        color: #e6e8ec;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 24px;
+      }
+      h1 { font-size: 18px; font-weight: 600; margin: 0; }
+      .sub { font-size: 12px; color: #8b94a3; margin: -8px 0 0; }
+      .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      select, button {
+        background: #1b1f27; color: #e6e8ec; border: 1px solid #2a2f3a;
+        border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+      }
+      button:hover { border-color: #4b5566; }
+      .hud { display: flex; gap: 20px; font-size: 14px; }
+      .hud b { color: #fff; }
+      #stage { position: relative; }
+      #status { font-size: 14px; min-height: 18px; color: #8b94a3; }
+      .won { color: #22c55e !important; }
+      .lost { color: #ef4444 !important; }
+    </style>
+  </head>
+  <body>
+    <h1>DSL 编排引擎 · Playground</h1>
+    <p class="sub">同一引擎，换一份 GameDef 就换一个玩法。点选两个相邻格交换。</p>
+    <div class="bar">
+      <select id="game">
+        <option value="candy-collect">candy-collect（收集红色 ×20 / 25 步）</option>
+        <option value="bejeweled">bejeweled（无尽计分）</option>
+      </select>
+      <button id="reset">新开一局</button>
+    </div>
+    <div class="hud">
+      <span>分数 <b id="score">0</b></span>
+      <span>步数 <b id="moves">–</b></span>
+      <span id="goal">目标 –</span>
+    </div>
+    <div id="stage"><canvas id="board"></canvas></div>
+    <div id="status"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

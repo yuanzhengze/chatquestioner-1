@@ -65,4 +65,19 @@ describe("advance", () => {
     });
     expect(tokens.join("")).toBe(res.reply);
   });
+
+  it("把解析出的 options 放进结果", async () => {
+    const llm = scriptedLlm([
+      turn("你更喜欢哪个？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "a", detail: "da" },
+          { id: "B", label: "b", detail: "db" },
+        ],
+      }),
+    ]);
+    const res = await advance(createInitialState(), "嗨", { llm, systemPrompt: SYS });
+    expect(res.options).toHaveLength(2);
+    expect(res.options?.[0].id).toBe("A");
+  });
 });

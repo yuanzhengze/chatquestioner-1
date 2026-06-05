@@ -1,5 +1,5 @@
 import type { GameDSL, ResolutionResult } from "@cq/dsl";
-import type { ConversationState } from "@cq/conversation";
+import type { ConversationState, TurnOption } from "@cq/conversation";
 
 /** SSE 事件名（与 web 端约定一致）。 */
 export const SSE_EVENTS = {
@@ -7,6 +7,7 @@ export const SSE_EVENTS = {
   warning: "warning",
   state: "state",
   stage: "stage",
+  options: "options",
   synthesis: "synthesis",
   error: "error",
   done: "done",
@@ -16,6 +17,7 @@ export interface TokenEvent { text: string }
 export interface WarningEvent { messages: string[] }
 export type StateEvent = ConversationState;
 export interface StageEvent { stage: number; label: string; readyForSynthesis: boolean }
+export interface OptionsEvent { options: TurnOption[] }
 export interface SynthesisEvent { gddMarkdown: string; dsl: GameDSL; resolution: ResolutionResult }
 export interface ErrorEvent { message: string }
 export interface DoneEvent { readyForSynthesis: boolean }

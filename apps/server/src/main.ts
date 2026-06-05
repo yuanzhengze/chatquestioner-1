@@ -7,6 +7,7 @@ import { loadConfig } from "./config.js";
 import { OpenAiLlmClient } from "./llm/openaiClient.js";
 import { FileSessionStore } from "./sessionStore.js";
 import { buildServer } from "./server.js";
+import { loadRetriever } from "./knowledgeRetriever.js";
 
 const here = dirname(fileURLToPath(import.meta.url)); // apps/server/src
 const repoRoot = resolve(here, "../../.."); // chat-questioner/
@@ -22,8 +23,14 @@ async function start(): Promise<void> {
   const llm = new OpenAiLlmClient({ baseURL: cfg.LLM_BASE_URL, apiKey: cfg.LLM_API_KEY, model: cfg.LLM_MODEL });
   const store = new FileSessionStore(resolve(repoRoot, "data"));
 
+  const retrieve = await loadRetriever({
+    indexPath: resolve(repoRoot, "packages/knowledge/knowledge-index.json"),
+    embeddingModel: cfg.KB_EMBEDDING_MODEL,
+    topK: cfg.KB_TOP_K,
+  });
+
   const app = buildServer({
-    llm, store, catalog, systemPrompt, profile: "workbench",
+    llm, store, catalog, systemPrompt, profile: "workbench", retrieve,
     exportDir: resolve(repoRoot, "data", "exports"),
   });
   await app.listen({ port: cfg.PORT, host: "127.0.0.1" });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type AvatarView, bindingFor, assetUrls } from "@cq/avatar";
 
 interface Props {
@@ -26,6 +26,15 @@ export function Avatar({ view, onEmoteEnded, size = 360 }: Props) {
   const baseline = bindingFor(view.baseline);
   const emote = view.emote ? bindingFor(view.emote) : null;
   const box = { width: size, height: size };
+  const baseRef = useRef<HTMLVideoElement | null>(null);
+
+  // 一次只播一个动画：emote 在播时暂停并隐藏 baseline，播完再恢复，杜绝两层叠加。
+  useEffect(() => {
+    const v = baseRef.current;
+    if (!v) return;
+    if (emote) v.pause();
+    else void v.play().catch(() => {});
+  }, [emote, view.baseline]);
 
   if (reduced) {
     // 降级：只显示当前状态首帧 poster，不播动画。
@@ -41,6 +50,7 @@ export function Avatar({ view, onEmoteEnded, size = 360 }: Props) {
   return (
     <div className="avatar" style={box}>
       <video
+        ref={baseRef}
         key={baseline.primitive}
         className="avatar-layer"
         autoPlay
@@ -48,6 +58,7 @@ export function Avatar({ view, onEmoteEnded, size = 360 }: Props) {
         muted
         playsInline
         poster={baseUrls.poster}
+        style={emote ? { visibility: "hidden" } : undefined}
       >
         <source src={baseUrls.webm} type="video/webm" />
         <source src={baseUrls.hevc} type="video/mp4; codecs=hvc1" />

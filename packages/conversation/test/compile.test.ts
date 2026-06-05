@@ -97,4 +97,16 @@ describe("toGameDsl", () => {
     expect(missing).toEqual([]);
     expect(dsl!.constraints.platform).toEqual(["mobile"]);
   });
+
+  it("枚举数组字段被置 undefined/非数组：keepValid 不迭代 undefined，按缺失处理而非抛错", () => {
+    const s = readyState();
+    // 违反类型契约的脏输入（理论上不会发生，但工具函数必须防御，不能在迭代处崩）
+    s.engineering.platform = undefined as never;
+    s.engineering.modalities = "image" as never;
+    expect(() => toGameDsl(s)).not.toThrow();
+    const { dsl, missing } = toGameDsl(s);
+    // platform 解析为空集 → 计入硬约束缺失
+    expect(dsl).toBeNull();
+    expect(missing).toContain("platform");
+  });
 });

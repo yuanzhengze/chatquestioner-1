@@ -40,3 +40,30 @@ describe("parseTurnOutput", () => {
     expect(r.warnings.length).toBeGreaterThan(0);
   });
 });
+
+describe("parseTurnOutput · options", () => {
+  it("解析合法的两项 options", () => {
+    const raw =
+      `共情承接，你更喜欢哪个？\n${STATE_SENTINEL}\n` +
+      `{ "state_delta": {}, "stage_complete": false, "options": [` +
+      `{"id":"A","label":"信号找同伴","detail":"你是一束信号，找回失联的同伴。"},` +
+      `{"id":"B","label":"回声拼真相","detail":"你是最后清醒的人，拼出真相。"}` +
+      `] }`;
+    const r = parseTurnOutput(raw);
+    expect(r.options).toHaveLength(2);
+    expect(r.options?.[0]).toEqual({ id: "A", label: "信号找同伴", detail: "你是一束信号，找回失联的同伴。" });
+    expect(r.options?.[1].id).toBe("B");
+  });
+
+  it("无 options 字段时为 undefined", () => {
+    const raw = `回复\n${STATE_SENTINEL}\n{ "state_delta": {}, "stage_complete": false }`;
+    expect(parseTurnOutput(raw).options).toBeUndefined();
+  });
+
+  it("非法 options（数量不为 2 / 缺字段）被忽略为 undefined", () => {
+    const one = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A","label":"x","detail":"y"}] }`;
+    expect(parseTurnOutput(one).options).toBeUndefined();
+    const bad = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A","label":"x"},{"id":"B","label":"y","detail":"z"}] }`;
+    expect(parseTurnOutput(bad).options).toBeUndefined();
+  });
+});

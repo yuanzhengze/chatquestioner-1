@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createSession, getSession, sendMessage, exportBundle } from "../api.js";
-import type { ChatMessage, RecognizedState, StageInfo, SynthesisPayload } from "../types.js";
+import type { ChatMessage, RecognizedState, StageInfo, SynthesisPayload, TurnOption } from "../types.js";
 
 export interface UseSession {
   messages: ChatMessage[];
@@ -11,7 +11,10 @@ export interface UseSession {
   error: string | null;
   /** 解析告警计数（缺哨兵/STATE 块不可解析）；每次告警 +1，供形象触发 parse-warning。 */
   warnTick: number;
+  /** 当前轮 NewBee 给出的 A/B 选项；无选项时为 null。 */
+  options: TurnOption[] | null;
   send: (text: string) => Promise<void>;
+  chooseOption: (opt: TurnOption) => Promise<void>;
   doExport: () => Promise<void>;
 }
 
@@ -29,6 +32,7 @@ export function useSession(): UseSession {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnTick, setWarnTick] = useState(0);
+  const [options, setOptions] = useState<TurnOption[] | null>(null);
   const streamingRef = useRef<string>("");
   const sendAbortRef = useRef<AbortController | null>(null);
 
@@ -57,6 +61,7 @@ export function useSession(): UseSession {
     if (!id || busy) return;
     setBusy(true);
     setError(null);
+    setOptions(null);
     setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     streamingRef.current = "";
 
@@ -74,6 +79,7 @@ export function useSession(): UseSession {
       },
       onState: (s) => setState(s),
       onStage: (info) => setStage(info),
+      onOptions: (opts) => setOptions(opts),
       onSynthesis: (p) => setSynthesis(p),
       onWarning: () => setWarnTick((t) => t + 1),
       onError: (msg) => setError(msg),
@@ -85,6 +91,11 @@ export function useSession(): UseSession {
       setBusy(false);
     });
   }, [id, busy]);
+
+  const chooseOption = useCallback(async (opt: TurnOption) => {
+    setOptions(null);
+    await send(opt.detail);
+  }, [send]);
 
   const doExport = useCallback(async () => {
     if (!id) return;
@@ -99,5 +110,5 @@ export function useSession(): UseSession {
   // 刷新页面后可按需补拉快照（保留 hook，UI 暂不触发）
   void getSession;
 
-  return { messages, state, stage, synthesis, busy, error, warnTick, send, doExport };
+  return { messages, state, stage, synthesis, busy, error, warnTick, options, send, chooseOption, doExport };
 }
