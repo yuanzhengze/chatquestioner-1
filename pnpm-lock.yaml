@@ -31,6 +31,22 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.19)
 
+  apps/playground:
+    dependencies:
+      '@cq/module-index':
+        specifier: workspace:*
+        version: link:../../packages/module-index
+      '@cq/modules':
+        specifier: workspace:*
+        version: link:../../packages/modules
+      '@cq/orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/orchestrator
+    devDependencies:
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21(@types/node@22.19.19)
+
   apps/server:
     dependencies:
       '@cq/conversation':
@@ -123,6 +139,36 @@ importers:
       yaml:
         specifier: ^2.5.0
         version: 2.9.0
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+
+  packages/module-index:
+    dependencies:
+      '@cq/modules':
+        specifier: workspace:*
+        version: link:../modules
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+      zod-to-json-schema:
+        specifier: ^3.25.2
+        version: 3.25.2(zod@3.25.76)
+
+  packages/modules:
+    dependencies:
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+
+  packages/orchestrator:
+    dependencies:
+      '@cq/module-index':
+        specifier: workspace:*
+        version: link:../module-index
+      '@cq/modules':
+        specifier: workspace:*
+        version: link:../modules
       zod:
         specifier: ^3.23.0
         version: 3.25.76

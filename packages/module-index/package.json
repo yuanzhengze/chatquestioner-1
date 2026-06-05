@@ -1,0 +1,7 @@
+{
+  "name": "@cq/module-index",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@cq/modules": "workspace:*", "zod": "^3.23.0", "zod-to-json-schema": "^3.25.2" }
+}
