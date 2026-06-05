@@ -10,6 +10,7 @@
   "dependencies": {
     "@cq/conversation": "workspace:*",
     "@cq/dsl": "workspace:*",
+    "@cq/orchestrator": "workspace:*",
     "@cq/knowledge": "workspace:*",
     "@cq/gdd": "workspace:*",
     "@cq/resolver": "workspace:*",

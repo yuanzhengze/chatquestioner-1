@@ -9,5 +9,8 @@ export default defineConfig({
       "@cq/orchestrator": fileURLToPath(new URL("../../packages/orchestrator/src/index.ts", import.meta.url)),
     },
   },
-  server: { port: 5174 },
+  server: {
+    port: 5174,
+    proxy: { "/api": "http://localhost:8420" },
+  },
 });

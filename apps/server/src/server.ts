@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   advance, createInitialState, toGddModel, toGameDsl, OPENING_MESSAGE, STAGE_LABELS,
@@ -9,7 +10,9 @@ import {
   resolve as resolveCatalog, writeBundle,
   type CatalogIndex, type GameDSL, type ResolutionResult,
 } from "@cq/resolver";
+import { supportedMatch3Genre, type SynthesizeResult } from "@cq/orchestrator";
 import type { SessionStore } from "./sessionStore.js";
+import { produceGameDef } from "./gameDefFill.js";
 import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
 
@@ -43,6 +46,9 @@ function buildSynthesis(
   const resolution = resolveCatalog(dsl, catalog, { profile });
   return { gddMarkdown, dsl, resolution };
 }
+
+/** 合法 session id：仅字母数字、下划线、连字符（randomUUID 输出可通过）。防路径穿越。 */
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 
 export function buildServer(deps: ServerDeps): FastifyInstance {
   const app = Fastify({ logger: false });
@@ -116,6 +122,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   );
 
   app.post<{ Params: { id: string } }>("/api/session/:id/export", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
     const state: ConversationState | null = await deps.store.load(req.params.id);
     if (!state) return reply.code(404).send({ error: "session not found" });
 
@@ -127,7 +134,29 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
     const dir = resolve(exportRoot, req.params.id);
     writeBundle(dir, synthesis); // writeBundle 内部已 mkdir -p，无需额外建目录
-    return { dir, ...synthesis };
+
+    // —— S1：对话产物 → 编排 GameDef ——
+    // LLM 运行时/网络异常也降级为诊断，保证 export 始终返回 200（与设计一致）。
+    let s1: SynthesizeResult;
+    try {
+      s1 = supportedMatch3Genre(state)
+        ? await produceGameDef(deps.llm, state)
+        : { def: null, diagnostics: [{ kind: "unsupported-genre" as const, genre: state.engineering.genre ?? null }] };
+    } catch (err) {
+      s1 = { def: null, diagnostics: [{ kind: "fill-parse-error" as const, raw: err instanceof Error ? err.message : String(err) }] };
+    }
+    if (s1.def) {
+      writeFileSync(resolve(dir, "gamedef.json"), JSON.stringify(s1.def, null, 2) + "\n");
+    }
+
+    return { dir, ...synthesis, gamedef: s1.def, diagnostics: s1.diagnostics };
+  });
+
+  app.get<{ Params: { id: string } }>("/api/session/:id/gamedef", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
+    const file = resolve(exportRoot, req.params.id, "gamedef.json");
+    if (!existsSync(file)) return reply.code(404).send({ error: "gamedef not found; export first" });
+    return reply.type("application/json").send(readFileSync(file, "utf8"));
   });
 
   return app;

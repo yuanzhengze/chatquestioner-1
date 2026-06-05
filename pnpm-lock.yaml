@@ -61,6 +61,9 @@ importers:
       '@cq/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@cq/orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/orchestrator
       '@cq/resolver':
         specifier: workspace:*
         version: link:../../packages/resolver
@@ -163,6 +166,12 @@ importers:
 
   packages/orchestrator:
     dependencies:
+      '@cq/conversation':
+        specifier: workspace:*
+        version: link:../conversation
+      '@cq/dsl':
+        specifier: workspace:*
+        version: link:../dsl
       '@cq/module-index':
         specifier: workspace:*
         version: link:../module-index
