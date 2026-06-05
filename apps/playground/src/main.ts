@@ -1,5 +1,6 @@
 import { createGame, bejeweled, candyCollect, validate, type GameDef } from "@cq/orchestrator";
 import type { MatchEngine, Pos } from "@cq/modules";
+import { fetchSessionGameDef } from "./loadSession.js";
 
 const TILE_COLORS: Record<string, string> = {
   white: "#e8eaed",
@@ -115,6 +116,12 @@ function onClick(ev: MouseEvent) {
 }
 
 function start() {
+  if (loadedDef) {
+    engine = createGame({ ...loadedDef, seed: (Math.random() * 1e9) | 0 });
+    selected = null;
+    render();
+    return;
+  }
   const def = DEFS[$game.value];
   const errs = validate(def);
   if (errs.length) {
@@ -126,7 +133,30 @@ function start() {
   render();
 }
 
+const $session = document.getElementById("session") as HTMLInputElement;
+const $load = document.getElementById("load") as HTMLButtonElement;
+
+let loadedDef: GameDef | null = null;
+
+async function loadFromSession() {
+  const id = $session.value.trim();
+  if (!id) return;
+  $status.textContent = "加载中…";
+  const r = await fetchSessionGameDef(id);
+  if (!r.def) {
+    $status.textContent = "加载失败：" + r.error;
+    return;
+  }
+  loadedDef = r.def;
+  engine = createGame({ ...loadedDef, seed: (Math.random() * 1e9) | 0 });
+  selected = null;
+  render();
+}
+
+$load.addEventListener("click", loadFromSession);
+
 canvas.addEventListener("click", onClick);
 $reset.addEventListener("click", start);
+$game.addEventListener("change", () => { loadedDef = null; });
 $game.addEventListener("change", start);
 start();
