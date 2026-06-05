@@ -3,5 +3,11 @@
   "version": "0.0.0",
   "type": "module",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cq/modules": "workspace:*", "@cq/module-index": "workspace:*", "zod": "^3.23.0" }
+  "dependencies": {
+    "@cq/modules": "workspace:*",
+    "@cq/module-index": "workspace:*",
+    "@cq/conversation": "workspace:*",
+    "@cq/dsl": "workspace:*",
+    "zod": "^3.23.0"
+  }
 }
