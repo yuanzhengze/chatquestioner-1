@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   advance, createInitialState, toGddModel, toGameDsl, OPENING_MESSAGE, STAGE_LABELS,
@@ -9,7 +10,9 @@ import {
   resolve as resolveCatalog, writeBundle,
   type CatalogIndex, type GameDSL, type ResolutionResult,
 } from "@cq/resolver";
+import { supportedMatch3Genre } from "@cq/orchestrator";
 import type { SessionStore } from "./sessionStore.js";
+import { produceGameDef } from "./gameDefFill.js";
 import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
 
@@ -127,7 +130,22 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
     const dir = resolve(exportRoot, req.params.id);
     writeBundle(dir, synthesis); // writeBundle 内部已 mkdir -p，无需额外建目录
-    return { dir, ...synthesis };
+
+    // —— S1：对话产物 → 编排 GameDef ——
+    const s1 = supportedMatch3Genre(state)
+      ? await produceGameDef(deps.llm, state)
+      : { def: null, diagnostics: [{ kind: "unsupported-genre" as const, genre: state.engineering.genre ?? null }] };
+    if (s1.def) {
+      writeFileSync(resolve(dir, "gamedef.json"), JSON.stringify(s1.def, null, 2) + "\n");
+    }
+
+    return { dir, ...synthesis, gamedef: s1.def, diagnostics: s1.diagnostics };
+  });
+
+  app.get<{ Params: { id: string } }>("/api/session/:id/gamedef", async (req, reply) => {
+    const file = resolve(exportRoot, req.params.id, "gamedef.json");
+    if (!existsSync(file)) return reply.code(404).send({ error: "gamedef not found; export first" });
+    return reply.type("application/json").send(readFileSync(file, "utf8"));
   });
 
   return app;
