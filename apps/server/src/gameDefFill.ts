@@ -55,8 +55,7 @@ export async function produceGameDef(llm: LlmClient, state: ConversationState): 
 
   let lastRaw = "";
   let lastIssues: string[] = [];
-  let sawParseError = false;
-  let sawInvalid = false;
+  let lastFailure: "parse" | "invalid" | null = null;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const messages: ChatMessage[] =
@@ -70,13 +69,13 @@ export async function produceGameDef(llm: LlmClient, state: ConversationState): 
     try {
       parsed = JSON.parse(extractJson(lastRaw));
     } catch {
-      sawParseError = true;
+      lastFailure = "parse";
       continue;
     }
 
     const r = FillSchema.safeParse(parsed);
     if (!r.success) {
-      sawInvalid = true;
+      lastFailure = "invalid";
       lastIssues = r.error.issues.map((i) => `${i.path.join(".") || "root"}: ${i.message}`);
       continue;
     }
@@ -84,7 +83,7 @@ export async function produceGameDef(llm: LlmClient, state: ConversationState): 
     return synthesize(state, r.data);
   }
 
-  if (sawInvalid && !sawParseError) {
+  if (lastFailure === "invalid") {
     return { def: null, diagnostics: [{ kind: "fill-invalid", issues: lastIssues }] };
   }
   return { def: null, diagnostics: [{ kind: "fill-parse-error", raw: lastRaw }] };

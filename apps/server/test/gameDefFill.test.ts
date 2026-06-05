@@ -56,4 +56,11 @@ describe("produceGameDef", () => {
     expect(r.def).toBeNull();
     expect(r.diagnostics[0].kind).toBe("fill-invalid");
   });
+
+  it("混合态：首轮坏 JSON、次轮能 parse 但 schema 非法 → fill-invalid（按最后一轮归类）", async () => {
+    const bad = JSON.stringify({ tiles: [], size: [8, 8], goal: { kind: "score", target: 1000 } });
+    const r = await produceGameDef(scripted(["这不是JSON", bad]), match3State());
+    expect(r.def).toBeNull();
+    expect(r.diagnostics[0].kind).toBe("fill-invalid");
+  });
 });
