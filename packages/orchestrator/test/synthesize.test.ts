@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { FillSchema, clampSize, dedupeTiles, buildSkeleton, validate } from "@cq/orchestrator";
+import {
+  FillSchema, clampSize, dedupeTiles, buildSkeleton, validate,
+  synthesize, supportedMatch3Genre,
+} from "@cq/orchestrator";
 import { createInitialState } from "@cq/conversation";
 
 describe("fill · GameDefFill 契约", () => {
@@ -72,5 +75,33 @@ describe("skeleton · 骨架组装", () => {
     });
     expect(def.board.size).toEqual([10, 10]);
     expect(def.board.tiles.length).toBe(7);
+  });
+});
+
+describe("synthesize · 判 genre + 兜底", () => {
+  const mk = (genre?: string) => {
+    const s = createInitialState();
+    s.workingTitle = "测试游戏";
+    if (genre) s.engineering.genre = genre;
+    return s;
+  };
+  const fill = { tiles: ["a", "b", "c"], size: [8, 8] as [number, number], goal: { kind: "score" as const, target: 1000 } };
+
+  it("genre=match-3 → 产出合法 def、零诊断", () => {
+    const r = synthesize(mk("match-3"), fill);
+    expect(r.def).not.toBeNull();
+    expect(r.diagnostics).toEqual([]);
+    expect(validate(r.def!)).toEqual([]);
+  });
+
+  it("genre 缺失/非 match-3 → def=null + unsupported-genre", () => {
+    const r = synthesize(mk("tower-defense"), fill);
+    expect(r.def).toBeNull();
+    expect(r.diagnostics[0]).toEqual({ kind: "unsupported-genre", genre: "tower-defense" });
+    expect(supportedMatch3Genre(mk())).toBe(false);
+  });
+
+  it("supportedMatch3Genre 容错大小写/别名归一", () => {
+    expect(supportedMatch3Genre(mk("Match-3"))).toBe(true);
   });
 });
