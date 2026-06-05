@@ -19,7 +19,12 @@ export function gameDefFromJson(json: unknown): LoadResult {
 
 /** 从 server 拉取某 session 已导出的 gamedef。 */
 export async function fetchSessionGameDef(id: string): Promise<LoadResult> {
-  const res = await fetch(`/api/session/${encodeURIComponent(id)}/gamedef`);
+  let res: Response;
+  try {
+    res = await fetch(`/api/session/${encodeURIComponent(id)}/gamedef`);
+  } catch {
+    return { def: null, error: "无法连接服务端（请确认 server 已启动）" };
+  }
   if (!res.ok) return { def: null, error: `加载失败 (${res.status})，请先在对话端导出` };
   try {
     return gameDefFromJson(await res.json());
