@@ -117,6 +117,24 @@ body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", 
 .cq-md { color: inherit; font-size: inherit; }
 .cq-md :where(p, ul, ol, h1, h2, h3, h4, blockquote, pre):first-child { margin-top: 0; }
 .cq-md :where(p, ul, ol, h1, h2, h3, h4, blockquote, pre):last-child { margin-bottom: 0; }
+/* 重点信息视觉强化：行内加粗高亮 + emoji 引用块卡片 */
+.cq-md strong {
+  color: #7aa6ff;
+  background: rgba(43, 110, 242, 0.16);
+  padding: 0 4px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.cq-md blockquote {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: rgba(43, 110, 242, 0.08);
+  border-left: 3px solid #2b6ef2;
+  border-radius: 8px;
+  color: #e6e8ec;
+}
+.cq-md blockquote p { margin: 0; }
+.cq-md blockquote p + p { margin-top: 6px; }
 
 /* 上下文流气泡（ContextStream 复用） */
 .bubble { max-width: 78%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; line-height: 1.5; }
