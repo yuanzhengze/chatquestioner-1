@@ -24,3 +24,7 @@ export type { ValidationError } from "./validate.js";
 export { neonPulse, neonPulseChart } from "./sample.js";
 export { GAMEPLAY_CAPABILITIES, renderGoalOptionsForPrompt } from "./capabilities.js";
 export type { GameplayCapability, GoalKind } from "./capabilities.js";
+export { generateChart } from "./chartgen.js";
+export type { GenerateChartInput } from "./chartgen.js";
+export { createRhythmGameAsync, defaultHooks } from "./hooks.js";
+export type { ChartHook, HookRegistry, RhythmGameOptions } from "./hooks.js";
