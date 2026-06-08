@@ -22,3 +22,5 @@ export { RHYTHM_MANIFESTS, RHYTHM_MANIFEST_BY_ID } from "./manifests.js";
 export { validate } from "./validate.js";
 export type { ValidationError } from "./validate.js";
 export { neonPulse, neonPulseChart } from "./sample.js";
+export { GAMEPLAY_CAPABILITIES, renderGoalOptionsForPrompt } from "./capabilities.js";
+export type { GameplayCapability, GoalKind } from "./capabilities.js";
