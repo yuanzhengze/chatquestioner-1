@@ -217,7 +217,7 @@ body::before {
 }
 @media (prefers-reduced-motion: reduce) {
   .option-bubble, .result-panel, .option-chosen, .option-dismissed,
-  .app-header, .stage-center, .composer, .avatar-halo::before { animation: none; }
+  .app-header, .stage-center, .composer, .avatar-halo::before, .avatar-emote { animation: none; }
   .tw-caret { display: none; }
 }
 
