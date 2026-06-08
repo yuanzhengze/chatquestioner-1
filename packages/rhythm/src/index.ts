@@ -13,3 +13,5 @@ export type {
   RhythmDef,
 } from "./types.js";
 export { hook, isHook } from "./types.js";
+export { judgeTiming, timingCoef, holdCoef, comboMultAt } from "./judge.js";
+export type { TimingWindow, ComboLadder } from "./judge.js";
