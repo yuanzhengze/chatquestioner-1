@@ -11,3 +11,5 @@ export type { GameDefFill, SynthesizeDiagnostic } from "./synthesize/fill.js";
 export { buildSkeleton } from "./synthesize/skeleton.js";
 export { synthesize, supportedMatch3Genre } from "./synthesize/synthesize.js";
 export type { SynthesizeResult } from "./synthesize/synthesize.js";
+export { GAMEPLAY_CAPABILITIES, renderGoalOptionsForPrompt } from "./capabilities.js";
+export type { GoalKind, GameplayCapability } from "./capabilities.js";
