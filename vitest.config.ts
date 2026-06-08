@@ -8,6 +8,7 @@ export default defineConfig({
       "@cq/modules": fileURLToPath(new URL("./packages/modules/src/index.ts", import.meta.url)),
       "@cq/module-index": fileURLToPath(new URL("./packages/module-index/src/index.ts", import.meta.url)),
       "@cq/orchestrator": fileURLToPath(new URL("./packages/orchestrator/src/index.ts", import.meta.url)),
+      "@cq/rhythm": fileURLToPath(new URL("./packages/rhythm/src/index.ts", import.meta.url)),
     },
   },
   test: {
