@@ -1,4 +1,4 @@
-import { createGame, bejeweled, candyCollect, validate, type GameDef } from "@cq/orchestrator";
+import { createGame, bejeweled, candyCollect, candyCrushJelly, validate, type GameDef } from "@cq/orchestrator";
 import type { MatchEngine, Pos } from "@cq/modules";
 import { fetchSessionGameDef } from "./loadSession.js";
 
@@ -12,7 +12,11 @@ const TILE_COLORS: Record<string, string> = {
   orange: "#f97316",
 };
 
-const DEFS: Record<string, GameDef> = { "candy-collect": candyCollect, bejeweled };
+const DEFS: Record<string, GameDef> = {
+  "candy-collect": candyCollect,
+  bejeweled,
+  "candy-crush-jelly": candyCrushJelly,
+};
 
 const CELL = 56;
 const GAP = 4;
@@ -65,6 +69,16 @@ function render() {
       ctx.fillStyle = tile ? (TILE_COLORS[tile] ?? "#777") : "#222";
       roundRect(x, y, CELL, CELL, 10);
       ctx.fill();
+      // 果冻层：该格仍有层时，叠一层半透明白罩
+      if (s.layers && s.layers[r][c] !== null) {
+        ctx.fillStyle = "rgba(255,255,255,0.32)";
+        roundRect(x, y, CELL, CELL, 10);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.65)";
+        ctx.lineWidth = 2;
+        roundRect(x + 4, y + 4, CELL - 8, CELL - 8, 7);
+        ctx.stroke();
+      }
       if (selected && selected.r === r && selected.c === c) {
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 3;
@@ -91,6 +105,12 @@ function goalText(): string {
       .join("  ");
   }
   if ("score" in goal) return `目标 ${goal.score === "endless" ? "无尽计分" : `${goal.score} 分`}`;
+  if ("clearLayer" in goal && goal.clearLayer) {
+    const s = engine.getState();
+    const total = s.layers ? s.layers.flat().length : 0;
+    const remaining = s.layers ? s.layers.flat().filter((v) => v !== null).length : 0;
+    return `目标 清果冻 ${total - remaining}/${total}`;
+  }
   return "目标 –";
 }
 
