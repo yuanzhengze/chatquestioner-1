@@ -60,4 +60,33 @@ describe("synthesize-golden · 对话 → GameDef → 真能玩", () => {
     expect(["won", "lost"]).toContain(first.status);
     expect(run()).toEqual(first); // 确定性
   });
+
+  it("clearLayer 目标：对话产果冻关 → 清空全盘果冻 → won（去步数上限验证目标贯通）", () => {
+    const r = synthesize(match3State(), {
+      tiles: ["果冻", "草莓", "薄荷"], size: [6, 6],
+      goal: { kind: "clearLayer" },
+    });
+    expect(r.def).not.toBeNull();
+    expect(r.def!.board.layers).toEqual([{ use: "board-layer", layer: "jelly", coverage: "all" }]);
+    // 去掉 move-budget，验证 clearLayer 目标可达（贪心 autoPlay 清完全盘层即胜）。
+    const endless = { ...r.def!, systems: r.def!.systems.filter((s) => s.use !== "move-budget"), seed: 5 };
+    const engine = createGame(endless);
+    autoPlay(engine, 100000);
+    const s = engine.getState();
+    expect(s.status).toBe("won");
+    expect(s.layers!.flat().every((v) => v === null)).toBe(true);
+  });
+
+  it("clearLayer 目标：同种子可复现", () => {
+    const r = synthesize(match3State(), {
+      tiles: ["果冻", "草莓", "薄荷"], size: [6, 6], goal: { kind: "clearLayer" },
+    });
+    const run = () => {
+      const e = createGame({ ...r.def!, systems: r.def!.systems.filter((x) => x.use !== "move-budget"), seed: 5 });
+      autoPlay(e, 100000);
+      const st = e.getState();
+      return { status: st.status, score: st.score };
+    };
+    expect(run()).toEqual(run());
+  });
 });
