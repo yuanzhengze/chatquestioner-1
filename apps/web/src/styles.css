@@ -73,8 +73,17 @@ body::before {
 }
 
 /* ===== 顶部上下文流 ===== */
-.top-stream { border-bottom: 1px solid #232734; max-height: 26vh; overflow: hidden; }
-.context-stream { height: 100%; max-height: 26vh; overflow-y: auto; padding: 14px 24px; display: flex; flex-direction: column; gap: 10px; }
+.top-stream {
+  max-height: 22vh; overflow: hidden;
+  opacity: .82;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 24px);
+}
+.context-stream {
+  height: 100%; max-height: 22vh; overflow-y: auto;
+  padding: var(--sp-3) var(--sp-5);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
 .app-header h1 {
   font-family: var(--font-display);
   font-weight: 700;
@@ -220,10 +229,16 @@ body::before {
 .cq-md blockquote p + p { margin-top: 6px; }
 
 /* 上下文流气泡（ContextStream 复用） */
-.bubble { max-width: 78%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; line-height: 1.5; }
-.bubble.user { align-self: flex-end; background: #2b6ef2; }
-.bubble.assistant { align-self: flex-start; background: #1b1f29; }
-.bubble-role { font-size: 11px; opacity: 0.6; margin-bottom: 4px; }
+.bubble {
+  max-width: 78%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  white-space: pre-wrap; line-height: 1.5;
+  font-size: var(--fs-sm);
+}
+.bubble.user { align-self: flex-end; background: var(--accent-soft); color: var(--ink); }
+.bubble.assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+.bubble-role { font-size: var(--fs-xs); color: var(--ink-soft); margin-bottom: 2px; }
 
 .state-panel, .resolution { padding: 16px 18px; border-bottom: 1px solid #232734; }
 .state-panel h3, .resolution h3 { font-size: 14px; margin: 0 0 10px; }
