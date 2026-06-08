@@ -2,15 +2,13 @@ import type { EngineConfig, GameState, Pos } from "./state.js";
 import { makeRng } from "./rng.js";
 import {
   adjacent,
-  applyGravity,
-  clearTiles,
   findMatches,
   generateBoard,
   hasLegalMove,
-  refill,
   shuffleBoard,
   swap,
 } from "./stages.js";
+import { compilePipeline, type TurnContext } from "./pipeline.js";
 
 export interface SwapResult {
   legal: boolean;
@@ -27,6 +25,7 @@ export class MatchEngine {
   readonly config: EngineConfig;
   private rng: () => number;
   private state: GameState;
+  private pipeline: { runTurn: (ctx: TurnContext) => void };
 
   constructor(config: EngineConfig) {
     this.config = config;
@@ -42,6 +41,12 @@ export class MatchEngine {
       lastCombo: 0,
       collected: {},
     };
+    if (config.layers) {
+      this.state.layers = Array.from({ length: config.height }, () =>
+        Array.from({ length: config.width }, () => 1 as number | null),
+      );
+    }
+    this.pipeline = compilePipeline(config);
     this.ensurePlayable();
   }
 
@@ -50,6 +55,7 @@ export class MatchEngine {
       ...this.state,
       board: this.state.board.map((row) => [...row]),
       collected: { ...this.state.collected },
+      layers: this.state.layers ? this.state.layers.map((row) => [...row]) : undefined,
     };
   }
 
@@ -84,54 +90,26 @@ export class MatchEngine {
     if (s.status !== "playing") return { legal: false, cleared: 0, combo: 0, status: s.status };
     if (!adjacent(a, b)) return { legal: false, cleared: 0, combo: 0, status: s.status };
 
-    swap(s.board, a, b);
-    let matches = findMatches(s.board, this.config.minLine);
-    if (matches.length === 0 && this.config.requireMatch) {
-      swap(s.board, a, b); // 弹回
-      return { legal: false, cleared: 0, combo: 0, status: s.status };
-    }
+    const ctx: TurnContext = {
+      board: s.board,
+      layers: s.layers ?? null,
+      state: s,
+      config: this.config,
+      rng: this.rng,
+      a,
+      b,
+      matches: [],
+      clearedThisStep: 0,
+      combo: 0,
+      legal: false,
+    };
 
-    let combo = 0;
-    let totalCleared = 0;
-    while (matches.length > 0) {
-      combo++;
-      const byColor = clearTiles(s.board, matches);
-      let stepCleared = 0;
-      for (const [color, n] of Object.entries(byColor)) {
-        stepCleared += n;
-        s.collected[color] = (s.collected[color] ?? 0) + n;
-      }
-      totalCleared += stepCleared;
-      const mult = this.config.cascade ? Math.pow(this.config.comboMult, combo - 1) : 1;
-      s.score += Math.round(this.config.scoreBase * stepCleared * mult);
-      applyGravity(s.board);
-      refill(s.board, this.config.tiles, this.rng);
-      matches = this.config.cascade ? findMatches(s.board, this.config.minLine) : [];
-    }
+    const clearedBefore = totalCollected(s.collected);
+    this.pipeline.runTurn(ctx);
+    if (!ctx.legal) return { legal: false, cleared: 0, combo: 0, status: s.status };
 
-    s.lastCombo = combo;
-    if (s.movesLeft !== null) s.movesLeft -= 1;
-
-    this.evaluateOutcome();
-    if (s.status === "playing") this.ensurePlayable();
-
-    return { legal: true, cleared: totalCleared, combo, status: s.status };
-  }
-
-  private evaluateOutcome(): void {
-    const s = this.state;
-    const goal = this.config.goal;
-    let met = false;
-    if (goal.kind === "collect") {
-      met = Object.entries(goal.need).every(([color, n]) => (s.collected[color] ?? 0) >= n);
-    } else if (goal.kind === "score") {
-      met = goal.target !== "endless" && s.score >= goal.target;
-    }
-    if (met) {
-      s.status = "won";
-      return;
-    }
-    if (s.movesLeft !== null && s.movesLeft <= 0) s.status = "lost";
+    const totalCleared = totalCollected(s.collected) - clearedBefore;
+    return { legal: true, cleared: totalCleared, combo: ctx.combo, status: s.status };
   }
 
   /** 无合法步时按 deadlock 策略处理。 */
@@ -144,4 +122,10 @@ export class MatchEngine {
       s.status = s.status === "playing" ? "lost" : s.status;
     }
   }
+}
+
+function totalCollected(collected: Record<string, number>): number {
+  let sum = 0;
+  for (const n of Object.values(collected)) sum += n;
+  return sum;
 }
