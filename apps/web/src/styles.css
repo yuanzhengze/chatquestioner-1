@@ -154,30 +154,32 @@ body::before {
 /* ===== 选项气泡（冒泡浮现 + 打字机 + 选中/淡出） ===== */
 .option-bubble {
   position: relative; text-align: left; cursor: pointer;
-  max-width: 280px; padding: 14px 16px; border-radius: 16px;
-  background: #1b1f29; border: 1px solid #2c3344; color: inherit;
-  box-shadow: 0 10px 28px rgba(0,0,0,.45);
-  display: flex; flex-direction: column; gap: 6px;
-  animation: popRise .8s cubic-bezier(.2,.8,.25,1) both;
+  max-width: 280px; padding: var(--sp-4) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--border); color: var(--ink);
+  box-shadow: var(--shadow-md);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  animation: popRise var(--t-slow) var(--ease-soft) both;
+  transition: border-color var(--t-base), box-shadow var(--t-base), transform var(--t-base);
 }
 .option-bubble:disabled { cursor: default; }
-.option-bubble:hover:not(:disabled) { border-color: #3a4d7a; }
-.option-bubble-left { border-bottom-right-radius: 4px; animation-delay: 0s; }
-.option-bubble-right { border-bottom-left-radius: 4px; animation-delay: .15s; }
-@keyframes popRise { from { opacity: 0; transform: translateY(18px) scale(.6); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.option-bubble:hover:not(:disabled) { border-color: var(--accent); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.option-bubble-left { border-bottom-right-radius: var(--r-sm); animation-delay: 0s; }
+.option-bubble-right { border-bottom-left-radius: var(--r-sm); animation-delay: .12s; }
+@keyframes popRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-.option-tag { font-size: 11px; }
-.option-tag-left { color: #5ac8fa; }
-.option-tag-right { color: #ffb454; }
-.option-detail { font-size: 14px; line-height: 1.55; min-height: 1.55em; }
+.option-tag { font-family: var(--font-display); font-weight: 600; font-size: var(--fs-xs); letter-spacing: .02em; }
+.option-tag-left { color: var(--dir-a); }
+.option-tag-right { color: var(--dir-b); }
+.option-detail { font-size: var(--fs-base); line-height: 1.55; min-height: 1.55em; }
 
-.tw-caret { display: inline-block; width: 7px; height: 1em; margin-left: 2px; background: currentColor; opacity: .7; vertical-align: -2px; animation: caretBlink .8s steps(1) infinite; }
+.tw-caret { display: inline-block; width: 7px; height: 1em; margin-left: 2px; background: var(--accent); opacity: .8; vertical-align: -2px; animation: caretBlink .8s steps(1) infinite; }
 @keyframes caretBlink { 50% { opacity: 0; } }
 
-.option-chosen { animation: chosenPulse .26s ease-out forwards; border-color: #2b6ef2; }
-@keyframes chosenPulse { to { transform: scale(1.06); box-shadow: 0 12px 34px rgba(43,110,242,.5); } }
-.option-dismissed { animation: dismissFade .26s ease-in forwards; }
-@keyframes dismissFade { to { opacity: 0; transform: scale(.92); } }
+.option-chosen { animation: chosenLift var(--t-base) var(--ease-soft) forwards; border-color: var(--accent); box-shadow: var(--shadow-lg), var(--glow-accent); }
+@keyframes chosenLift { to { transform: translateY(-4px); } }
+.option-dismissed { animation: dismissFade var(--t-base) ease-in forwards; }
+@keyframes dismissFade { to { opacity: 0; transform: scale(.96); } }
 
 /* ===== 结束态成果面板 ===== */
 .result-panel { width: 100%; max-width: 360px; max-height: 56vh; background: #11141b; border: 1px solid #2c3344; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; animation: panelIn .6s ease-out both; }
