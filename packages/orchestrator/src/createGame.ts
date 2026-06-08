@@ -24,7 +24,10 @@ function toGoal(def: GameDef): Goal {
   if (g.score !== undefined) {
     return { kind: "score", target: g.score as number | "endless" };
   }
-  // clearLayer / drop 等目标 S0 暂未实现运行时 → 退化为 endless。
+  if (typeof g.clearLayer === "string") {
+    return { kind: "clearLayer" };
+  }
+  // drop 等目标暂未实现运行时 → 退化为 endless。
   return { kind: "score", target: "endless" };
 }
 
@@ -36,6 +39,9 @@ export function toEngineConfig(def: GameDef): EngineConfig {
   const scoreCombo = findUse(def, "score-combo");
   const moveBudget = findUse(def, "move-budget");
   const shuffle = findUse(def, "shuffle-deadlock");
+
+  const boardLayer = def.board.layers?.find((l) => l.use === "board-layer");
+  const clearResolve = findUse(def, "clear-resolve");
 
   return {
     width,
@@ -50,6 +56,13 @@ export function toEngineConfig(def: GameDef): EngineConfig {
     goal: toGoal(def),
     deadlock: shuffle ? ((shuffle.onDeadlock as "shuffle" | "end") ?? "shuffle") : "none",
     seed: def.seed ?? DEFAULT_SEED,
+    layers: boardLayer
+      ? {
+          coverage: typeof boardLayer.coverage === "string" ? boardLayer.coverage : "all",
+          layer: typeof boardLayer.layer === "string" ? boardLayer.layer : "jelly",
+        }
+      : null,
+    clearsLayer: typeof clearResolve?.clearsLayer === "string",
   };
 }
 
