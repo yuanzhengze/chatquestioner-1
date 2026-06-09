@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createGame, bejeweled, candyCollect } from "@cq/orchestrator";
+import { createGame, validate, bejeweled, candyCollect, candyCrushJelly } from "@cq/orchestrator";
 import type { MatchEngine } from "@cq/modules";
 
 /** 自动对局：每回合走第一个合法交换，直到结束或步数耗尽。沿途断言不变量。 */
@@ -54,6 +54,46 @@ describe("golden · headless 跑通", () => {
       autoPlay(e, 200);
       const s = e.getState();
       return { status: s.status, score: s.score };
+    };
+    expect(run()).toEqual(run());
+  });
+});
+
+describe("golden · candyCrushJelly 清果冻关", () => {
+  it("validate 无错误", () => {
+    expect(validate(candyCrushJelly)).toEqual([]);
+  });
+
+  it("果冻层随对局推进而减少（机制接通）", () => {
+    const engine = createGame(candyCrushJelly);
+    const before = engine.getState().layers!.flat().filter((v) => v !== null).length;
+    expect(before).toBe(64);
+    autoPlay(engine, 30);
+    const after = engine.getState().layers!.flat().filter((v) => v !== null).length;
+    expect(after).toBeLessThan(before);
+  });
+
+  it("端到端：小棋盘清空全盘果冻 → won（orchestrator 翻译 + clearLayer 目标贯通）", () => {
+    // 用真实 createGame 路径，但缩到小棋盘 + 去 move-budget，让贪心 autoPlay 能在可控回合内清完层。
+    const small = {
+      ...candyCrushJelly,
+      board: { ...candyCrushJelly.board, size: [4, 4] as [number, number], tiles: ["red", "green", "blue"] },
+      systems: candyCrushJelly.systems.filter((s) => s.use !== "move-budget"),
+      seed: 3,
+    };
+    const engine = createGame(small);
+    autoPlay(engine, 5000);
+    const s = engine.getState();
+    expect(s.status).toBe("won");
+    expect(s.layers!.flat().every((v) => v === null)).toBe(true);
+  });
+
+  it("同种子可复现", () => {
+    const run = () => {
+      const e = createGame(candyCrushJelly);
+      autoPlay(e, 60);
+      const s = e.getState();
+      return { status: s.status, score: s.score, layers: s.layers };
     };
     expect(run()).toEqual(run());
   });

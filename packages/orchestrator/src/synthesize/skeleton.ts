@@ -2,6 +2,8 @@ import type { ConversationState } from "@cq/conversation";
 import type { GameDef, SystemUse } from "../types.js";
 import { clampSize, dedupeTiles, type GameDefFill } from "./fill.js";
 
+const JELLY_DEFAULT_MOVES = 40;
+
 function slug(s: string): string {
   const cleaned = s
     .trim()
@@ -22,9 +24,11 @@ export function buildSkeleton(state: ConversationState, fill: GameDefFill): Game
   const minLine = fill.tuning?.minLine ?? 3;
   const comboMult = fill.tuning?.comboMult ?? 1.5;
 
+  const isJelly = fill.goal.kind === "clearLayer";
+
   const systems: SystemUse[] = [
     { use: "match-detect", line: minLine },
-    { use: "clear-resolve" },
+    isJelly ? { use: "clear-resolve", clearsLayer: "jelly" } : { use: "clear-resolve" },
     { use: "gravity-fall", speed: 800 },
     { use: "refill-spawn", from: "top", weight: "even" },
     { use: "cascade", combo: true },
@@ -42,20 +46,24 @@ export function buildSkeleton(state: ConversationState, fill: GameDefFill): Game
     if (Object.keys(need).length === 0) need[tiles[0]] = 20; // 过滤后空 → 兜底可达
     goal = { use: "goal-tracker", collect: need };
     needsMoves = true;
+  } else if (fill.goal.kind === "clearLayer") {
+    goal = { use: "goal-tracker", clearLayer: "jelly" };
+    needsMoves = true;
   } else {
     goal = { use: "goal-tracker", score: fill.goal.target };
   }
 
   const movesVal = fill.tuning?.moves;
   if (needsMoves) {
-    systems.push({ use: "move-budget", moves: typeof movesVal === "number" ? movesVal : 25 });
+    const fallback = isJelly ? JELLY_DEFAULT_MOVES : 25;
+    systems.push({ use: "move-budget", moves: typeof movesVal === "number" ? movesVal : fallback });
   } else if (typeof movesVal === "number") {
     systems.push({ use: "move-budget", moves: movesVal });
   }
 
   systems.push({ use: "shuffle-deadlock", onDeadlock: "shuffle" });
 
-  return {
+  const def: GameDef = {
     id: slug(state.workingTitle ?? state.theme ?? "untitled-match3"),
     board: { size, tiles },
     input: { use: "input-swap", mode: "adjacent", requireMatch: true },
@@ -63,4 +71,8 @@ export function buildSkeleton(state: ConversationState, fill: GameDefFill): Game
     goal,
     rules: [],
   };
+  if (isJelly) {
+    def.board.layers = [{ use: "board-layer", layer: "jelly", coverage: "all" }];
+  }
+  return def;
 }

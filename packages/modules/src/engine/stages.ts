@@ -50,6 +50,28 @@ export function clearTiles(board: Board, positions: Pos[]): Record<string, numbe
   return byColor;
 }
 
+/**
+ * clear-resolve.clearsLayer：清除被匹配元素的同时，命中格若有覆盖层则减 1（归零置 null）。
+ * 语义见 spec §5.3：匹配命中处糖被消、若有层则同时 -1 层。
+ */
+export function clearTilesWithLayer(
+  board: Board,
+  layers: (number | null)[][],
+  positions: Pos[],
+): Record<string, number> {
+  const byColor: Record<string, number> = {};
+  for (const { r, c } of positions) {
+    const t = board[r][c];
+    if (t !== null) byColor[t] = (byColor[t] ?? 0) + 1;
+    board[r][c] = null;
+    const lv = layers[r][c];
+    if (typeof lv === "number" && lv > 0) {
+      layers[r][c] = lv > 1 ? lv - 1 : null;
+    }
+  }
+  return byColor;
+}
+
 /** gravity-fall：每列非空元素下沉到底，空位升到顶。 */
 export function applyGravity(board: Board): void {
   const h = board.length;
