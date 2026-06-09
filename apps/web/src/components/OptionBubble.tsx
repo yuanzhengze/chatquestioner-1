@@ -11,7 +11,7 @@ interface Props {
   onChoose: (opt: TurnOption) => void;
 }
 
-const LABEL_TAG: Record<string, string> = { A: "方向 A", B: "方向 B" };
+const LABEL_TAG: Record<string, string> = { A: "方向 A", B: "方向 B", C: "方向 C", D: "方向 D" };
 
 /** 形象一侧的可点选项气泡：冒泡浮现，detail 打字机 + markdown。块级内容用 div role=button 承载。 */
 export function OptionBubble({ option, side, phase, disabled, onChoose }: Props) {
@@ -34,7 +34,7 @@ export function OptionBubble({ option, side, phase, disabled, onChoose }: Props)
       onClick={activate}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } }}
     >
-      <span className={`option-tag option-tag-${side}`}>{LABEL_TAG[option.id] ?? option.id} · {option.label}</span>
+      <span className="option-tag">{LABEL_TAG[option.id] ?? option.id} · {option.label}</span>
       <Markdown content={tw.shown} final={tw.done} />
     </div>
   );
