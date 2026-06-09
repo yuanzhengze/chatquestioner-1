@@ -168,8 +168,6 @@ body::before {
 /* ===== 选项气泡（冒泡浮现 + 打字机 + 选中/淡出） ===== */
 .option-bubble {
   position: relative; text-align: left; cursor: pointer;
-.option-bubble {
-  position: relative; text-align: left; cursor: pointer;
   max-width: 280px; padding: var(--sp-4) var(--sp-4);
   border-radius: var(--r-lg);
   background: var(--surface); border: 1px solid var(--border); color: var(--ink);
