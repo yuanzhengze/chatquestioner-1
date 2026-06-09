@@ -55,14 +55,37 @@ describe("parseTurnOutput · options", () => {
     expect(r.options?.[1].id).toBe("B");
   });
 
+  it("解析三项 / 四项 options", () => {
+    const mk = (n: number) => {
+      const ids = ["A", "B", "C", "D"].slice(0, n);
+      const items = ids.map((id) => `{"id":"${id}","label":"标题${id}","detail":"方向${id}"}`).join(",");
+      return `回复\n${STATE_SENTINEL}\n{ "options": [${items}] }`;
+    };
+    const r3 = parseTurnOutput(mk(3));
+    expect(r3.options).toHaveLength(3);
+    expect(r3.options?.[2]).toEqual({ id: "C", label: "标题C", detail: "方向C" });
+    const r4 = parseTurnOutput(mk(4));
+    expect(r4.options).toHaveLength(4);
+    expect(r4.options?.[3].id).toBe("D");
+  });
+
   it("无 options 字段时为 undefined", () => {
     const raw = `回复\n${STATE_SENTINEL}\n{ "state_delta": {}, "stage_complete": false }`;
     expect(parseTurnOutput(raw).options).toBeUndefined();
   });
 
-  it("非法 options（数量不为 2 / 缺字段）被忽略为 undefined", () => {
+  it("数量越界（0 / 1 / 5）被忽略为 undefined", () => {
+    const zero = `回复\n${STATE_SENTINEL}\n{ "options": [] }`;
+    expect(parseTurnOutput(zero).options).toBeUndefined();
     const one = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A","label":"x","detail":"y"}] }`;
     expect(parseTurnOutput(one).options).toBeUndefined();
+    const five = `回复\n${STATE_SENTINEL}\n{ "options": [` +
+      ["A","B","C","D","E"].map((id) => `{"id":"${id}","label":"l${id}","detail":"d${id}"}`).join(",") +
+      `] }`;
+    expect(parseTurnOutput(five).options).toBeUndefined();
+  });
+
+  it("缺字段的项使整组被忽略为 undefined", () => {
     const bad = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A","label":"x"},{"id":"B","label":"y","detail":"z"}] }`;
     expect(parseTurnOutput(bad).options).toBeUndefined();
   });
