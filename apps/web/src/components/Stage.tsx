@@ -40,9 +40,9 @@ export function Stage({ session }: { session: UseSession }) {
   const phaseOf = (id: string): "chosen" | "dismissed" | undefined =>
     pendingId == null ? undefined : id === pendingId ? "chosen" : "dismissed";
 
-  const opts = session.options;
-  const optA = opts?.find((o) => o.id === "A") ?? opts?.[0];
-  const optB = opts?.find((o) => o.id === "B") ?? opts?.[1];
+  const opts = session.options ?? [];
+  const leftOpts = opts.filter((_, i) => i % 2 === 0);
+  const rightOpts = opts.filter((_, i) => i % 2 === 1);
 
   return (
     <div className="app">
@@ -61,9 +61,9 @@ export function Stage({ session }: { session: UseSession }) {
         <div className="stage-side stage-left">
           {ended && session.synthesis
             ? <GddPanel synthesis={session.synthesis} />
-            : optA && (
-              <OptionBubble option={optA} side="left" phase={phaseOf(optA.id)} disabled={session.busy} onChoose={choose} />
-            )}
+            : leftOpts.map((opt) => (
+              <OptionBubble key={opt.id} option={opt} side="left" phase={phaseOf(opt.id)} disabled={session.busy} onChoose={choose} />
+            ))}
         </div>
 
         <div className="stage-center">
@@ -73,9 +73,9 @@ export function Stage({ session }: { session: UseSession }) {
         <div className="stage-side stage-right">
           {ended && session.synthesis
             ? <FinalPanel synthesis={session.synthesis} canExport onExport={session.doExport} />
-            : optB && (
-              <OptionBubble option={optB} side="right" phase={phaseOf(optB.id)} disabled={session.busy} onChoose={choose} />
-            )}
+            : rightOpts.map((opt) => (
+              <OptionBubble key={opt.id} option={opt} side="right" phase={phaseOf(opt.id)} disabled={session.busy} onChoose={choose} />
+            ))}
         </div>
       </main>
 
