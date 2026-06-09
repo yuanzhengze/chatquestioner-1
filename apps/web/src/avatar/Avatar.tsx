@@ -40,30 +40,34 @@ export function Avatar({ view, onEmoteEnded, size = 360 }: Props) {
     // 降级：只显示当前状态首帧 poster，不播动画。
     const top = emote ?? baseline;
     return (
-      <div className="avatar" style={box}>
-        <img className="avatar-layer" src={assetUrls(top.primitive).poster} alt="NewBee" />
+      <div className="avatar-halo">
+        <div className="avatar" style={box}>
+          <img className="avatar-layer" src={assetUrls(top.primitive).poster} alt="NewBee" />
+        </div>
       </div>
     );
   }
 
   const baseUrls = assetUrls(baseline.primitive);
   return (
-    <div className="avatar" style={box}>
-      <video
-        ref={baseRef}
-        key={baseline.primitive}
-        className="avatar-layer"
-        autoPlay
-        loop
-        muted
-        playsInline
-        poster={baseUrls.poster}
-        style={emote ? { visibility: "hidden" } : undefined}
-      >
-        <source src={baseUrls.webm} type="video/webm" />
-        <source src={baseUrls.hevc} type="video/mp4; codecs=hvc1" />
-      </video>
-      {emote && <EmoteLayer key={view.emote!} primitive={emote.primitive} onEnded={onEmoteEnded} />}
+    <div className="avatar-halo">
+      <div className="avatar" style={box}>
+        <video
+          ref={baseRef}
+          key={baseline.primitive}
+          className="avatar-layer"
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster={baseUrls.poster}
+          style={emote ? { visibility: "hidden" } : undefined}
+        >
+          <source src={baseUrls.webm} type="video/webm" />
+          <source src={baseUrls.hevc} type="video/mp4; codecs=hvc1" />
+        </video>
+        {emote && <EmoteLayer key={view.emote!} primitive={emote.primitive} onEnded={onEmoteEnded} />}
+      </div>
     </div>
   );
 }

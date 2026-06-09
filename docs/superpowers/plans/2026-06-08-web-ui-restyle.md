@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-06-08-web-ui-restyle-design.md`
 
-**验证方式说明：** 纯视觉重设无法单元测试。每个任务的验证 = (1) `pnpm --filter @cq/web typecheck` 通过；(2) `pnpm --filter @cq/web dev` 启动后人工视觉自查关键点；(3) 现有测试（typewriter/sse/avatar）保持通过 `pnpm --filter @cq/web test`。每个任务结束 commit。
+**验证方式说明：** 纯视觉重设无法单元测试。每个任务的验证 = (1) `pnpm --filter @cq/web typecheck` 通过；(2) `pnpm --filter @cq/web dev` 启动后人工视觉自查关键点；(3) 现有测试（typewriter/sse/avatar）保持通过 `npx vitest run apps/web`（web 包无独立 test 脚本，测试从仓库根用 vitest 运行）。每个任务结束 commit。
 
 ---
 
@@ -33,7 +33,7 @@
 
 - [ ] **Step 1: 确认依赖已安装、起得来**
 
-Run: `pnpm --filter @cq/web typecheck && pnpm --filter @cq/web test`
+Run: `pnpm --filter @cq/web typecheck && npx vitest run apps/web`
 Expected: typecheck 无错误；现有测试（typewriter/sse/avatar）全部 PASS。
 
 - [ ] **Step 2: 启动 dev 截一张改前基线（人工）**
@@ -128,8 +128,8 @@ dev 中确认页面仍能渲染（此步样式尚未应用 token，视觉变化�
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C chat-questioner add apps/web/index.html apps/web/src/styles.css
-git -C chat-questioner commit -m "feat(web): add design tokens and fonts for UI restyle"
+git add apps/web/index.html apps/web/src/styles.css
+git commit -m "feat(web): add design tokens and fonts for UI restyle"
 ```
 
 ---
@@ -203,8 +203,8 @@ dev 视觉确认：背景变暖白、内容居中（两侧留白）、header 标
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C chat-questioner add apps/web/src/styles.css
-git -C chat-questioner commit -m "feat(web): warm tokenized global shell and centered container"
+git add apps/web/src/styles.css
+git commit -m "feat(web): warm tokenized global shell and centered container"
 ```
 
 ---
@@ -253,8 +253,8 @@ dev 视觉确认：顶部历史区更轻、半透明、顶部有渐隐遮罩、�
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C chat-questioner add apps/web/src/styles.css
-git -C chat-questioner commit -m "feat(web): soften context stream into a light history strip"
+git add apps/web/src/styles.css
+git commit -m "feat(web): soften context stream into a light history strip"
 ```
 
 ---
@@ -356,15 +356,15 @@ git -C chat-questioner commit -m "feat(web): soften context stream into a light 
 
 - [ ] **Step 3: typecheck + 测试 + 视觉自查**
 
-Run: `pnpm --filter @cq/web typecheck && pnpm --filter @cq/web test`
+Run: `pnpm --filter @cq/web typecheck && npx vitest run apps/web`
 Expected: typecheck PASS；avatar 测试仍 PASS（仅外层包了 div，未改资源绑定逻辑）。
 dev 视觉确认：Avatar 周围有柔和暖光晕（轻微呼吸）、脚下有落地投影，居中更有"舞台"感。
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C chat-questioner add apps/web/src/styles.css apps/web/src/avatar/Avatar.tsx
-git -C chat-questioner commit -m "feat(web): warm stage glow and avatar halo/ground shadow"
+git add apps/web/src/styles.css apps/web/src/avatar/Avatar.tsx
+git commit -m "feat(web): warm stage glow and avatar halo/ground shadow"
 ```
 
 ---
@@ -420,8 +420,8 @@ dev 视觉确认：气泡为白底暖描边柔和投影；tag 用青灰/陶土�
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C chat-questioner add apps/web/src/styles.css
-git -C chat-questioner commit -m "feat(web): restyle option bubbles with restrained motion"
+git add apps/web/src/styles.css
+git commit -m "feat(web): restyle option bubbles with restrained motion"
 ```
 
 ---
@@ -500,8 +500,8 @@ dev 视觉确认：输入框为悬浮圆角卡、聚焦有主色辉光、发送�
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C chat-questioner add apps/web/src/styles.css
-git -C chat-questioner commit -m "feat(web): floating composer card and layered result panels"
+git add apps/web/src/styles.css
+git commit -m "feat(web): floating composer card and layered result panels"
 ```
 
 ---
@@ -588,15 +588,15 @@ git -C chat-questioner commit -m "feat(web): floating composer card and layered 
 
 - [ ] **Step 5: typecheck + 全测试 + 完整视觉走查**
 
-Run: `pnpm --filter @cq/web typecheck && pnpm --filter @cq/web test`
+Run: `pnpm --filter @cq/web typecheck && npx vitest run apps/web`
 Expected: 全 PASS。
 dev 完整走查：首屏加载有轻量 staggered 入场；抽屉暖调；markdown 强调用主色高亮；窄屏单列堆叠正常；系统开启"减弱动态效果"后入场/呼吸光全部停止、布局仍正常。
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C chat-questioner add apps/web/src/styles.css
-git -C chat-questioner commit -m "feat(web): drawer/markdown tokens, entrance motion, reduced-motion fallbacks"
+git add apps/web/src/styles.css
+git commit -m "feat(web): drawer/markdown tokens, entrance motion, reduced-motion fallbacks"
 ```
 
 ---
