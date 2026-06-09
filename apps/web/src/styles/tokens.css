@@ -1,0 +1,264 @@
+/* AUTO-GENERATED from Figma Design Tokens */
+/* foundation.tokens.json + Light.tokens.json + Dark.tokens.json */
+
+/* ---- Primitive Colors ---- */
+:root {
+  --figma-primitive-neutral-0: #FFFFFF;
+  --figma-primitive-neutral-50: #F2F2F2;
+  --figma-primitive-neutral-100: #E6E6E6;
+  --figma-primitive-neutral-150: #D9D9D9;
+  --figma-primitive-neutral-200: #CCCCCC;
+  --figma-primitive-neutral-250: #BFBFBF;
+  --figma-primitive-neutral-300: #B3B3B3;
+  --figma-primitive-neutral-350: #A6A6A6;
+  --figma-primitive-neutral-400: #999999;
+  --figma-primitive-neutral-450: #8C8C8C;
+  --figma-primitive-neutral-500: #808080;
+  --figma-primitive-neutral-550: #737373;
+  --figma-primitive-neutral-600: #666666;
+  --figma-primitive-neutral-650: #595959;
+  --figma-primitive-neutral-700: #4D4D4D;
+  --figma-primitive-neutral-750: #404040;
+  --figma-primitive-neutral-800: #333333;
+  --figma-primitive-neutral-850: #242424;
+  --figma-primitive-neutral-900: #191919;
+  --figma-primitive-neutral-950: #0D0D0D;
+  --figma-primitive-neutral-1000: #000000;
+  --figma-primitive-orange-50: #FFF7EE;
+  --figma-primitive-orange-100: #FFEDD8;
+  --figma-primitive-orange-200: #FFD9AD;
+  --figma-primitive-orange-300: #FFC481;
+  --figma-primitive-orange-400: #FFB056;
+  --figma-primitive-orange-500: #FF9C2A;
+  --figma-primitive-orange-600: #CB7C21;
+  --figma-primitive-orange-700: #975C19;
+  --figma-primitive-orange-800: #633C10;
+  --figma-primitive-orange-900: #2E1C08;
+  --figma-primitive-orange-950: #140C03;
+  --figma-primitive-lime-50: #FCFFF0;
+  --figma-primitive-lime-100: #F6FFD8;
+  --figma-primitive-lime-200: #EBFFA8;
+  --figma-primitive-lime-300: #DFFF78;
+  --figma-primitive-lime-400: #D4FF48;
+  --figma-primitive-lime-500: #B1D43C;
+  --figma-primitive-lime-600: #8DAA30;
+  --figma-primitive-lime-700: #6A7F24;
+  --figma-primitive-lime-800: #465418;
+  --figma-primitive-lime-900: #232A0C;
+  --figma-primitive-lime-950: #111406;
+  --figma-primitive-blue-50: #EFF5FE;
+  --figma-primitive-blue-100: #DBE8FD;
+  --figma-primitive-blue-200: #B3CFFC;
+  --figma-primitive-blue-300: #8BB5FA;
+  --figma-primitive-blue-400: #639CF8;
+  --figma-primitive-blue-500: #3B82F6;
+  --figma-primitive-blue-600: #2F67C4;
+  --figma-primitive-blue-700: #234D91;
+  --figma-primitive-blue-800: #17325F;
+  --figma-primitive-blue-900: #0B182D;
+  --figma-primitive-blue-950: #050A14;
+  --figma-primitive-green-50: #EDFAF2;
+  --figma-primitive-green-100: #D7F4E2;
+  --figma-primitive-green-200: #AAE9C1;
+  --figma-primitive-green-300: #7CDDA0;
+  --figma-primitive-green-400: #4FD17F;
+  --figma-primitive-green-500: #22C55E;
+  --figma-primitive-green-600: #1B9D4B;
+  --figma-primitive-green-700: #147438;
+  --figma-primitive-green-800: #0D4C24;
+  --figma-primitive-green-900: #062411;
+  --figma-primitive-green-950: #031008;
+  --figma-primitive-red-50: #FEF0F0;
+  --figma-primitive-red-100: #FCDDDD;
+  --figma-primitive-red-200: #F9B7B7;
+  --figma-primitive-red-300: #F69090;
+  --figma-primitive-red-400: #F26A6A;
+  --figma-primitive-red-500: #EF4444;
+  --figma-primitive-red-600: #BE3636;
+  --figma-primitive-red-700: #8D2828;
+  --figma-primitive-red-800: #5C1A1A;
+  --figma-primitive-red-900: #2C0C0C;
+  --figma-primitive-red-950: #130505;
+  --figma-primitive-yellow-50: #FDF9EB;
+  --figma-primitive-yellow-100: #FBF1D2;
+  --figma-primitive-yellow-200: #F7E29F;
+  --figma-primitive-yellow-300: #F3D26D;
+  --figma-primitive-yellow-400: #EEC33A;
+  --figma-primitive-yellow-500: #EAB308;
+  --figma-primitive-yellow-600: #BA8E06;
+  --figma-primitive-yellow-700: #8A6A05;
+  --figma-primitive-yellow-800: #5A4503;
+  --figma-primitive-yellow-900: #2B2101;
+  --figma-primitive-yellow-950: #130E01;
+  --figma-primitive-purple-50: #F8F1FE;
+  --figma-primitive-purple-100: #EFE0FE;
+  --figma-primitive-purple-200: #DDBDFC;
+  --figma-primitive-purple-300: #CC9BFA;
+  --figma-primitive-purple-400: #BA78F9;
+  --figma-primitive-purple-500: #A855F7;
+  --figma-primitive-purple-600: #8644C5;
+  --figma-primitive-purple-700: #633292;
+  --figma-primitive-purple-800: #412160;
+  --figma-primitive-purple-900: #1F0F2D;
+  --figma-primitive-purple-950: #0D0714;
+}
+
+/* ---- Spacing Scale ---- */
+:root {
+  --figma-space-2: 2px;
+  --figma-space-4: 4px;
+  --figma-space-6: 6px;
+  --figma-space-8: 8px;
+  --figma-space-10: 10px;
+  --figma-space-12: 12px;
+  --figma-space-16: 16px;
+  --figma-space-20: 20px;
+  --figma-space-24: 24px;
+  --figma-space-32: 32px;
+  --figma-space-36: 36px;
+  --figma-space-40: 40px;
+  --figma-space-48: 48px;
+  --figma-space-64: 64px;
+}
+
+/* ---- Radius Scale ---- */
+:root {
+  --figma-radius-0: 0px;
+  --figma-radius-2: 2px;
+  --figma-radius-4: 4px;
+  --figma-radius-6: 6px;
+  --figma-radius-8: 8px;
+  --figma-radius-12: 12px;
+  --figma-radius-16: 16px;
+  --figma-radius-20: 20px;
+  --figma-radius-24: 24px;
+  --figma-radius-36: 36px;
+  --figma-radius-48: 48px;
+  --figma-radius-full: 9999px;
+}
+
+/* ---- Opacity Scale ---- */
+:root {
+  --figma-opacity-0pct: 0%;
+  --figma-opacity-5pct: 5%;
+  --figma-opacity-10pct: 10%;
+  --figma-opacity-20pct: 20%;
+  --figma-opacity-30pct: 30%;
+  --figma-opacity-40pct: 40%;
+  --figma-opacity-50pct: 50%;
+  --figma-opacity-60pct: 60%;
+  --figma-opacity-70pct: 70%;
+  --figma-opacity-80pct: 80%;
+  --figma-opacity-90pct: 90%;
+  --figma-opacity-100pct: 100%;
+}
+
+/* ---- Z-Index Scale ---- */
+:root {
+  --figma-z-base: 0;
+  --figma-z-raised: 1;
+  --figma-z-dropdown: 100;
+  --figma-z-sticky: 200;
+  --figma-z-overlay: 300;
+  --figma-z-modal: 400;
+  --figma-z-toast: 500;
+}
+
+/* ---- Typography ---- */
+:root {
+  --figma-font-family-mono: "JetBrains Mono";
+  --figma-font-family-sansSerif: "Inter";
+  --figma-font-family-decoration: "Bitcount Grid Single";
+  --figma-font-size-10: 10px;
+  --figma-font-size-12: 12px;
+  --figma-font-size-14: 14px;
+  --figma-font-size-16: 16px;
+  --figma-font-size-18: 18px;
+  --figma-font-size-20: 20px;
+  --figma-font-size-24: 24px;
+  --figma-font-size-28: 28px;
+  --figma-font-size-32: 32px;
+  --figma-font-size-40: 40px;
+  --figma-font-size-48: 48px;
+  --figma-font-weight-light: 300;
+  --figma-font-weight-regular: 400;
+  --figma-font-weight-medium: 500;
+  --figma-font-weight-semibold: 600;
+  --figma-font-weight-bold: 700;
+  --figma-letter-spacing-tight: -2px;
+  --figma-letter-spacing-normal: 0px;
+  --figma-letter-spacing-wide: 2px;
+  --figma-letter-spacing-wider: 5px;
+}
+
+/* ---- Semantic Colors: Light ---- */
+:root, [data-theme="light"] {
+  --figma-color-accent-blue: #3B82F6;
+  --figma-color-accent-green: #22C55E;
+  --figma-color-accent-purple: #A855F7;
+  --figma-color-accent-red: #EF4444;
+  --figma-color-accent-yellow: #EAB308;
+  --figma-color-background-base: #191919;
+  --figma-color-background-convert-base: #FFFFFF;
+  --figma-color-background-convert-elevated: #E6E6E6;
+  --figma-color-background-convert-floating: #CCCCCC;
+  --figma-color-background-elevated: #333333;
+  --figma-color-background-floating: #4D4D4D;
+  --figma-color-border-convert-default: #B3B3B3;
+  --figma-color-border-convert-strong: #999999;
+  --figma-color-border-convert-subtle: #D9D9D9;
+  --figma-color-border-default: #595959;
+  --figma-color-border-strong: #999999;
+  --figma-color-border-subtle: #404040;
+  --figma-color-brand-primary: #D4FF48;
+  --figma-color-divider-black: #000000;
+  --figma-color-divider-white: #FFFFFF;
+  --figma-color-skeleton-black: #000000;
+  --figma-color-skeleton-white: #FFFFFF;
+  --figma-color-status-error: #BE3636;
+  --figma-color-status-success: #1B9D4B;
+  --figma-color-status-warning: #BA8E06;
+  --figma-color-text-convert-primary: #FFFFFF;
+  --figma-color-text-convert-secondary: #D9D9D9;
+  --figma-color-text-convert-tertiary: #B3B3B3;
+  --figma-color-text-disabled: #737373;
+  --figma-color-text-primary: #000000;
+  --figma-color-text-secondary: #242424;
+  --figma-color-text-tertiary: #595959;
+}
+
+/* ---- Semantic Colors: Dark ---- */
+[data-theme="dark"], .dark {
+  --figma-color-accent-blue: #3B82F6;
+  --figma-color-accent-green: #22C55E;
+  --figma-color-accent-purple: #A855F7;
+  --figma-color-accent-red: #EF4444;
+  --figma-color-accent-yellow: #EAB308;
+  --figma-color-background-base: #E6E6E6;
+  --figma-color-background-convert-base: #191919;
+  --figma-color-background-convert-elevated: #333333;
+  --figma-color-background-convert-floating: #333333;
+  --figma-color-background-elevated: #CCCCCC;
+  --figma-color-background-floating: #B3B3B3;
+  --figma-color-border-convert-default: #4D4D4D;
+  --figma-color-border-convert-strong: #666666;
+  --figma-color-border-convert-subtle: #242424;
+  --figma-color-border-default: #A6A6A6;
+  --figma-color-border-strong: #666666;
+  --figma-color-border-subtle: #BFBFBF;
+  --figma-color-brand-primary: #D4FF48;
+  --figma-color-divider-black: #FFFFFF;
+  --figma-color-divider-white: #000000;
+  --figma-color-skeleton-black: #FFFFFF;
+  --figma-color-skeleton-white: #000000;
+  --figma-color-status-error: #BE3636;
+  --figma-color-status-success: #1B9D4B;
+  --figma-color-status-warning: #BA8E06;
+  --figma-color-text-convert-primary: #000000;
+  --figma-color-text-convert-secondary: #242424;
+  --figma-color-text-convert-tertiary: #4D4D4D;
+  --figma-color-text-disabled: #8C8C8C;
+  --figma-color-text-primary: #FFFFFF;
+  --figma-color-text-secondary: #D9D9D9;
+  --figma-color-text-tertiary: #A6A6A6;
+}
