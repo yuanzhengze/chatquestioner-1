@@ -86,7 +86,21 @@ function buildOne(master: string, primitive: string, hevc: boolean): { hevc: boo
 
 function main(): void {
   const { only, hevc } = parseArgs(process.argv.slice(2));
-  if (!existsSync(MASTERS)) throw new Error(`母版目录不存在: ${MASTERS}（用 AVATAR_MASTERS 指定）`);
+  if (!existsSync(MASTERS)) {
+    // 母版（~1.2G ProRes 视频）不随仓库分发；转码成品已提交在 apps/web/public/avatar。
+    // 只有「重转码 / 换 IP」才需要母版，普通协作者无需此步即可运行前端。
+    throw new Error(
+      [
+        `母版目录不存在: ${MASTERS}`,
+        ``,
+        `提示：仅在重新转码 / 替换形象 IP 时才需要母版。`,
+        `      状态机形象成品（webm/png/mov）已随仓库提交在 apps/web/public/avatar/，`,
+        `      普通开发与运行无需执行 build:avatar。`,
+        ``,
+        `若确实要重转码：把母版放到上述路径，或用 AVATAR_MASTERS=/abs/path 指定。`,
+      ].join("\n"),
+    );
+  }
   mkdirSync(OUT_DIR, { recursive: true });
 
   const rows = parseMap(readFileSync(MAP_CSV, "utf8")).filter((r) => !only || only.has(r.primitive));
