@@ -1,14 +1,17 @@
 import type { ChatMessage, ConversationState, LlmClient } from "@cq/conversation";
-import { FillSchema, synthesize, type SynthesizeResult } from "@cq/orchestrator";
+import { FillSchema, synthesize, renderGoalOptionsForPrompt, type SynthesizeResult } from "@cq/orchestrator";
 
-const FILL_SYSTEM = `你是游戏编排助手。基于给定的游戏概念，只输出一个 JSON 对象描述一个 match-3（三消）关卡，不要任何解释文字。
+/** goal 可选项由能力清单（capabilities.ts）驱动，避免清单/prompt 漂移（spec D4）。 */
+export const FILL_SYSTEM = `你是游戏编排助手。基于给定的游戏概念，只输出一个 JSON 对象描述一个 match-3（三消）关卡，不要任何解释文字。
 JSON 形如：
 {
   "tiles": ["元素1","元素2","元素3"],   // 3~7 个，取自游戏的美术/主题词
   "size": [8, 8],                        // 棋盘宽高，6~10
-  "goal": { "kind": "collect", "need": { "元素1": 20 } },  // 或 { "kind": "score", "target": 5000 }
+  "goal": <见下>,
   "tuning": { "minLine": 3, "moves": 25, "comboMult": 1.5 }  // 可选
 }
+${renderGoalOptionsForPrompt()}
+请按游戏概念的主题意象，从上面三种玩法里挑最贴切的一种。
 只输出 JSON，不要 markdown 以外的文字。`;
 
 /** 从对话状态拼出给 LLM 的填充提示。 */

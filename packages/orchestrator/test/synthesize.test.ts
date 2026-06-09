@@ -18,7 +18,7 @@ describe("fill · GameDefFill 契约", () => {
 
   it("拒绝非法 goal.kind", () => {
     const r = FillSchema.safeParse({
-      tiles: ["a", "b", "c"], size: [8, 8], goal: { kind: "clearLayer" },
+      tiles: ["a", "b", "c"], size: [8, 8], goal: { kind: "drop" },
     });
     expect(r.success).toBe(false);
   });
@@ -103,5 +103,74 @@ describe("synthesize · 判 genre + 兜底", () => {
 
   it("supportedMatch3Genre 容错大小写/别名归一", () => {
     expect(supportedMatch3Genre(mk("Match-3"))).toBe(true);
+  });
+});
+
+describe("fill · clearLayer 目标", () => {
+  it("接受 { kind: clearLayer }", () => {
+    const r = FillSchema.safeParse({
+      tiles: ["果冻", "草莓", "薄荷"],
+      size: [8, 8],
+      goal: { kind: "clearLayer" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("拒绝未知 goal.kind", () => {
+    const r = FillSchema.safeParse({
+      tiles: ["a", "b", "c"], size: [8, 8], goal: { kind: "drop" },
+    });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe("skeleton · 果冻关分支", () => {
+  const state = () => {
+    const s = createInitialState();
+    s.workingTitle = "果冻清清乐";
+    s.engineering.genre = "match-3";
+    return s;
+  };
+
+  it("clearLayer：产 board-layer + clearsLayer + clearLayer goal + move-budget(默认40)", () => {
+    const def = buildSkeleton(state(), {
+      tiles: ["果冻", "草莓", "薄荷"], size: [8, 8], goal: { kind: "clearLayer" },
+    });
+    expect(def.board.layers).toEqual([{ use: "board-layer", layer: "jelly", coverage: "all" }]);
+    const clear = def.systems.find((s) => s.use === "clear-resolve");
+    expect(clear).toEqual({ use: "clear-resolve", clearsLayer: "jelly" });
+    expect(def.goal).toEqual({ use: "goal-tracker", clearLayer: "jelly" });
+    const move = def.systems.find((s) => s.use === "move-budget");
+    expect(move).toEqual({ use: "move-budget", moves: 40 });
+  });
+
+  it("clearLayer：tuning.moves 透传覆盖默认", () => {
+    const def = buildSkeleton(state(), {
+      tiles: ["a", "b", "c"], size: [8, 8], goal: { kind: "clearLayer" }, tuning: { moves: 28 },
+    });
+    expect(def.systems.find((s) => s.use === "move-budget")).toEqual({ use: "move-budget", moves: 28 });
+  });
+
+  it("clearLayer 骨架对 validate 零错误", () => {
+    const def = buildSkeleton(state(), {
+      tiles: ["a", "b", "c"], size: [8, 8], goal: { kind: "clearLayer" },
+    });
+    expect(validate(def)).toEqual([]);
+  });
+
+  it("回归：collect 仍不产 layers、clear-resolve 无参", () => {
+    const def = buildSkeleton(state(), {
+      tiles: ["a", "b", "c"], size: [8, 8], goal: { kind: "collect", need: { a: 10 } },
+    });
+    expect(def.board.layers).toBeUndefined();
+    expect(def.systems.find((s) => s.use === "clear-resolve")).toEqual({ use: "clear-resolve" });
+  });
+
+  it("回归：score 仍不产 layers", () => {
+    const def = buildSkeleton(state(), {
+      tiles: ["a", "b", "c"], size: [8, 8], goal: { kind: "score", target: 1000 },
+    });
+    expect(def.board.layers).toBeUndefined();
+    expect(def.goal).toEqual({ use: "goal-tracker", score: 1000 });
   });
 });

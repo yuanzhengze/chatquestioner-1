@@ -37,4 +37,10 @@ describe("renderGdd", () => {
       expect(md).toContain(label);
     }
   });
+
+  it("does not render the 参考作品 section", () => {
+    const md = renderGdd(model);
+    expect(md).not.toContain("参考作品");
+    expect(md).not.toContain("Onet");
+  });
 });

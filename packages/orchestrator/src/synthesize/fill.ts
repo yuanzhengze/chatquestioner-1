@@ -1,9 +1,10 @@
 import { z } from "zod";
 
-/** goal 仅允许已实现运行时支持的两类（collect / score）。 */
+/** goal 仅允许已实现运行时支持的三类（collect / score / clearLayer）。 */
 export const GoalFillSchema = z.union([
   z.object({ kind: z.literal("collect"), need: z.record(z.number().int().positive()) }),
   z.object({ kind: z.literal("score"), target: z.number().int().positive() }),
+  z.object({ kind: z.literal("clearLayer") }),
 ]);
 
 /** LLM 唯一产物：窄结构，systems/依赖由骨架定死，不开放给 LLM。 */

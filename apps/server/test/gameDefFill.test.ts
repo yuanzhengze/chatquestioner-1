@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createInitialState, type LlmClient } from "@cq/conversation";
-import { extractJson, produceGameDef } from "../src/gameDefFill.js";
+import { extractJson, produceGameDef, FILL_SYSTEM } from "../src/gameDefFill.js";
 
 function scripted(raws: string[]): LlmClient {
   let i = 0;
@@ -21,6 +21,10 @@ function match3State() {
 
 const goodFill = JSON.stringify({
   tiles: ["猫爪", "毛线", "铃铛"], size: [8, 8], goal: { kind: "score", target: 5000 },
+});
+
+const jellyFill = JSON.stringify({
+  tiles: ["果冻", "草莓", "薄荷"], size: [8, 8], goal: { kind: "clearLayer" },
 });
 
 describe("extractJson", () => {
@@ -62,5 +66,18 @@ describe("produceGameDef", () => {
     const r = await produceGameDef(scripted(["这不是JSON", bad]), match3State());
     expect(r.def).toBeNull();
     expect(r.diagnostics[0].kind).toBe("fill-invalid");
+  });
+
+  it("FILL_SYSTEM 由能力清单驱动，含 clearLayer 选项", () => {
+    expect(FILL_SYSTEM).toContain("clearLayer");
+    expect(FILL_SYSTEM).toContain("collect");
+    expect(FILL_SYSTEM).toContain("score");
+  });
+
+  it("LLM 产 clearLayer fill → 产出带果冻层的 def", async () => {
+    const r = await produceGameDef(scripted([jellyFill]), match3State());
+    expect(r.def).not.toBeNull();
+    expect(r.def!.board.layers).toEqual([{ use: "board-layer", layer: "jelly", coverage: "all" }]);
+    expect(r.def!.goal).toMatchObject({ clearLayer: "jelly" });
   });
 });

@@ -11,7 +11,7 @@ interface Props {
   onChoose: (opt: TurnOption) => void;
 }
 
-const LABEL_TAG: Record<string, string> = { A: "方向 A", B: "方向 B" };
+const LABEL_TAG: Record<string, string> = { A: "方向 A", B: "方向 B", C: "方向 C", D: "方向 D" };
 
 /** 形象一侧的可点选项气泡：冒泡浮现，detail 打字机 + markdown。块级内容用 div role=button 承载。 */
 export function OptionBubble({ option, side, phase, disabled, onChoose }: Props) {

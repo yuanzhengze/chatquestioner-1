@@ -37,21 +37,14 @@ ${pools}
 ## 5. 差异化亮点
 ${m.differentiator}
 
-## 6. 参考作品
-**借鉴**
-${list(m.references.borrow)}
-
-**避免**
-${list(m.references.avoid)}
-
-## 7. MVP 范围
+## 6. MVP 范围
 **本次会做（必须）**
 ${list(m.mvp.must)}
 
 **主动裁剪**
 ${list(m.mvp.cut)}
 
-## 8. 风险提示
+## 7. 风险提示
 ${list(m.risks)}
 
 ## 游戏宪法

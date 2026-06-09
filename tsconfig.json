@@ -13,7 +13,8 @@
       "@cq/avatar": ["packages/avatar/src/index.ts"],
       "@cq/modules": ["packages/modules/src/index.ts"],
       "@cq/module-index": ["packages/module-index/src/index.ts"],
-      "@cq/orchestrator": ["packages/orchestrator/src/index.ts"]
+      "@cq/orchestrator": ["packages/orchestrator/src/index.ts"],
+      "@cq/rhythm": ["packages/rhythm/src/index.ts"]
     }
   },
   "include": [
@@ -28,6 +29,7 @@
     "packages/modules/src",
     "packages/module-index/src",
     "packages/orchestrator/src",
+    "packages/rhythm/src",
     "apps/server/src"
   ]
 }

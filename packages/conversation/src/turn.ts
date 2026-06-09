@@ -46,9 +46,9 @@ function nonEmptyStr(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
-/** 仅接受恰好 2 项、每项含非空 id/label/detail 的数组；否则返回 undefined（静默忽略）。 */
+/** 仅接受 2~4 项、每项含非空 id/label/detail 的数组；否则返回 undefined（静默忽略）。 */
 function parseOptions(raw: unknown): TurnOption[] | undefined {
-  if (!Array.isArray(raw) || raw.length !== 2) return undefined;
+  if (!Array.isArray(raw) || raw.length < 2 || raw.length > 4) return undefined;
   const out: TurnOption[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") return undefined;
