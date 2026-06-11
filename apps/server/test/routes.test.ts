@@ -32,22 +32,30 @@ describe("routes", () => {
     await app.close();
   });
 
-  it("POST /api/session 创建并返回开场白", async () => {
-    const { app } = makeApp();
+  it("POST /api/session 只生成 id+开场白，不落库（空会话不记录）", async () => {
+    const { app, store } = makeApp();
     const r = await app.inject({ method: "POST", url: "/api/session" });
     expect(r.statusCode).toBe(200);
     const body = r.json();
     expect(body.id).toMatch(/[0-9a-f-]{36}/);
     expect(body.opening).toContain("NewBee");
+    // 关键：此刻不应有任何持久化（未发首句）。
+    expect(await store.load(body.id)).toBeNull();
     await app.close();
   });
 
-  it("GET /api/session/:id 取快照；未知 id → 404", async () => {
-    const { app } = makeApp();
+  it("GET /api/session/:id：未发首句 → 404；首句后 lazy 落库 → 200", async () => {
+    const { app, store } = makeApp();
     const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
-    const ok = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
-    expect(ok.statusCode).toBe(200);
-    expect(ok.json().stage).toBe(0);
+    // 尚未发言：未入库 → 404
+    const before = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
+    expect(before.statusCode).toBe(404);
+    // 发首句后应已 lazy 落库
+    await app.inject({ method: "POST", url: `/api/session/${created.id}/message`, payload: { message: "你好" } });
+    expect(await store.load(created.id)).not.toBeNull();
+    const after = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
+    expect(after.statusCode).toBe(200);
+    expect(after.json().stage).toBe(0);
     const miss = await app.inject({ method: "GET", url: "/api/session/nope" });
     expect(miss.statusCode).toBe(404);
     await app.close();
@@ -56,6 +64,8 @@ describe("routes", () => {
   it("POST export：工程信号不全 → 409；齐全 → 200 含 resolution", async () => {
     const { app, store } = makeApp();
     const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    // export 前会话需已存在（lazy 语义下未发言不入库）：先存个空初始状态。
+    await store.save(created.id, createInitialState());
 
     const notReady = await app.inject({ method: "POST", url: `/api/session/${created.id}/export` });
     expect(notReady.statusCode).toBe(409);

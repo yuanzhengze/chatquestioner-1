@@ -9,6 +9,11 @@ export default defineConfig({
       "@cq/module-index": fileURLToPath(new URL("./packages/module-index/src/index.ts", import.meta.url)),
       "@cq/orchestrator": fileURLToPath(new URL("./packages/orchestrator/src/index.ts", import.meta.url)),
       "@cq/rhythm": fileURLToPath(new URL("./packages/rhythm/src/index.ts", import.meta.url)),
+      "@cq/store": fileURLToPath(new URL("./packages/store/src/index.ts", import.meta.url)),
+      "@cq/dsl": fileURLToPath(new URL("./packages/dsl/src/index.ts", import.meta.url)),
+      "@cq/gdd": fileURLToPath(new URL("./packages/gdd/src/index.ts", import.meta.url)),
+      "@cq/conversation": fileURLToPath(new URL("./packages/conversation/src/index.ts", import.meta.url)),
+      "@cq/resolver": fileURLToPath(new URL("./packages/resolver/src/index.ts", import.meta.url)),
     },
   },
   test: {

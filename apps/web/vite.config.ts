@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
+
+const root = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
@@ -9,6 +12,15 @@ export default defineConfig({
     // 不依赖 node_modules 里 workspace 包的 TS 转译（与现有 web 解耦风格一致）。
     alias: {
       "@cq/avatar": fileURLToPath(new URL("../../packages/avatar/src/index.ts", import.meta.url)),
+    },
+  },
+  build: {
+    // 多入口：主站 index.html + 后台 admin.html。
+    rollupOptions: {
+      input: {
+        main: resolve(root, "index.html"),
+        admin: resolve(root, "admin.html"),
+      },
     },
   },
   server: {

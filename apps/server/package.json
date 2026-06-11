@@ -14,6 +14,8 @@
     "@cq/knowledge": "workspace:*",
     "@cq/gdd": "workspace:*",
     "@cq/resolver": "workspace:*",
+    "@cq/store": "workspace:*",
+    "@fastify/static": "^9.1.3",
     "fastify": "^5.0.0",
     "openai": "^4.67.0",
     "dotenv": "^16.4.0",

@@ -14,7 +14,8 @@
       "@cq/modules": ["packages/modules/src/index.ts"],
       "@cq/module-index": ["packages/module-index/src/index.ts"],
       "@cq/orchestrator": ["packages/orchestrator/src/index.ts"],
-      "@cq/rhythm": ["packages/rhythm/src/index.ts"]
+      "@cq/rhythm": ["packages/rhythm/src/index.ts"],
+      "@cq/store": ["packages/store/src/index.ts"]
     }
   },
   "include": [
@@ -30,6 +31,7 @@
     "packages/module-index/src",
     "packages/orchestrator/src",
     "packages/rhythm/src",
+    "packages/store/src",
     "apps/server/src"
   ]
 }

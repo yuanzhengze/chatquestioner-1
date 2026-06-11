@@ -6,6 +6,8 @@ const EnvSchema = z.object({
   LLM_MODEL: z.string().default("gemini-3.1-pro"),
   FORGEAX_ROOT: z.string().default("../forgeax-studio"),
   PORT: z.coerce.number().default(8420),
+  /** Postgres 连接串；配置后会话入库 + 启用产出物/后台 API，否则回退文件存储 */
+  DATABASE_URL: z.string().optional(),
   KB_EMBEDDING_MODEL: z.string().optional(),
   KB_TOP_K: z.coerce.number().default(3),
 });

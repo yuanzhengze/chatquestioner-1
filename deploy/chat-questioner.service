@@ -1,0 +1,22 @@
+[Unit]
+Description=chat-questioner (@cq/server) — NewBee 游戏共创对话服务
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/data/workspace/chat-questioner/apps/server
+EnvironmentFile=/data/workspace/chat-questioner/.env
+Environment=NODE_ENV=production
+Environment=PATH=/opt/node/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/data/workspace/chat-questioner/node_modules/.bin/tsx src/main.ts
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chat-questioner
+# 资源/安全加固（基础项；如需更严可再收紧）
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

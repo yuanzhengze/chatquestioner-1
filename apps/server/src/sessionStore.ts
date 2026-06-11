@@ -5,6 +5,8 @@ import type { ConversationState } from "@cq/conversation";
 
 export interface SessionStore {
   create(state: ConversationState): Promise<string>;
+  /** 按指定 id 创建（id 在 /api/session 端点已生成并返回前端）。用于首句 lazy 落库。 */
+  createWithId(id: string, state: ConversationState): Promise<void>;
   load(id: string): Promise<ConversationState | null>;
   save(id: string, state: ConversationState): Promise<void>;
 }
@@ -26,6 +28,11 @@ export class FileSessionStore implements SessionStore {
     const id = randomUUID();
     await this.save(id, state);
     return id;
+  }
+
+  /** 按指定 id 落盘（首句 lazy 创建用）。 */
+  async createWithId(id: string, state: ConversationState): Promise<void> {
+    await this.save(id, state);
   }
 
   async load(id: string): Promise<ConversationState | null> {
