@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json",
     "dev:server": "pnpm --filter @cq/server dev",
     "dev:web": "pnpm --filter @cq/web dev",
+    "bundle:miniprogram": "pnpm --filter @cq/miniprogram bundle",
     "dev:playground": "pnpm --filter @cq/playground dev",
     "build:catalog": "tsx packages/resolver/scripts/build-catalog.ts",
     "build:schema": "tsx packages/dsl/scripts/build-schema.ts",

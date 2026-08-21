@@ -1,0 +1,24 @@
+page {
+  --bg: #FAF8F4;
+  --bg-warm: #F3EDE3;
+  --surface: #FFFFFF;
+  --border: #ECE6DC;
+  --ink: #3A3530;
+  --ink-soft: #8A8175;
+  --accent: #E8943A;
+  --accent-soft: #FBE7CC;
+  --dir-a: #5B8A8A;
+  --dir-b: #C77B6B;
+  --danger: #C7564B;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-pill: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 30rpx;
+  line-height: 1.55;
+}
+
+.muted { color: var(--ink-soft); }
+.err { color: var(--danger); }

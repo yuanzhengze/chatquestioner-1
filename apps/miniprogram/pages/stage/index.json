@@ -1,0 +1,11 @@
+{
+  "usingComponents": {
+    "nb-avatar": "../../components/avatar/index",
+    "nb-option-card": "../../components/option-card/index",
+    "nb-context-stream": "../../components/context-stream/index",
+    "nb-composer": "../../components/composer/index",
+    "nb-gdd-panel": "../../components/gdd-panel/index"
+  },
+  "disableScroll": true,
+  "navigationBarTitleText": "NewBee · 游戏共创"
+}

@@ -1,0 +1,45 @@
+.card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24rpx 28rpx;
+  border-radius: 20px;
+  background: #FFFFFF;
+  border: 1px solid #ECE6DC;
+  box-shadow: 0 2px 6px rgba(74, 59, 42, 0.06), 0 8px 24px rgba(74, 59, 42, 0.08);
+  animation: popRise 600ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+.card.alt { animation-delay: 80ms; }
+.hover { border-color: #E8943A; }
+.card.chosen {
+  border-color: #E8943A;
+  box-shadow: 0 2px 6px rgba(74, 59, 42, 0.06), 0 8px 24px rgba(74, 59, 42, 0.08), 0 0 0 3px rgba(232, 148, 58, 0.18);
+}
+.card.dismissed { opacity: 0.35; transform: scale(0.98); }
+.tag {
+  font-size: 22rpx;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #5B8A8A;
+  margin-bottom: 8rpx;
+}
+.card.alt .tag { color: #C77B6B; }
+.detail {
+  font-size: 30rpx;
+  line-height: 1.55;
+  color: #3A3530;
+  white-space: pre-wrap;
+}
+.caret {
+  display: inline-block;
+  width: 8rpx;
+  height: 1em;
+  margin-left: 4rpx;
+  background: #E8943A;
+  vertical-align: -2rpx;
+  animation: blink 800ms steps(1) infinite;
+}
+@keyframes popRise {
+  from { opacity: 0; transform: translateY(16rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes blink { 50% { opacity: 0; } }

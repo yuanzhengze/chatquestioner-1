@@ -33,6 +33,8 @@ export interface ServerDeps {
   repo?: Repository;
   /** 可选：前端构建产物目录（apps/web/dist）。配置后托管主站 + /admin。 */
   webDir?: string;
+  /** 形象海报目录。配置后挂 /avatar/*，供小程序远程拉 PNG。 */
+  avatarDir?: string;
 }
 
 interface Synthesis {
@@ -62,7 +64,36 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   const profile = deps.profile ?? "workbench";
   const exportRoot = deps.exportDir ?? resolve(process.cwd(), "data", "exports");
 
+  // 微信小程序 wx.request POST 默认带 application/json 且 body 为空，
+  // Fastify 默认会 400（FST_ERR_CTP_EMPTY_JSON_BODY）。空串按 {} 解析。
+  app.removeContentTypeParser("application/json");
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (_req, body, done) => {
+      const text = typeof body === "string" ? body.trim() : "";
+      if (!text) {
+        done(null, {});
+        return;
+      }
+      try {
+        done(null, JSON.parse(text));
+      } catch (err) {
+        done(err as Error);
+      }
+    },
+  );
+
   app.get("/api/health", async () => ({ ok: true }));
+
+  // 小程序 / 开发期不依赖 web dist：单独挂形象海报。
+  if (deps.avatarDir && existsSync(deps.avatarDir)) {
+    app.register(fastifyStatic, {
+      root: deps.avatarDir,
+      prefix: "/avatar/",
+      decorateReply: false,
+    });
+  }
 
   // 不再立即落库：只生成 id + 开场白返回前端。空会话（用户从未发言）不入库。
   // 真正的持久化推迟到首句 /message（见下方 lazy 创建）。

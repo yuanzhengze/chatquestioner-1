@@ -46,6 +46,7 @@ async function start(): Promise<void> {
     llm, store, catalog, systemPrompt, profile: "workbench", retrieve, repo,
     exportDir: resolve(repoRoot, "data", "exports"),
     webDir: resolve(repoRoot, "apps/web/dist"),
+    avatarDir: resolve(repoRoot, "apps/web/public/avatar"),
   });
   await app.listen({ port: cfg.PORT, host: "0.0.0.0" });
   console.log(`[server] listening on http://localhost:${cfg.PORT} — ${catalog.templates.length} templates`);

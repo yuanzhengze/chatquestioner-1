@@ -1,0 +1,41 @@
+.panel {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border: 1px solid #ECE6DC;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(74, 59, 42, 0.07), 0 18px 48px rgba(74, 59, 42, 0.10);
+  overflow: hidden;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 28rpx;
+  border-bottom: 1px solid #ECE6DC;
+}
+.title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #5B8A8A;
+}
+.copy {
+  font-size: 22rpx;
+  color: #E8943A;
+  padding: 6rpx 16rpx;
+  border: 1px solid #E8943A;
+  border-radius: 999px;
+}
+.body {
+  flex: 1;
+  min-height: 0;
+  padding: 20rpx 28rpx 28rpx;
+  box-sizing: border-box;
+}
+.empty {
+  font-size: 26rpx;
+  color: #8A8175;
+}

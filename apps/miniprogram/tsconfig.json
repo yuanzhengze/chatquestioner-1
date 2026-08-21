@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "strictNullChecks": true,
+    "noImplicitAny": false,
+    "module": "CommonJS",
+    "target": "ES2018",
+    "lib": ["ES2018"],
+    "typeRoots": ["./typings"],
+    "allowJs": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "scripts"]
+}

@@ -1,0 +1,29 @@
+.stream {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 8rpx 32rpx 16rpx;
+}
+.bubble {
+  max-width: 78%;
+  padding: 12rpx 20rpx;
+  border-radius: 14px;
+  margin-bottom: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.bubble.user {
+  margin-left: auto;
+  background: #FBE7CC;
+  color: #3A3530;
+}
+.bubble.assistant {
+  background: #FFFFFF;
+  border: 1px solid #ECE6DC;
+}
+.role {
+  font-size: 20rpx;
+  color: #8A8175;
+  margin-bottom: 4rpx;
+}
+.end { height: 4rpx; }

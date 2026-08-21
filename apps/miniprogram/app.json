@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/stage/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "NewBee · 游戏共创",
+    "navigationBarBackgroundColor": "#FAF8F4",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FAF8F4",
+    "backgroundTextStyle": "dark",
+    "pageOrientation": "portrait"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

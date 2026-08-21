@@ -1,0 +1,8 @@
+<view
+  class="card {{phase}} {{alt}}"
+  hover-class="{{disabled ? '' : 'hover'}}"
+  bindtap="onTap"
+>
+  <view class="tag">{{tag}}</view>
+  <view class="detail">{{shown}}<text wx:if="{{!done}}" class="caret"></text></view>
+</view>

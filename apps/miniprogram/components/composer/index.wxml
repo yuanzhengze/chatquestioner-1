@@ -1,0 +1,18 @@
+<view class="bar" style="padding-bottom: {{padBottom}}px;">
+  <textarea
+    class="input {{focused ? 'on' : ''}}"
+    value="{{value}}"
+    placeholder="说说你的脑洞…"
+    maxlength="2000"
+    auto-height
+    disable-default-padding
+    adjust-position="{{false}}"
+    confirm-type="send"
+    confirm-hold="{{false}}"
+    bindinput="onInput"
+    bindfocus="onFocus"
+    bindblur="onBlur"
+    bindconfirm="onConfirm"
+  />
+  <button class="send" disabled="{{disabled || !value}}" bindtap="onSend">{{busy ? '构思中' : '发送'}}</button>
+</view>

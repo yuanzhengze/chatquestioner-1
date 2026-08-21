@@ -44,6 +44,19 @@ describe("routes", () => {
     await app.close();
   });
 
+  it("POST /api/session 允许 application/json 空 body（微信小程序默认）", async () => {
+    const { app } = makeApp();
+    const r = await app.inject({
+      method: "POST",
+      url: "/api/session",
+      headers: { "content-type": "application/json" },
+      payload: "",
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().id).toMatch(/[0-9a-f-]{36}/);
+    await app.close();
+  });
+
   it("GET /api/session/:id：未发首句 → 404；首句后 lazy 落库 → 200", async () => {
     const { app, store } = makeApp();
     const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
@@ -87,6 +100,21 @@ describe("routes", () => {
     expect(body.dsl.constraints.dimension).toBe("2D");
     expect(body.resolution.template.primary).toBeTruthy();
     expect(body.gddMarkdown).toContain("三消糖果");
+    await app.close();
+  });
+
+  it("GET /avatar/:file 在配置 avatarDir 时返回海报", async () => {
+    const store = new FileSessionStore(dir);
+    const avatarDir = join(process.cwd(), "apps/web/public/avatar");
+    const app = buildServer({
+      llm: fakeLlm([]), store, catalog: fixtureCatalog(),
+      systemPrompt: "SYS", profile: "workbench", exportDir: join(dir, "exports"),
+      avatarDir,
+    });
+    const r = await app.inject({ method: "GET", url: "/avatar/calm.png" });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toMatch(/image\/png/);
+    expect(r.rawPayload.length).toBeGreaterThan(1000);
     await app.close();
   });
 });

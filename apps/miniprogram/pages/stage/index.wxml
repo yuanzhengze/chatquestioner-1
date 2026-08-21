@@ -1,0 +1,40 @@
+<view class="page">
+  <view class="header">
+    <view class="title">NewBee · 游戏共创</view>
+    <view wx:if="{{stageLabel}}" class="stage-label">{{stageLabel}}</view>
+    <view wx:if="{{error}}" class="err">出错：{{error}}</view>
+  </view>
+
+  <view class="stream-wrap {{showGdd ? 'stream-thin' : ''}}">
+    <nb-context-stream messages="{{messages}}" busy="{{busy}}"></nb-context-stream>
+  </view>
+
+  <view class="stage {{showGdd ? 'stage-result' : ''}}">
+    <view class="avatar-row">
+      <nb-avatar src="{{poster}}" compact="{{compact || showGdd}}"></nb-avatar>
+    </view>
+    <view wx:if="{{!showGdd}}" class="options">
+      <nb-option-card
+        wx:for="{{options}}"
+        wx:key="id"
+        option="{{item}}"
+        index="{{index}}"
+        phase="{{pendingId === item.id ? 'chosen' : pendingId ? 'dismissed' : ''}}"
+        disabled="{{busy}}"
+        bind:choose="onChoose"
+      />
+    </view>
+    <nb-gdd-panel wx:if="{{showGdd}}" markdown="{{gddMarkdown}}"></nb-gdd-panel>
+  </view>
+
+  <nb-composer
+    wx:if="{{!done}}"
+    busy="{{busy}}"
+    disabled="{{busy}}"
+    safe-bottom="{{safeBottom}}"
+    keyboard-height="{{keyboardHeight}}"
+    bind:send="onSend"
+    bind:typing="onTyping"
+  />
+  <view wx:else class="done-bar" style="padding-bottom: {{safeBottom + 12}}px;">对话已完成，游戏概念已成型。</view>
+</view>

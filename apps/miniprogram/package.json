@@ -1,0 +1,11 @@
+{
+  "name": "@cq/miniprogram",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "bundle": "node scripts/bundle-shared.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
