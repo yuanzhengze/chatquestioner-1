@@ -1,7 +1,5 @@
 import { eq, desc, sql } from "drizzle-orm";
 import type { ConversationState } from "@cq/conversation";
-import type { GameDSL, ResolutionResult } from "@cq/dsl";
-import type { GameDef } from "@cq/orchestrator";
 import type { Database } from "./db.js";
 import { sessions, artifacts, type SessionRow, type ArtifactRow } from "./schema.js";
 import { buildCardSummary, type CardSummary } from "./cardSummary.js";
@@ -10,9 +8,6 @@ export interface CreateArtifactInput {
   sessionId: string;
   state: ConversationState;
   gddMarkdown: string;
-  dsl: GameDSL;
-  resolution: ResolutionResult;
-  gamedef: GameDef | null;
   exportDir?: string;
 }
 
@@ -111,12 +106,7 @@ export class Repository {
 
   /** 写入一次 export 产物，version 在同一 session 内自增。返回完整行。 */
   async createArtifact(input: CreateArtifactInput): Promise<ArtifactRow> {
-    const card = buildCardSummary({
-      state: input.state,
-      dsl: input.dsl,
-      resolution: input.resolution,
-      gamedef: input.gamedef,
-    });
+    const card = buildCardSummary({ state: input.state });
 
     const [{ next }] = await this.db
       .select({ next: sql<number>`coalesce(max(${artifacts.version}), 0) + 1` })
@@ -130,9 +120,6 @@ export class Repository {
         version: next,
         cardSummary: card,
         gddMarkdown: input.gddMarkdown,
-        dsl: input.dsl,
-        resolution: input.resolution,
-        gamedef: input.gamedef,
         exportDir: input.exportDir ?? null,
       })
       .returning();

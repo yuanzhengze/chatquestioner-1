@@ -66,7 +66,6 @@ function SessionBody({ id }: { id: string }) {
             {data.artifacts.map((a) => (
               <li key={a.id}>
                 <strong>v{a.version}</strong> · {a.card.title}
-                {a.card.hasRunnableDef && <span className="badge ok">可运行</span>}
               </li>
             ))}
           </ul>
@@ -93,22 +92,10 @@ function ArtifactBody({ id }: { id: string }) {
         {c.genre && <span className="badge">{c.genre}</span>}
         {c.dimension && <span className="badge">{c.dimension}</span>}
         {c.engine && <span className="badge">{c.engine}</span>}
-        {c.hasRunnableDef && <span className="badge ok">可运行 GameDef</span>}
       </div>
 
       <h3>GDD</h3>
       <pre className="gdd-pre">{data.gddMarkdown}</pre>
-
-      <h3>DSL</h3>
-      <JsonView data={data.dsl} collapsed />
-      <h3>Resolution</h3>
-      <JsonView data={data.resolution} collapsed />
-      {data.gamedef != null && (
-        <>
-          <h3>GameDef</h3>
-          <JsonView data={data.gamedef} collapsed />
-        </>
-      )}
     </div>
   );
 }

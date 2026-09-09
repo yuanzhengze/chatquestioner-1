@@ -40,42 +40,17 @@ importers:
         specifier: ^0.25.0
         version: 0.25.12
 
-  apps/playground:
-    dependencies:
-      '@cq/module-index':
-        specifier: workspace:*
-        version: link:../../packages/module-index
-      '@cq/modules':
-        specifier: workspace:*
-        version: link:../../packages/modules
-      '@cq/orchestrator':
-        specifier: workspace:*
-        version: link:../../packages/orchestrator
-    devDependencies:
-      vite:
-        specifier: ^5.4.0
-        version: 5.4.21(@types/node@22.19.19)
-
   apps/server:
     dependencies:
       '@cq/conversation':
         specifier: workspace:*
         version: link:../../packages/conversation
-      '@cq/dsl':
-        specifier: workspace:*
-        version: link:../../packages/dsl
       '@cq/gdd':
         specifier: workspace:*
         version: link:../../packages/gdd
       '@cq/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
-      '@cq/orchestrator':
-        specifier: workspace:*
-        version: link:../../packages/orchestrator
-      '@cq/resolver':
-        specifier: workspace:*
-        version: link:../../packages/resolver
       '@cq/store':
         specifier: workspace:*
         version: link:../../packages/store
@@ -127,30 +102,14 @@ importers:
 
   packages/conversation:
     dependencies:
-      '@cq/dsl':
-        specifier: workspace:*
-        version: link:../dsl
       '@cq/gdd':
         specifier: workspace:*
         version: link:../gdd
 
-  packages/dsl:
-    dependencies:
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-
-  packages/gdd:
-    dependencies:
-      '@cq/dsl':
-        specifier: workspace:*
-        version: link:../dsl
+  packages/gdd: {}
 
   packages/knowledge:
     dependencies:
-      '@cq/resolver':
-        specifier: workspace:*
-        version: link:../resolver
       '@huggingface/transformers':
         specifier: ^3.0.0
         version: 3.8.1
@@ -161,71 +120,14 @@ importers:
         specifier: ^3.23.0
         version: 3.25.76
 
-  packages/module-index:
-    dependencies:
-      '@cq/modules':
-        specifier: workspace:*
-        version: link:../modules
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-      zod-to-json-schema:
-        specifier: ^3.25.2
-        version: 3.25.2(zod@3.25.76)
-
-  packages/modules:
-    dependencies:
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-
-  packages/orchestrator:
-    dependencies:
-      '@cq/conversation':
-        specifier: workspace:*
-        version: link:../conversation
-      '@cq/dsl':
-        specifier: workspace:*
-        version: link:../dsl
-      '@cq/module-index':
-        specifier: workspace:*
-        version: link:../module-index
-      '@cq/modules':
-        specifier: workspace:*
-        version: link:../modules
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-
-  packages/resolver:
-    dependencies:
-      '@cq/dsl':
-        specifier: workspace:*
-        version: link:../dsl
-      yaml:
-        specifier: ^2.5.0
-        version: 2.9.0
-
-  packages/rhythm:
-    dependencies:
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-
   packages/store:
     dependencies:
       '@cq/conversation':
         specifier: workspace:*
         version: link:../conversation
-      '@cq/dsl':
-        specifier: workspace:*
-        version: link:../dsl
       '@cq/gdd':
         specifier: workspace:*
         version: link:../gdd
-      '@cq/orchestrator':
-        specifier: workspace:*
-        version: link:../orchestrator
       drizzle-orm:
         specifier: ^0.36.0
         version: 0.36.4(@electric-sql/pglite@0.5.1)(@types/react@18.3.30)(postgres@3.4.9)(react@18.3.1)

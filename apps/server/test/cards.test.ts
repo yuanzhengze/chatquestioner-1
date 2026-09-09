@@ -7,7 +7,6 @@ import { PgSessionStore } from "@cq/store";
 import { createTestRepo } from "../../../packages/store/src/testing.js";
 import { createInitialState } from "@cq/conversation";
 import { fakeLlm } from "./fixtures/fakeLlm.js";
-import { fixtureCatalog } from "./fixtures/catalog.js";
 import type { Repository } from "@cq/store";
 
 let dir: string;
@@ -26,8 +25,8 @@ afterEach(async () => {
 function makeApp() {
   const store = new PgSessionStore(repo);
   return buildServer({
-    llm: fakeLlm([]), store, catalog: fixtureCatalog(),
-    systemPrompt: "SYS", profile: "workbench", exportDir: join(dir, "exports"), repo,
+    llm: fakeLlm([]), store,
+    systemPrompt: "SYS", exportDir: join(dir, "exports"), repo,
   });
 }
 
@@ -35,11 +34,6 @@ function readyState() {
   const s = createInitialState();
   s.workingTitle = "三消糖果";
   s.pitch = "三消糖果消除小游戏";
-  s.engineering = {
-    dimension: "2D", engine: "pixijs", platform: ["mobile"],
-    modalities: ["image"], genre: "match-3", mechanics: ["swap-match"],
-    artStyle: "cartoon", intentTerms: ["消除"], signatureTerms: [],
-  };
   return s;
 }
 
@@ -84,8 +78,8 @@ describe("卡片 / 后台 API", () => {
     // 不带 repo 构建（FileSessionStore 路径外，仅测 API 守卫）
     const { FileSessionStore } = await import("../src/sessionStore.js");
     const app = buildServer({
-      llm: fakeLlm([]), store: new FileSessionStore(dir), catalog: fixtureCatalog(),
-      systemPrompt: "SYS", profile: "workbench", exportDir: join(dir, "exports"),
+      llm: fakeLlm([]), store: new FileSessionStore(dir),
+      systemPrompt: "SYS", exportDir: join(dir, "exports"),
     });
     const r = await app.inject({ method: "GET", url: "/api/artifacts" });
     expect(r.statusCode).toBe(503);

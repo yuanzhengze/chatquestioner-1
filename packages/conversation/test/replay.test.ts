@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createInitialState } from "../src/state.js";
 import { advance } from "../src/advance.js";
-import { toGddModel, toGameDsl } from "../src/compile.js";
+import { toGddModel } from "../src/compile.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 import { scriptedLlm } from "./fixtures/scriptedLlm.js";
 import { renderGdd } from "@cq/gdd";
@@ -50,7 +50,7 @@ const SCRIPT = [
 ];
 
 describe("剧本回放：治愈系猫咪连连看", () => {
-  it("阶段推进到 7、可收敛、GDD 可渲染、DSL 无缺失", async () => {
+  it("阶段推进到 7、可收敛、GDD 可渲染", async () => {
     let state = createInitialState();
     state.stage = 1; // 破冰已过
     const userInputs = ["我想做个治愈的小游戏", "连同色猫", "好", "要爽快的高光", "猫咖夜班", "越来越难", "总结一下吧"];
@@ -67,10 +67,5 @@ describe("剧本回放：治愈系猫咪连连看", () => {
     const md = renderGdd(toGddModel(state));
     expect(md).toContain("深夜猫咖");
     expect(md).toContain("治愈");
-
-    const { dsl, missing } = toGameDsl(state);
-    expect(missing).toEqual([]);
-    expect(dsl!.constraints).toMatchObject({ dimension: "2D", engine: "pixijs" });
-    expect(dsl!.genre).toBe("match-3");
   });
 });

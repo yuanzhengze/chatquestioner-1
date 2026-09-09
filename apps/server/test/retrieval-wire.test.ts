@@ -11,14 +11,12 @@ const fakeLlm: LlmClient = {
     yield `好的${STATE_SENTINEL}\n{"state_delta":{},"stage_complete":false,"ready_for_synthesis":false}`;
   },
 };
-const emptyCatalog = { generatedAt: "t", forgeaxRoot: "/x", templates: [], skills: [], mcp: [] };
-
 describe("server forwards retrieve to advance", () => {
   it("calls the injected retriever during a message turn", async () => {
     let called = false;
     const store = new FileSessionStore(mkdtempSync(resolve(tmpdir(), "cq-")));
     const app = buildServer({
-      llm: fakeLlm, store, catalog: emptyCatalog as any, systemPrompt: "SYS",
+      llm: fakeLlm, store, systemPrompt: "SYS",
       retrieve: async () => { called = true; return []; },
     });
     const created = await app.inject({ method: "POST", url: "/api/session" });

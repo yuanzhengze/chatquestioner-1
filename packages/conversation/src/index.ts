@@ -1,4 +1,5 @@
 export * from "./llm.js";
+export * from "./signals.js";
 export * from "./state.js";
 export * from "./merge.js";
 export * from "./stages.js";

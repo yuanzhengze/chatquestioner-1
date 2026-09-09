@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildCatalog } from "@cq/resolver";
 import { readNewbeeSystemPrompt } from "@cq/conversation";
 import { loadConfig } from "./config.js";
 import { OpenAiLlmClient } from "./llm/openaiClient.js";
@@ -19,7 +18,6 @@ dotenv.config({ path: resolve(repoRoot, ".env") });
 
 async function start(): Promise<void> {
   const cfg = loadConfig();
-  const catalog = buildCatalog(resolve(repoRoot, cfg.FORGEAX_ROOT)); // FORGEAX_ROOT 相对 repo 根
   const systemPrompt = readNewbeeSystemPrompt(resolve(repoRoot, "prompts"));
   const llm = new OpenAiLlmClient({ baseURL: cfg.LLM_BASE_URL, apiKey: cfg.LLM_API_KEY, model: cfg.LLM_MODEL });
 
@@ -43,13 +41,13 @@ async function start(): Promise<void> {
   });
 
   const app = buildServer({
-    llm, store, catalog, systemPrompt, profile: "workbench", retrieve, repo,
+    llm, store, systemPrompt, retrieve, repo,
     exportDir: resolve(repoRoot, "data", "exports"),
     webDir: resolve(repoRoot, "apps/web/dist"),
     avatarDir: resolve(repoRoot, "apps/web/public/avatar"),
   });
   await app.listen({ port: cfg.PORT, host: "0.0.0.0" });
-  console.log(`[server] listening on http://localhost:${cfg.PORT} — ${catalog.templates.length} templates`);
+  console.log(`[server] listening on http://localhost:${cfg.PORT}`);
 }
 
 start().catch((err) => {

@@ -1,5 +1,3 @@
-import type { GameDSL, ResolutionResult } from "@cq/dsl";
-import type { GameDef, SynthesizeDiagnostic } from "@cq/orchestrator";
 import type { ConversationState, TurnOption } from "@cq/conversation";
 
 /** SSE 事件名（与 web 端约定一致）。 */
@@ -19,7 +17,7 @@ export interface WarningEvent { messages: string[] }
 export type StateEvent = ConversationState;
 export interface StageEvent { stage: number; label: string; readyForSynthesis: boolean }
 export interface OptionsEvent { options: TurnOption[] }
-export interface SynthesisEvent { gddMarkdown: string; dsl: GameDSL; resolution: ResolutionResult }
+export interface SynthesisEvent { gddMarkdown: string }
 export interface ErrorEvent { message: string }
 export interface DoneEvent { readyForSynthesis: boolean }
 
@@ -28,9 +26,6 @@ export interface CreateSessionResponse { id: string; opening: string }
 /** POST /api/session/:id/export 返回 */
 export interface ExportResponse {
   dir: string;
+  artifactId?: string;
   gddMarkdown: string;
-  dsl: GameDSL;
-  resolution: ResolutionResult;
-  gamedef: GameDef | null;
-  diagnostics: SynthesizeDiagnostic[];
 }

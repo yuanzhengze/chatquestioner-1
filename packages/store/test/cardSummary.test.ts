@@ -3,15 +3,9 @@ import { createInitialState } from "@cq/conversation";
 import { buildCardSummary } from "../src/cardSummary.js";
 
 describe("buildCardSummary", () => {
-  it("空状态回退占位标题，无可运行 def", () => {
-    const card = buildCardSummary({
-      state: createInitialState(),
-      dsl: null,
-      resolution: null,
-      gamedef: null,
-    });
+  it("空状态回退占位标题", () => {
+    const card = buildCardSummary({ state: createInitialState() });
     expect(card.title).toBe("未命名设计");
-    expect(card.hasRunnableDef).toBe(false);
     expect(card.platforms).toEqual([]);
     expect(card.coreLoop).toEqual([]);
     expect(card.tags).toEqual([]);
@@ -32,7 +26,7 @@ describe("buildCardSummary", () => {
     s.mvpScope.must = ["核心循环", "关卡"];
     s.risks = ["平衡难"];
 
-    const card = buildCardSummary({ state: s, dsl: null, resolution: null, gamedef: null });
+    const card = buildCardSummary({ state: s });
     expect(card.title).toBe("三消糖果");
     expect(card.pitch).toBe("一句话陈述");
     expect(card.coreExperience).toBe("爽快消除");

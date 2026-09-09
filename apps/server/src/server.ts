@@ -1,32 +1,24 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
-  advance, createInitialState, toGddModel, toGameDsl, OPENING_MESSAGE, STAGE_LABELS,
+  advance, createInitialState, toGddModel, OPENING_MESSAGE, STAGE_LABELS,
   type ConversationState, type LlmClient, type Retriever,
 } from "@cq/conversation";
-import { renderGdd } from "@cq/gdd";
-import {
-  resolve as resolveCatalog, writeBundle,
-  type CatalogIndex, type GameDSL, type ResolutionResult,
-} from "@cq/resolver";
-import { supportedMatch3Genre, type SynthesizeResult } from "@cq/orchestrator";
+import { renderGdd, isSubstantive } from "@cq/gdd";
 import type { Repository } from "@cq/store";
 import type { SessionStore } from "./sessionStore.js";
-import { produceGameDef } from "./gameDefFill.js";
 import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
 
 export interface ServerDeps {
   llm: LlmClient;
   store: SessionStore;
-  catalog: CatalogIndex;
   systemPrompt: string;
   /** 可选：对话期知识检索器（缺省则不注入知识）。 */
   retrieve?: Retriever;
-  profile?: string;
   /** 导出 bundle 落盘根目录，默认 ./data/exports */
   exportDir?: string;
   /** 可选：DB 仓库。配置后 export 双写入库 + 启用卡片/后台 API。 */
@@ -39,21 +31,13 @@ export interface ServerDeps {
 
 interface Synthesis {
   gddMarkdown: string;
-  dsl: GameDSL;
-  resolution: ResolutionResult;
 }
 
-/** state → 交接产物（GDD + DSL + 解析）；工程信号不全（dsl 为空）则返回 null。 */
-function buildSynthesis(
-  state: ConversationState,
-  catalog: CatalogIndex,
-  profile: string,
-): Synthesis | null {
-  const { dsl } = toGameDsl(state);
-  if (!dsl) return null;
-  const gddMarkdown = renderGdd(toGddModel(state));
-  const resolution = resolveCatalog(dsl, catalog, { profile });
-  return { gddMarkdown, dsl, resolution };
+/** state → GDD 交接产物；创意维度尚无内容时返回 null（避免弹出空文档）。 */
+function buildSynthesis(state: ConversationState): Synthesis | null {
+  const model = toGddModel(state);
+  if (!isSubstantive(model)) return null;
+  return { gddMarkdown: renderGdd(model) };
 }
 
 /** 合法 session id：仅字母数字、下划线、连字符（randomUUID 输出可通过）。防路径穿越。 */
@@ -61,7 +45,6 @@ const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 
 export function buildServer(deps: ServerDeps): FastifyInstance {
   const app = Fastify({ logger: false });
-  const profile = deps.profile ?? "workbench";
   const exportRoot = deps.exportDir ?? resolve(process.cwd(), "data", "exports");
 
   // 微信小程序 wx.request POST 默认带 application/json 且 body 为空，
@@ -150,10 +133,10 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
         if (res.options?.length) sendEvent(reply, SSE_EVENTS.options, { options: res.options });
 
-        // 工程信号齐备（DSL 可编译）即发预览，不再等 LLM 显式置 ready_for_synthesis：
-        // 后者是 LLM 对“对话已收敛”的主观判断，常漏置，会让预览空着；而 export 端点本就
-        // 只要求 DSL 完整。这里与之对齐——有完整 DSL 就给“精确选择预览”。
-        const synthesis = buildSynthesis(res.state, deps.catalog, profile);
+        // 创意维度一有内容就推 GDD 草稿，随对话逐轮刷新。不等 LLM 置 ready_for_synthesis
+        // （那是主观判断，常漏置），也不再要求工程信号齐备——维度/引擎/平台属于下游
+        // ForgeaX 的职责，不该成为用户看到自己 GDD 的前置条件。
+        const synthesis = buildSynthesis(res.state);
         if (synthesis) sendEvent(reply, SSE_EVENTS.synthesis, synthesis);
         sendEvent(reply, SSE_EVENTS.done, { readyForSynthesis: res.readyForSynthesis });
       } catch (err) {
@@ -173,28 +156,12 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     const state: ConversationState | null = await deps.store.load(req.params.id);
     if (!state) return reply.code(404).send({ error: "session not found" });
 
-    const synthesis = buildSynthesis(state, deps.catalog, profile);
-    if (!synthesis) {
-      const { missing } = toGameDsl(state);
-      return reply.code(409).send({ error: "DSL incomplete", missing });
-    }
+    const synthesis = buildSynthesis(state);
+    if (!synthesis) return reply.code(409).send({ error: "GDD 尚无实质内容，请先完成几轮对话" });
 
     const dir = resolve(exportRoot, req.params.id);
-    writeBundle(dir, synthesis); // writeBundle 内部已 mkdir -p，无需额外建目录
-
-    // —— S1：对话产物 → 编排 GameDef ——
-    // LLM 运行时/网络异常也降级为诊断，保证 export 始终返回 200（与设计一致）。
-    let s1: SynthesizeResult;
-    try {
-      s1 = supportedMatch3Genre(state)
-        ? await produceGameDef(deps.llm, state)
-        : { def: null, diagnostics: [{ kind: "unsupported-genre" as const, genre: state.engineering.genre ?? null }] };
-    } catch (err) {
-      s1 = { def: null, diagnostics: [{ kind: "fill-parse-error" as const, raw: err instanceof Error ? err.message : String(err) }] };
-    }
-    if (s1.def) {
-      writeFileSync(resolve(dir, "gamedef.json"), JSON.stringify(s1.def, null, 2) + "\n");
-    }
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(resolve(dir, "gdd.md"), synthesis.gddMarkdown);
 
     // 双写入库：配置了 repo 时，把本次产物落 artifacts（卡片 + 原文），版本自增。
     // session 可能尚未入库（理论上 export 前已有 /message 落库，但兜底创建一次）。
@@ -206,9 +173,6 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           sessionId: req.params.id,
           state,
           gddMarkdown: synthesis.gddMarkdown,
-          dsl: synthesis.dsl,
-          resolution: synthesis.resolution,
-          gamedef: s1.def,
           exportDir: dir,
         });
         artifactId = row.id;
@@ -218,14 +182,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       }
     }
 
-    return { dir, artifactId, ...synthesis, gamedef: s1.def, diagnostics: s1.diagnostics };
-  });
-
-  app.get<{ Params: { id: string } }>("/api/session/:id/gamedef", async (req, reply) => {
-    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
-    const file = resolve(exportRoot, req.params.id, "gamedef.json");
-    if (!existsSync(file)) return reply.code(404).send({ error: "gamedef not found; export first" });
-    return reply.type("application/json").send(readFileSync(file, "utf8"));
+    return { dir, artifactId, ...synthesis };
   });
 
   // —— 卡片 / 后台 API（仅在配置了 repo 时启用，否则返回 503） ——

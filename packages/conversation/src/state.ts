@@ -1,5 +1,7 @@
 import type { KeywordPools } from "@cq/gdd";
-import type { Constraints, Dimension, Engine, Modality, Platform } from "@cq/dsl";
+import type {
+  Dimension, Engine, Modality, Networking, Orientation, Platform,
+} from "./signals.js";
 import type { ChatMessage } from "./llm.js";
 
 /** 四级核心循环（30s / 5min / 30min / 长线） */
@@ -10,13 +12,13 @@ export interface LoopState {
   longTerm?: string;
 }
 
-/** 供 DSL 翻译的工程信号（F6 末段） */
+/** 对话中顺带捕获的工程线索（F6 末段），随 GDD 交付给 ForgeaX 参考，不做门控 */
 export interface EngineeringSignals {
   dimension?: Dimension;
   engine?: Engine;
   platform: Platform[];
-  orientation?: NonNullable<Constraints["orientation"]>;
-  networking?: Constraints["networking"];
+  orientation?: Orientation;
+  networking?: Networking;
   modalities: Modality[];
   genre?: string;
   mechanics: string[];

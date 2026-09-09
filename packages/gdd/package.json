@@ -2,6 +2,5 @@
   "name": "@cq/gdd",
   "version": "0.0.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cq/dsl": "workspace:*" }
+  "exports": { ".": "./src/index.ts" }
 }

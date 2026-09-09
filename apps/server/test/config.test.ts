@@ -2,10 +2,9 @@ import { describe, it, expect } from "vitest";
 import { loadConfig } from "../src/config.js";
 
 describe("loadConfig", () => {
-  it("解析必需 env，模型/根目录/端口有默认值", () => {
+  it("解析必需 env，模型/端口有默认值", () => {
     const cfg = loadConfig({ LLM_BASE_URL: "https://llm-proxy.forgeax.com/v1", LLM_API_KEY: "sk-x" });
     expect(cfg.LLM_MODEL).toBe("gemini-3.1-pro");
-    expect(cfg.FORGEAX_ROOT).toBe("../forgeax-studio");
     expect(cfg.PORT).toBe(8420);
   });
 

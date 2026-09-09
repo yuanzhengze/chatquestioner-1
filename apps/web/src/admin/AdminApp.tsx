@@ -100,7 +100,6 @@ function ArtifactsGrid({ onOpen }: { onOpen: (id: string) => void }) {
             {a.card.genre && <span className="badge">{a.card.genre}</span>}
             {a.card.dimension && <span className="badge">{a.card.dimension}</span>}
             {a.card.engine && <span className="badge">{a.card.engine}</span>}
-            {a.card.hasRunnableDef && <span className="badge ok">可运行</span>}
           </div>
           {a.card.tags.length > 0 && (
             <div className="tags">

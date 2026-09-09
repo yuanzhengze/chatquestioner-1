@@ -1,5 +1,5 @@
 import { StatePanel } from "./StatePanel.js";
-import { ResolutionPreview } from "./ResolutionPreview.js";
+import { GddDraftPreview } from "./GddDraftPreview.js";
 import type { RecognizedState, StageInfo, SynthesisPayload } from "../types.js";
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   onExport: () => void;
 }
 
-/** 收纳「已识别状态 / GDD / resolution / 导出」的侧抽屉（主形象 emote 已情绪化表达，细节按需翻）。 */
+/** 收纳「已识别状态 / GDD 草稿 / 导出」的侧抽屉（主形象 emote 已情绪化表达，细节按需翻）。 */
 export function DetailsDrawer({ open, onClose, state, stage, synthesis, canExport, onExport }: Props) {
   return (
     <>
@@ -24,7 +24,7 @@ export function DetailsDrawer({ open, onClose, state, stage, synthesis, canExpor
         </div>
         <div className="drawer-body">
           <StatePanel state={state} stage={stage} />
-          <ResolutionPreview synthesis={synthesis} canExport={canExport} onExport={onExport} />
+          <GddDraftPreview synthesis={synthesis} canExport={canExport} onExport={onExport} />
         </div>
       </aside>
     </>

@@ -6,15 +6,14 @@ import { buildServer } from "../src/server.js";
 import { FileSessionStore } from "../src/sessionStore.js";
 import { createInitialState } from "@cq/conversation";
 import { fakeLlm } from "./fixtures/fakeLlm.js";
-import { fixtureCatalog } from "./fixtures/catalog.js";
 
 let dir: string;
 function makeApp() {
   const store = new FileSessionStore(dir);
   return {
     app: buildServer({
-      llm: fakeLlm([]), store, catalog: fixtureCatalog(),
-      systemPrompt: "SYS", profile: "workbench", exportDir: join(dir, "exports"),
+      llm: fakeLlm([]), store,
+      systemPrompt: "SYS", exportDir: join(dir, "exports"),
     }),
     store,
   };
@@ -74,7 +73,7 @@ describe("routes", () => {
     await app.close();
   });
 
-  it("POST export：工程信号不全 → 409；齐全 → 200 含 resolution", async () => {
+  it("POST export：创意维度为空 → 409；有内容 → 200 含 GDD", async () => {
     const { app, store } = makeApp();
     const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
     // export 前会话需已存在（lazy 语义下未发言不入库）：先存个空初始状态。
@@ -83,23 +82,16 @@ describe("routes", () => {
     const notReady = await app.inject({ method: "POST", url: `/api/session/${created.id}/export` });
     expect(notReady.statusCode).toBe(409);
 
+    // 刻意不填 engineering：出稿只看创意内容，不看维度/引擎/平台。
     const s = createInitialState();
     s.workingTitle = "三消糖果";
     s.pitch = "三消糖果消除小游戏";
     s.mvpScope = { must: ["核心循环"], cut: [] };
-    s.engineering = {
-      dimension: "2D", engine: "pixijs", platform: ["mobile"],
-      modalities: ["image"], genre: "match-3", mechanics: ["swap-match"],
-      artStyle: "cartoon", intentTerms: ["消除"], signatureTerms: [],
-    };
     await store.save(created.id, s);
 
     const ok = await app.inject({ method: "POST", url: `/api/session/${created.id}/export` });
     expect(ok.statusCode).toBe(200);
-    const body = ok.json();
-    expect(body.dsl.constraints.dimension).toBe("2D");
-    expect(body.resolution.template.primary).toBeTruthy();
-    expect(body.gddMarkdown).toContain("三消糖果");
+    expect(ok.json().gddMarkdown).toContain("三消糖果");
     await app.close();
   });
 
@@ -107,8 +99,8 @@ describe("routes", () => {
     const store = new FileSessionStore(dir);
     const avatarDir = join(process.cwd(), "apps/web/public/avatar");
     const app = buildServer({
-      llm: fakeLlm([]), store, catalog: fixtureCatalog(),
-      systemPrompt: "SYS", profile: "workbench", exportDir: join(dir, "exports"),
+      llm: fakeLlm([]), store,
+      systemPrompt: "SYS", exportDir: join(dir, "exports"),
       avatarDir,
     });
     const r = await app.inject({ method: "GET", url: "/avatar/calm.png" });

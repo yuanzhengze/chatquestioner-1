@@ -6,7 +6,6 @@ import type { AddressInfo } from "node:net";
 import { buildServer } from "../src/server.js";
 import { FileSessionStore } from "../src/sessionStore.js";
 import { fakeLlm, throwingLlm } from "./fixtures/fakeLlm.js";
-import { fixtureCatalog } from "./fixtures/catalog.js";
 import type { LlmClient } from "@cq/conversation";
 
 const STATE_SENTINEL = "<<<STATE>>>";
@@ -17,7 +16,7 @@ beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "cq-sse-")); });
 afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
 
 async function start(llm: LlmClient) {
-  const app = buildServer({ llm, store: new FileSessionStore(dir), catalog: fixtureCatalog(), systemPrompt: "SYS" });
+  const app = buildServer({ llm, store: new FileSessionStore(dir), systemPrompt: "SYS" });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const port = (app.server.address() as AddressInfo).port;
   return { app, base: `http://127.0.0.1:${port}` };

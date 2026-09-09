@@ -3,7 +3,6 @@ import { TURN_DIRECTIVE } from "./llm.js";
 import { parseTurnOutput, STATE_SENTINEL, type TurnOption } from "./turn.js";
 import { mergeStateDelta } from "./merge.js";
 import { nextStage } from "./stages.js";
-import { toGameDsl } from "./compile.js";
 import type { ConversationState } from "./state.js";
 import { buildKnowledgeContext, type Retriever } from "./retrieval.js";
 
@@ -87,8 +86,7 @@ export async function advance(
   mergeStateDelta(state, parsed.control.stateDelta);
   state.stage = nextStage(state, parsed.control.stageComplete);
 
-  const dslReady = toGameDsl(state).missing.length === 0;
-  const readyForSynthesis = parsed.control.readyForSynthesis && dslReady;
+  const readyForSynthesis = parsed.control.readyForSynthesis;
 
   return { reply: parsed.reply, state, readyForSynthesis, warnings: parsed.warnings, options: parsed.options };
 }

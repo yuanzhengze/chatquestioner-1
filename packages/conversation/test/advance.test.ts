@@ -36,15 +36,15 @@ describe("advance", () => {
     expect(state0.stage).toBe(1);
   });
 
-  it("readyForSynthesis 需 LLM 标志 + DSL 工程信号齐全", async () => {
+  it("readyForSynthesis 只跟随 LLM 标志，不再要求工程信号齐全", async () => {
     const llm = scriptedLlm([
       turn("先收个尾。", {
-        state_delta: { engineering: { dimension: "2D" } },
+        state_delta: {},
         ready_for_synthesis: true,
       }),
     ]);
     const res = await advance(createInitialState(), "差不多了", { llm, systemPrompt: SYS });
-    expect(res.readyForSynthesis).toBe(false);
+    expect(res.readyForSynthesis).toBe(true);
   });
 
   it("无 sentinel：不推进阶段并携带 warning", async () => {

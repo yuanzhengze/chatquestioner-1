@@ -13,8 +13,6 @@ export interface CardSummary {
   tags: string[];
   differentiator: string | null;
   mvpMustCount: number;
-  hasRunnableDef: boolean;
-  primaryTemplate: string | null;
   riskCount: number;
 }
 
@@ -53,9 +51,6 @@ export interface ArtifactDetail {
   version: number;
   cardSummary: CardSummary;
   gddMarkdown: string;
-  dsl: unknown;
-  resolution: unknown;
-  gamedef: unknown | null;
   exportDir: string | null;
   createdAt: string;
 }

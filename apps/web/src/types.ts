@@ -37,16 +37,6 @@ export interface RecognizedState {
 
 export interface StageInfo { stage: number; label: string; readyForSynthesis: boolean }
 
-export interface ResolvedItem { id?: string; server?: string; layer?: string; phase?: string; load?: string; trigger?: string }
-export interface ResolutionView {
-  template: { primary: string; references: string[] };
-  skills: ResolvedItem[];
-  mcp: ResolvedItem[];
-  packages: ResolvedItem[];
-  warnings: string[];
-}
 export interface SynthesisPayload {
   gddMarkdown: string;
-  dsl: unknown;
-  resolution: ResolutionView;
 }

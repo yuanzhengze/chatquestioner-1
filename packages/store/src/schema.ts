@@ -2,8 +2,6 @@ import {
   pgTable, uuid, text, integer, jsonb, timestamp, index,
 } from "drizzle-orm/pg-core";
 import type { ConversationState } from "@cq/conversation";
-import type { GameDSL, ResolutionResult } from "@cq/dsl";
-import type { GameDef } from "@cq/orchestrator";
 import type { CardSummary } from "./cardSummary.js";
 
 /**
@@ -31,7 +29,7 @@ export const sessions = pgTable(
 /**
  * artifacts —— 每次 export 产出的「交接物」版本。
  * 一个 session 可多次 export，每次一条 artifact（version 自增），保留历史。
- * 卡片渲染只需读 cardSummary（JSONB 扁平字段）；详情可下钻 gddMarkdown/dsl/resolution/gamedef。
+ * 卡片渲染只需读 cardSummary（JSONB 扁平字段）；详情可下钻 gddMarkdown。
  */
 export const artifacts = pgTable(
   "artifacts",
@@ -49,12 +47,6 @@ export const artifacts = pgTable(
     // —— 原文产物层（详情/下游消费） ——
     /** GDD 的 Markdown 全文 */
     gddMarkdown: text("gdd_markdown").notNull(),
-    /** 结构化游戏定义 */
-    dsl: jsonb("dsl").$type<GameDSL>().notNull(),
-    /** catalog 解析结果（模板/技能/MCP/安装包投影） */
-    resolution: jsonb("resolution").$type<ResolutionResult>().notNull(),
-    /** 可运行引擎定义；仅支持品类（如 match-3）才有，否则 null */
-    gamedef: jsonb("gamedef").$type<GameDef | null>(),
     /** 文件落盘目录（双写兼容；DB 为索引层时仍指向 data/exports/<id>） */
     exportDir: text("export_dir"),
 
