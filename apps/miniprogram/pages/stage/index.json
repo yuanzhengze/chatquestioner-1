@@ -6,5 +6,8 @@
     "nb-composer": "../../components/composer/index"
   },
   "disableScroll": true,
-  "navigationBarTitleText": "NewBee"
+  "navigationBarTitleText": "NewBee",
+  "navigationBarBackgroundColor": "#0D0D0D",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#0D0D0D"
 }

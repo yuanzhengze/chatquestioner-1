@@ -6,20 +6,28 @@
 .bubble {
   max-width: 78%;
   padding: 12rpx 20rpx;
-  border-radius: 14px;
+  border-radius: 16rpx;
   margin-bottom: 12rpx;
   font-size: 26rpx;
   line-height: 1.5;
 }
+.role {
+  font-size: 20rpx;
+  letter-spacing: 0.04em;
+  margin-bottom: 6rpx;
+  color: rgba(255, 255, 255, 0.30);
+}
 .bubble.user {
   margin-left: auto;
-  background: #FBE7CC;
-  color: #3A3530;
+  background: #d4ff48;
+  color: #0d0d0d;
   white-space: pre-wrap;
 }
+.bubble.user .role { color: #0d0d0d; }
 .bubble.assistant {
-  background: #FFFFFF;
-  border: 1px solid #ECE6DC;
+  background: #191919;
+  border: 1px solid #333333;
+  color: #ffffff;
 }
 .md {
   display: block;

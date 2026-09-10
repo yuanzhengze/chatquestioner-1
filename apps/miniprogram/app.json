@@ -5,10 +5,10 @@
   ],
   "window": {
     "navigationBarTitleText": "NewBee · 游戏共创",
-    "navigationBarBackgroundColor": "#FAF8F4",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#FAF8F4",
-    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#0D0D0D",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0D0D0D",
+    "backgroundTextStyle": "light",
     "pageOrientation": "portrait"
   },
   "style": "v2",

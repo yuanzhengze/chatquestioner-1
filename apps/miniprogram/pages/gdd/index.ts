@@ -93,23 +93,19 @@ function drawShareCard(
   title: string,
   pitch: string,
 ) {
-  const grad = ctx.createLinearGradient(0, 0, SHARE_W, SHARE_H);
-  grad.addColorStop(0, "#E8943A");
-  grad.addColorStop(0.7, "#C56A12");
-  ctx.fillStyle = grad;
+  ctx.fillStyle = "#0D0D0D";
   ctx.fillRect(0, 0, SHARE_W, SHARE_H);
 
-  ctx.fillStyle = "rgba(255, 201, 77, 0.35)";
-  ctx.beginPath();
-  ctx.arc(SHARE_W * 0.82, 0, SHARE_W * 0.42, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillStyle = "#D4FF48";
+  ctx.fillRect(0, 0, SHARE_W, 6);
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-  fillRoundRect(ctx, 28, 28, 156, 36, 18);
-  ctx.fillStyle = "#FFFFFF";
+  ctx.fillStyle = "#D4FF48";
+  fillRoundRect(ctx, 28, 28, 132, 36, 4);
+  ctx.fillStyle = "#0D0D0D";
   ctx.font = "20px sans-serif";
   ctx.fillText("游戏文档", 48, 53);
 
+  ctx.fillStyle = "#FFFFFF";
   ctx.font = "bold 40px sans-serif";
   const titleLines = wrapText(ctx, title || "未命名游戏", SHARE_W - 56, 3);
   let y = 128;
@@ -119,21 +115,19 @@ function drawShareCard(
   }
 
   if (pitch) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.60)";
     ctx.font = "22px sans-serif";
-    ctx.globalAlpha = 0.92;
     const pitchLines = wrapText(ctx, pitch, SHARE_W - 56, 2);
     y += 8;
     for (const ln of pitchLines) {
       ctx.fillText(ln, 28, y);
       y += 32;
     }
-    ctx.globalAlpha = 1;
   }
 
+  ctx.fillStyle = "#D4FF48";
   ctx.font = "20px sans-serif";
-  ctx.globalAlpha = 0.85;
   ctx.fillText("NewBee × ForgeaX", 28, SHARE_H - 36);
-  ctx.globalAlpha = 1;
 }
 
 Page({
@@ -159,6 +153,12 @@ Page({
   _shareImagePromise: null as Promise<string> | null,
 
   onLoad(query: { s?: string }) {
+    try {
+      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: "#0D0D0D" });
+      wx.setBackgroundColor({ backgroundColor: "#0D0D0D", backgroundColorTop: "#0D0D0D", backgroundColorBottom: "#0D0D0D" });
+    } catch (_e) {
+      // 导航栏着色失败不挡打开
+    }
     const shareId = query && query.s ? String(query.s) : "";
     if (shareId) {
       this._shareId = shareId;

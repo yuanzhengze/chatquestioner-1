@@ -15,7 +15,7 @@
   position: absolute;
   inset: -8%;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, rgba(255, 201, 77, 0.32) 0%, transparent 62%);
+  background: radial-gradient(circle at 50% 45%, rgba(212, 255, 72, 0.18) 0%, transparent 62%);
   z-index: 0;
 }
 .face {
@@ -31,6 +31,6 @@
   bottom: 4%;
   height: 7%;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(74, 59, 42, 0.18) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45) 0%, transparent 70%);
   z-index: 0;
 }

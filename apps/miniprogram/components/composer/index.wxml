@@ -3,6 +3,8 @@
     class="input {{focused ? 'on' : ''}}"
     value="{{value}}"
     placeholder="说说你的脑洞…"
+    placeholder-class="ph"
+    placeholder-style="color:rgba(255,255,255,0.30)"
     maxlength="2000"
     auto-height
     disable-default-padding

@@ -67,30 +67,49 @@
     </view>
   </view>
 
-  <!-- 首屏授权门：做成同页浮层而不是独立页面。微信新建页面的渲染层开销实测约 1 秒
-       （见开发日志 B14/B16），只有取消页面切换才能做到点击即进入。 -->
-  <view wx:if="{{!entered}}" class="gate">
-    <view class="gate-hero">
-      <view class="gate-halo">
-        <view class="gate-glow"></view>
-        <image
-          wx:if="{{!posterFailed}}"
-          class="gate-face"
-          src="{{gatePoster}}"
-          mode="aspectFit"
-          binderror="onPosterError"
-        />
-        <view wx:if="{{posterFailed}}" class="gate-face gate-face-fallback">😊</view>
+  <!-- 首屏授权门：同页浮层。色与圆角跟 Forgeax ui-status-audit。 -->
+  <view wx:if="{{!entered}}" class="gate" style="padding-bottom: {{safeBottom + 24}}px;">
+    <view class="gate-brandrow">
+      <view class="gate-mark">
+        <view class="gate-mark-cube"></view>
       </view>
-      <view class="gate-brand">NewBee</view>
-      <view class="gate-slogan">{{slogan}}</view>
+      <view class="gate-brand-copy">
+        <view class="gate-wordmark">NewBee</view>
+        <view class="gate-kicker">ForgeaX 前置共创</view>
+      </view>
+    </view>
+
+    <view class="gate-visual">
+      <view class="gate-window">
+        <view class="gate-window-bar">
+          <view class="gate-window-cap">产品形象</view>
+        </view>
+        <view class="gate-window-body">
+          <image
+            wx:if="{{!posterFailed}}"
+            class="gate-face"
+            src="{{gatePoster}}"
+            mode="aspectFit"
+            binderror="onPosterError"
+          />
+          <view wx:if="{{posterFailed}}" class="gate-face gate-face-fallback">😊</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="gate-copy">
+      <view class="gate-eyebrow">
+        <view class="gate-eyebrow-bar"></view>
+        <text>灵感引导 · 游戏文档</text>
+      </view>
+      <view class="gate-title">把一句脑洞，聊成一份<text class="gate-em">能做的游戏</text></view>
       <view class="gate-sub">{{subline}}</view>
     </view>
 
     <view class="gate-actions">
-      <button class="gate-btn primary {{agreed ? '' : 'off'}}" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
-      <button wx:if="{{hasLast}}" class="gate-btn ghost" bindtap="onNewSession">新的共创</button>
-      <button class="gate-btn ghost" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
+      <button class="gate-btn primary {{agreed ? '' : 'off'}}" hover-class="gate-press" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
+      <button wx:if="{{hasLast}}" class="gate-btn ghost" hover-class="gate-press" bindtap="onNewSession">新的共创</button>
+      <button class="gate-btn ghost" hover-class="gate-press" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
 
       <label class="gate-consent" bindtap="onToggleAgree">
         <view class="gate-box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
@@ -109,7 +128,7 @@
         <scroll-view scroll-y class="gate-sheet-body">
           <text class="gate-sheet-text">{{legalBody}}</text>
         </scroll-view>
-        <button class="gate-btn primary gate-sheet-btn" bindtap="onCloseSheets">知道了</button>
+        <button class="gate-btn primary gate-sheet-btn" hover-class="gate-press" bindtap="onCloseSheets">知道了</button>
       </view>
     </view>
 
@@ -120,8 +139,8 @@
           <text class="gate-sheet-text">开发期小程序还不能直接打开外部网页（需要企业主体业务域名）。先复制链接，到系统浏览器打开。</text>
           <view class="gate-url">{{siteUrl}}</view>
         </view>
-        <button class="gate-btn primary gate-sheet-btn" bindtap="onCopyLink">复制链接</button>
-        <button class="gate-btn ghost gate-sheet-btn" bindtap="onCloseSheets">关闭</button>
+        <button class="gate-btn primary gate-sheet-btn" hover-class="gate-press" bindtap="onCopyLink">复制链接</button>
+        <button class="gate-btn ghost gate-sheet-btn" hover-class="gate-press" bindtap="onCloseSheets">关闭</button>
       </view>
     </view>
   </view>

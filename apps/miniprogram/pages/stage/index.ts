@@ -90,6 +90,21 @@ Page({
     }
 
     this.refreshIndexHint();
+    this.paintChrome(false);
+  },
+
+  paintChrome(entered: boolean) {
+    try {
+      if (entered) {
+        wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: "#242424" });
+        wx.setBackgroundColor({ backgroundColor: "#0D0D0D", backgroundColorTop: "#242424", backgroundColorBottom: "#0D0D0D" });
+      } else {
+        wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: "#0D0D0D" });
+        wx.setBackgroundColor({ backgroundColor: "#0D0D0D", backgroundColorTop: "#0D0D0D", backgroundColorBottom: "#0D0D0D" });
+      }
+    } catch (_e) {
+      // 导航栏着色失败不挡进入
+    }
   },
 
   refreshIndexHint() {
@@ -219,6 +234,7 @@ Page({
     // 只有「已经说过话」的内存会话才直接揭开。没发过言的新共创返回首页后应丢掉，
     // 否则「继续共创」会走进一个未落盘、也不在「已保存」里的空会话。
     if (this._sessionId && this.hasUserSpeech()) {
+      this.paintChrome(true);
       this.setData({ entered: true, showHistory: false });
       return;
     }
@@ -226,6 +242,7 @@ Page({
       this.resetConversation();
     }
     this.ensureDriver();
+    this.paintChrome(true);
     this.setData({ entered: true, showHistory: false });
     if (this.data.hasLast) {
       void this.resumeLast();
@@ -241,6 +258,7 @@ Page({
     }
     this.resetConversation();
     this.ensureDriver();
+    this.paintChrome(true);
     this.setData({ entered: true, showHistory: false });
     this.boot();
   },
@@ -262,6 +280,7 @@ Page({
   onBackToGate() {
     if (!this.hasUserSpeech()) this.resetConversation();
     this.clearOpenGdd();
+    this.paintChrome(false);
     this.setData({
       entered: false,
       showLegal: false,
@@ -287,6 +306,7 @@ Page({
       wx.showToast({ title: "请先勾选同意", icon: "none" });
       return;
     }
+    this.paintChrome(true);
     this.setData({ showHistory: false, entered: true });
     void this.openSession(id);
   },
@@ -300,7 +320,7 @@ Page({
       title: "删除这条共创？",
       content: `「${name}」会从记录里去掉，不能再打开。已经分享出去的文档还在。`,
       confirmText: "删除",
-      confirmColor: "#C77B6B",
+      confirmColor: "#F26A6A",
       success: (res) => {
         if (res.confirm) void this.deleteRecord(id);
       },
@@ -327,6 +347,7 @@ Page({
       } catch (_e) {
         // 清预览草稿失败不挡删除
       }
+      this.paintChrome(false);
       this.setData({ entered: false });
     }
     this.refreshIndexHint();
@@ -350,6 +371,7 @@ Page({
 
   onShow() {
     this.clearOpenGdd();
+    this.paintChrome(this.data.entered);
   },
 
   onHide() {
