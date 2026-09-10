@@ -281,16 +281,33 @@
   max-height: 70vh;
 }
 .hist-item {
-  padding: 24rpx 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 20rpx 8rpx 20rpx 16rpx;
   border-bottom: 1px solid #ECE6DC;
 }
 .hist-item.on {
   background: #FBE7CC;
   border-radius: 12rpx;
 }
+.hist-main {
+  flex: 1;
+  min-width: 0;
+  padding: 4rpx 8rpx 4rpx 0;
+}
 .hist-title {
   font-size: 28rpx;
   color: #3A3530;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hist-del {
+  flex-shrink: 0;
+  padding: 8rpx 16rpx;
+  font-size: 24rpx;
+  color: #C77B6B;
 }
 .hist-close { margin-top: 24rpx; }
 .gate-btn {

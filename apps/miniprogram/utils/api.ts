@@ -77,6 +77,75 @@ export function getSession(id: string): Promise<Record<string, unknown>> {
   });
 }
 
+export function deleteSession(id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${id}`,
+      method: "DELETE",
+      timeout: 20000,
+      success(res: { statusCode: number }) {
+        if (res.statusCode === 204 || res.statusCode === 404 || (res.statusCode >= 200 && res.statusCode < 300)) {
+          resolve();
+        } else {
+          reject(new Error(`deleteSession failed: ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "deleteSession network error"));
+      },
+    });
+  });
+}
+
+export function createShare(markdown: string, title?: string): Promise<{ id: string; title: string }> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/share`,
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: { markdown, title: title || "" },
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          const body = res.data as { id?: string; title?: string };
+          if (body.id) resolve({ id: body.id, title: String(body.title || title || "") });
+          else reject(new Error("createShare: missing id"));
+        } else {
+          reject(new Error(`createShare failed: ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "createShare network error"));
+      },
+    });
+  });
+}
+
+export function getShare(id: string): Promise<{ id: string; title: string; markdown: string }> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/share/${id}`,
+      method: "GET",
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          const body = res.data as { id?: string; title?: string; markdown?: string };
+          resolve({
+            id: String(body.id || id),
+            title: String(body.title || ""),
+            markdown: String(body.markdown || ""),
+          });
+        } else {
+          reject(new Error(`getShare failed: ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "getShare network error"));
+      },
+    });
+  });
+}
+
 export function sendMessage(
   id: string,
   message: string,

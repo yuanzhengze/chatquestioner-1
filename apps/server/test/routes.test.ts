@@ -14,6 +14,7 @@ function makeApp() {
     app: buildServer({
       llm: fakeLlm([]), store,
       systemPrompt: "SYS", exportDir: join(dir, "exports"),
+      shareDir: dir,
     }),
     store,
   };
@@ -73,6 +74,25 @@ describe("routes", () => {
     await app.close();
   });
 
+  it("DELETE /api/session/:id 删会话后 GET 404", async () => {
+    const { app, store } = makeApp();
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    await app.inject({ method: "POST", url: `/api/session/${created.id}/message`, payload: { message: "你好" } });
+    expect(await store.load(created.id)).not.toBeNull();
+
+    const del = await app.inject({ method: "DELETE", url: `/api/session/${created.id}` });
+    expect(del.statusCode).toBe(204);
+    expect(await store.load(created.id)).toBeNull();
+    const after = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
+    expect(after.statusCode).toBe(404);
+
+    const missing = await app.inject({ method: "DELETE", url: "/api/session/nope" });
+    expect(missing.statusCode).toBe(204);
+    const bad = await app.inject({ method: "DELETE", url: "/api/session/bad.id" });
+    expect(bad.statusCode).toBe(400);
+    await app.close();
+  });
+
   it("POST export：创意维度为空 → 409；有内容 → 200 含 GDD", async () => {
     const { app, store } = makeApp();
     const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
@@ -95,12 +115,50 @@ describe("routes", () => {
     await app.close();
   });
 
+  it("POST /api/share 只存文档快照；GET 不含 history", async () => {
+    const { app } = makeApp();
+    const missing = await app.inject({ method: "GET", url: "/api/share/nope" });
+    expect(missing.statusCode).toBe(404);
+    const badId = await app.inject({ method: "GET", url: "/api/share/bad.id" });
+    expect(badId.statusCode).toBe(400);
+
+    const empty = await app.inject({
+      method: "POST",
+      url: "/api/share",
+      payload: { markdown: "  ", history: [{ role: "user", content: "秘密" }] },
+    });
+    expect(empty.statusCode).toBe(400);
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/share",
+      payload: {
+        markdown: "# 梦境便利店\n\n> 一句话 Pitch：便利店\n",
+        history: [{ role: "user", content: "秘密对话" }],
+      },
+    });
+    expect(created.statusCode).toBe(200);
+    const body = created.json();
+    expect(body.v).toBe(1);
+    expect(body.id).toMatch(/[0-9a-f-]{36}/);
+    expect(body.title).toBe("梦境便利店");
+    expect(body.markdown).toContain("梦境便利店");
+    expect(body).not.toHaveProperty("history");
+
+    const got = await app.inject({ method: "GET", url: `/api/share/${body.id}` });
+    expect(got.statusCode).toBe(200);
+    expect(got.json().markdown).toContain("便利店");
+    expect(got.json()).not.toHaveProperty("history");
+    await app.close();
+  });
+
   it("GET /avatar/:file 在配置 avatarDir 时返回海报", async () => {
     const store = new FileSessionStore(dir);
     const avatarDir = join(process.cwd(), "apps/web/public/avatar");
     const app = buildServer({
       llm: fakeLlm([]), store,
       systemPrompt: "SYS", exportDir: join(dir, "exports"),
+      shareDir: dir,
       avatarDir,
     });
     const r = await app.inject({ method: "GET", url: "/avatar/calm.png" });

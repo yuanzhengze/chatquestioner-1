@@ -1,7 +1,140 @@
 import { GDD_DRAFT_KEY } from "../../config";
+import { createShare, getShare } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
 const { parseGddPreview } = require("../../utils/gddPreview.js");
+
+/** 微信分享图建议 5:4，避免不设 imageUrl 时退回整页截屏。 */
+const SHARE_W = 500;
+const SHARE_H = 400;
+
+function wrapText(
+  ctx: { measureText: (t: string) => { width: number } },
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+  const lines: string[] = [];
+  let line = "";
+  for (const ch of raw) {
+    const next = line + ch;
+    if (ctx.measureText(next).width > maxWidth && line) {
+      lines.push(line);
+      line = ch;
+      if (lines.length === maxLines) {
+        line = "";
+        break;
+      }
+    } else {
+      line = next;
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  if (lines.length === maxLines) {
+    let last = lines[maxLines - 1];
+    while (last.length > 1 && ctx.measureText(`${last}…`).width > maxWidth) {
+      last = last.slice(0, -1);
+    }
+    if (raw.length > last.length) lines[maxLines - 1] = `${last}…`;
+  }
+  return lines;
+}
+
+function fillRoundRect(
+  ctx: {
+    beginPath: () => void;
+    roundRect?: (x: number, y: number, w: number, h: number, r: number) => void;
+    moveTo: (x: number, y: number) => void;
+    arcTo: (x1: number, y1: number, x2: number, y2: number, r: number) => void;
+    closePath: () => void;
+    fill: () => void;
+  },
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  ctx.fill();
+}
+
+function drawShareCard(
+  ctx: {
+    createLinearGradient: (x0: number, y0: number, x1: number, y1: number) => {
+      addColorStop: (o: number, c: string) => void;
+    };
+    fillRect: (x: number, y: number, w: number, h: number) => void;
+    beginPath: () => void;
+    arc: (x: number, y: number, r: number, a0: number, a1: number) => void;
+    fill: () => void;
+    fillText: (t: string, x: number, y: number) => void;
+    measureText: (t: string) => { width: number };
+    roundRect?: (x: number, y: number, w: number, h: number, r: number) => void;
+    moveTo: (x: number, y: number) => void;
+    arcTo: (x1: number, y1: number, x2: number, y2: number, r: number) => void;
+    closePath: () => void;
+    fillStyle: unknown;
+    font: string;
+    globalAlpha: number;
+  },
+  title: string,
+  pitch: string,
+) {
+  const grad = ctx.createLinearGradient(0, 0, SHARE_W, SHARE_H);
+  grad.addColorStop(0, "#E8943A");
+  grad.addColorStop(0.7, "#C56A12");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, SHARE_W, SHARE_H);
+
+  ctx.fillStyle = "rgba(255, 201, 77, 0.35)";
+  ctx.beginPath();
+  ctx.arc(SHARE_W * 0.82, 0, SHARE_W * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+  fillRoundRect(ctx, 28, 28, 156, 36, 18);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "20px sans-serif";
+  ctx.fillText("游戏文档", 48, 53);
+
+  ctx.font = "bold 40px sans-serif";
+  const titleLines = wrapText(ctx, title || "未命名游戏", SHARE_W - 56, 3);
+  let y = 128;
+  for (const ln of titleLines) {
+    ctx.fillText(ln, 28, y);
+    y += 50;
+  }
+
+  if (pitch) {
+    ctx.font = "22px sans-serif";
+    ctx.globalAlpha = 0.92;
+    const pitchLines = wrapText(ctx, pitch, SHARE_W - 56, 2);
+    y += 8;
+    for (const ln of pitchLines) {
+      ctx.fillText(ln, 28, y);
+      y += 32;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.font = "20px sans-serif";
+  ctx.globalAlpha = 0.85;
+  ctx.fillText("NewBee × ForgeaX", 28, SHARE_H - 36);
+  ctx.globalAlpha = 1;
+}
 
 Page({
   data: {
@@ -13,13 +146,32 @@ Page({
     plain: "",
     empty: true,
     ready: false,
+    fromShare: false,
   },
 
   _markdown: "",
   _applied: false,
   _waitTimer: 0 as number,
+  _shareId: "",
+  _fromShare: false,
+  _sharePromise: null as Promise<{ id: string; title: string }> | null,
+  _shareImage: "",
+  _shareImagePromise: null as Promise<string> | null,
 
-  onLoad() {
+  onLoad(query: { s?: string }) {
+    const shareId = query && query.s ? String(query.s) : "";
+    if (shareId) {
+      this._shareId = shareId;
+      this._fromShare = true;
+      this.setData({ fromShare: true });
+      wx.hideShareMenu({ menus: ["shareAppMessage", "shareTimeline"] });
+      void this.loadShare(shareId);
+      return;
+    }
+
+    wx.showShareMenu({ menus: ["shareAppMessage"] });
+    wx.hideShareMenu({ menus: ["shareTimeline"] });
+
     const ch = this.getOpenerEventChannel();
     if (ch && typeof ch.on === "function") {
       ch.on("gddDraft", (payload: { markdown?: string }) => {
@@ -27,7 +179,6 @@ Page({
       });
     }
     if (!this._applied) this.applyFromStorage();
-    // eventChannel 可能晚于 onLoad，缓存也可能还没写完。最多等一会儿，不要永远转圈。
     this._waitTimer = setTimeout(() => {
       this._waitTimer = 0;
       if (this._applied) return;
@@ -37,11 +188,23 @@ Page({
   },
 
   onShow() {
+    if (this._fromShare) return;
     if (!this._applied) this.applyFromStorage();
   },
 
   onUnload() {
     if (this._waitTimer) clearTimeout(this._waitTimer);
+  },
+
+  async loadShare(id: string) {
+    try {
+      const snap = await getShare(id);
+      this.applyMarkdown(snap.markdown);
+    } catch (_e) {
+      this._shareId = "";
+      this.applyMarkdown("");
+      wx.showToast({ title: "这份分享找不到了", icon: "none" });
+    }
   },
 
   applyFromStorage() {
@@ -59,6 +222,8 @@ Page({
     if (!markdown) {
       this._markdown = "";
       this._applied = true;
+      this._shareImage = "";
+      this._shareImagePromise = null;
       this.setData({ ready: true, empty: true, title: "", pitch: "", must: [], cut: [], html: "", plain: "" });
       return;
     }
@@ -69,18 +234,115 @@ Page({
     } catch (_e) {
       html = "";
     }
+    const title = meta.title || "未命名游戏";
+    const pitch = meta.pitch || "";
     this._markdown = markdown;
     this._applied = true;
     this.setData({
       ready: true,
       empty: false,
-      title: meta.title || "未命名游戏",
-      pitch: meta.pitch || "",
+      title,
+      pitch,
       must: meta.must || [],
       cut: meta.cut || [],
       html,
       plain: markdown,
     });
+    if (!this._fromShare) {
+      void this.startShare();
+      void this.makeShareCard(title, pitch);
+    }
+  },
+
+  startShare(): Promise<{ id: string; title: string }> {
+    if (this._shareId) {
+      return Promise.resolve({ id: this._shareId, title: this.data.title || "未命名游戏" });
+    }
+    if (this._sharePromise) return this._sharePromise;
+    const markdown = this._markdown;
+    const title = this.data.title || "未命名游戏";
+    if (!markdown) return Promise.reject(new Error("empty markdown"));
+    this._sharePromise = createShare(markdown, title)
+      .then((res) => {
+        this._shareId = res.id;
+        return res;
+      })
+      .catch((err) => {
+        this._sharePromise = null;
+        throw err;
+      });
+    return this._sharePromise;
+  },
+
+  makeShareCard(title: string, pitch: string): Promise<string> {
+    this._shareImage = "";
+    const job = new Promise<string>((resolve) => {
+      const draw = (attempt: number) => {
+        this.createSelectorQuery()
+          .select("#shareCard")
+          .fields({ node: true, size: true })
+          .exec((res) => {
+            const canvas = res && res[0] && res[0].node;
+            if (!canvas) {
+              if (attempt < 1) {
+                setTimeout(() => draw(attempt + 1), 80);
+                return;
+              }
+              resolve("");
+              return;
+            }
+            const info = typeof wx.getWindowInfo === "function" ? wx.getWindowInfo() : wx.getSystemInfoSync();
+            const dpr = Number(info.pixelRatio) || 2;
+            canvas.width = SHARE_W * dpr;
+            canvas.height = SHARE_H * dpr;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve("");
+              return;
+            }
+            ctx.scale(dpr, dpr);
+            drawShareCard(ctx, title, pitch);
+            wx.canvasToTempFilePath({
+              canvas,
+              fileType: "jpg",
+              quality: 0.92,
+              success: (r) => {
+                this._shareImage = r.tempFilePath;
+                resolve(r.tempFilePath);
+              },
+              fail: () => resolve(""),
+            });
+          });
+      };
+      wx.nextTick(() => draw(0));
+    });
+    this._shareImagePromise = job;
+    return job;
+  },
+
+  sharePayload(shareId: string) {
+    const title = this.data.title || "NewBee 游戏文档";
+    const payload: { title: string; path: string; imageUrl?: string } = {
+      title,
+      path: shareId ? `/pages/gdd/index?s=${shareId}` : "/pages/gdd/index",
+    };
+    if (this._shareImage) payload.imageUrl = this._shareImage;
+    return payload;
+  },
+
+  onShareAppMessage() {
+    const title = this.data.title || "NewBee 游戏文档";
+    if (this._fromShare) return { title, path: "/pages/gdd/index" };
+    if (this._shareId && this._shareImage) return this.sharePayload(this._shareId);
+    if (!this._markdown) return { title, path: "/pages/gdd/index" };
+    return {
+      title,
+      path: "/pages/gdd/index",
+      promise: Promise.all([
+        this.startShare(),
+        this._shareImagePromise || this.makeShareCard(this.data.title, this.data.pitch),
+      ]).then(([res]) => this.sharePayload(res.id)),
+    };
   },
 
   onCoverTap() {
@@ -96,5 +358,9 @@ Page({
         wx.showToast({ title: "已复制 GDD", icon: "success" });
       },
     });
+  },
+
+  onTryCoCreate() {
+    wx.reLaunch({ url: "/pages/stage/index" });
   },
 });

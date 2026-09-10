@@ -45,6 +45,13 @@ describe("Repository sessions", () => {
     expect(loaded?.workingTitle).toBeUndefined();
   });
 
+  it("deleteSession 后 load 为 null", async () => {
+    const id = await repo.createSession(createInitialState());
+    expect(await repo.deleteSession(id)).toBe(true);
+    expect(await repo.loadSession(id)).toBeNull();
+    expect(await repo.deleteSession(id)).toBe(false);
+  });
+
   it("listSessionSummaries 含 artifactCount", async () => {
     const id = await repo.createSession(readyState());
     await repo.createArtifact({

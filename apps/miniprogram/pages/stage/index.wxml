@@ -135,10 +135,11 @@
           wx:for="{{historyItems}}"
           wx:key="id"
           class="hist-item {{item.current ? 'on' : ''}}"
-          data-id="{{item.id}}"
-          bindtap="onPickSession"
         >
-          <view class="hist-title">{{item.title}}</view>
+          <view class="hist-main" data-id="{{item.id}}" bindtap="onPickSession">
+            <view class="hist-title">{{item.title}}</view>
+          </view>
+          <view class="hist-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
         </view>
       </scroll-view>
       <button class="gate-btn ghost hist-close" bindtap="onCloseHistory">关闭</button>

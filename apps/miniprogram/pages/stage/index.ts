@@ -1,4 +1,4 @@
-import { createSession, getSession, sendMessage } from "../../utils/api";
+import { createSession, getSession, deleteSession, sendMessage } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
 import { API_BASE, FORGEAX_SITE_URL, GDD_DRAFT_KEY } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
@@ -77,6 +77,7 @@ Page({
     this._lastOptions = [] as TurnOption[];
     this._openGddTimer = 0 as number;
     this._driver = null;
+    this._deleting = false;
 
     this._onKeyboard = (res: { height: number }) => {
       this.setData({ keyboardHeight: res.height || 0, compact: (res.height || 0) > 0 });
@@ -288,6 +289,49 @@ Page({
     }
     this.setData({ showHistory: false, entered: true });
     void this.openSession(id);
+  },
+
+  onDeleteSession(e: { currentTarget: { dataset: { id?: string } } }) {
+    const id = e.currentTarget.dataset.id;
+    if (!id || this._deleting) return;
+    const item = this.data.historyItems.find((it) => it.id === id);
+    const name = item && item.title ? item.title : "这条共创";
+    wx.showModal({
+      title: "删除这条共创？",
+      content: `「${name}」会从记录里去掉，不能再打开。已经分享出去的文档还在。`,
+      confirmText: "删除",
+      confirmColor: "#C77B6B",
+      success: (res) => {
+        if (res.confirm) void this.deleteRecord(id);
+      },
+    });
+  },
+
+  async deleteRecord(id: string) {
+    if (!id || this._deleting) return;
+    this._deleting = true;
+    try {
+      await deleteSession(id);
+    } catch (_e) {
+      this._deleting = false;
+      wx.showToast({ title: "删除没成功，请再试", icon: "none" });
+      return;
+    }
+    const wasOpen = this._sessionId === id;
+    sessionIndex.remove(id);
+    if (wasOpen) {
+      this._abort?.();
+      this.resetConversation();
+      try {
+        wx.removeStorageSync(GDD_DRAFT_KEY);
+      } catch (_e) {
+        // 清预览草稿失败不挡删除
+      }
+      this.setData({ entered: false });
+    }
+    this.refreshIndexHint();
+    this._deleting = false;
+    wx.showToast({ title: "已删除", icon: "none" });
   },
 
   async openSession(id: string) {

@@ -42,7 +42,7 @@ async function start(): Promise<void> {
 
   const app = buildServer({
     llm, store, systemPrompt, retrieve, repo,
-    exportDir: resolve(repoRoot, "data", "exports"),
+    shareDir: resolve(repoRoot, "data"),
     webDir: resolve(repoRoot, "apps/web/dist"),
     avatarDir: resolve(repoRoot, "apps/web/public/avatar"),
   });

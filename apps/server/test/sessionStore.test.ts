@@ -33,4 +33,13 @@ describe("FileSessionStore", () => {
     await store.save(id, s);
     expect((await store.load(id))!.stage).toBe(3);
   });
+
+  it("remove 后 load 为 null；重复删除返回 false", async () => {
+    const store = new FileSessionStore(dir);
+    const id = await store.create(createInitialState());
+    expect(await store.remove(id)).toBe(true);
+    expect(await store.load(id)).toBeNull();
+    expect(await store.remove(id)).toBe(false);
+    expect(await store.remove("../etc")).toBe(false);
+  });
 });

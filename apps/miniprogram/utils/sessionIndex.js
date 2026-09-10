@@ -53,6 +53,18 @@ function setCurrent(id) {
   return idx;
 }
 
+function remove(id) {
+  var idx = load();
+  idx.items = idx.items.filter(function (it) {
+    return it.id !== id;
+  });
+  if (idx.currentId === id) {
+    idx.currentId = idx.items[0] ? idx.items[0].id : "";
+  }
+  save(idx);
+  return idx;
+}
+
 function current() {
   var idx = load();
   if (!idx.currentId) return null;
@@ -80,6 +92,7 @@ module.exports = {
   save: save,
   upsert: upsert,
   setCurrent: setCurrent,
+  remove: remove,
   current: current,
   titleFrom: titleFrom,
 };

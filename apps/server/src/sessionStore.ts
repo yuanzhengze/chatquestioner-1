@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { ConversationState } from "@cq/conversation";
@@ -9,6 +9,8 @@ export interface SessionStore {
   createWithId(id: string, state: ConversationState): Promise<void>;
   load(id: string): Promise<ConversationState | null>;
   save(id: string, state: ConversationState): Promise<void>;
+  /** 删除会话文件；没有这条时返回 false。 */
+  remove(id: string): Promise<boolean>;
 }
 
 /** 把每个会话状态落盘为 <dataDir>/sessions/<id>.json，可续聊。 */
@@ -48,5 +50,13 @@ export class FileSessionStore implements SessionStore {
 
   async save(id: string, state: ConversationState): Promise<void> {
     writeFileSync(this.path(id), JSON.stringify(state, null, 2) + "\n");
+  }
+
+  async remove(id: string): Promise<boolean> {
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) return false;
+    const p = this.path(id);
+    if (!existsSync(p)) return false;
+    unlinkSync(p);
+    return true;
   }
 }

@@ -24,4 +24,8 @@ export class PgSessionStore {
   async save(id: string, state: ConversationState): Promise<void> {
     await this.repo.saveSession(id, state);
   }
+
+  async remove(id: string): Promise<boolean> {
+    return this.repo.deleteSession(id);
+  }
 }

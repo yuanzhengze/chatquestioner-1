@@ -70,6 +70,11 @@ export class Repository {
       .where(eq(sessions.id, id));
   }
 
+  async deleteSession(id: string): Promise<boolean> {
+    const rows = await this.db.delete(sessions).where(eq(sessions.id, id)).returning({ id: sessions.id });
+    return rows.length > 0;
+  }
+
   async listSessions(limit = 50): Promise<SessionRow[]> {
     return this.db.select().from(sessions).orderBy(desc(sessions.updatedAt)).limit(limit);
   }

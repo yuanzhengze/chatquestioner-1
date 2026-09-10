@@ -10,6 +10,7 @@ import {
 import { renderGdd, isSubstantive } from "@cq/gdd";
 import type { Repository } from "@cq/store";
 import type { SessionStore } from "./sessionStore.js";
+import { FileShareStore, type ShareStore } from "./shareStore.js";
 import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
 
@@ -27,6 +28,8 @@ export interface ServerDeps {
   webDir?: string;
   /** 形象海报目录。配置后挂 /avatar/*，供小程序远程拉 PNG。 */
   avatarDir?: string;
+  /** 结果页分享快照目录的父目录（其下 shares/）。缺省 ./data */
+  shareDir?: string;
 }
 
 interface Synthesis {
@@ -42,10 +45,24 @@ function buildSynthesis(state: ConversationState): Synthesis | null {
 
 /** 合法 session id：仅字母数字、下划线、连字符（randomUUID 输出可通过）。防路径穿越。 */
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const MAX_SHARE_MD = 200_000;
+
+function titleFromMarkdown(md: string, fallback?: string): string {
+  const fromBody = typeof fallback === "string" ? fallback.trim() : "";
+  if (fromBody) return fromBody.slice(0, 40);
+  const m = md.match(/^#\s+(.+)$/m);
+  const t = (m ? m[1].trim() : "") || "未命名游戏";
+  return t.slice(0, 40);
+}
+
+function publicShare(row: { v: 1; id: string; title: string; markdown: string }) {
+  return { v: row.v, id: row.id, title: row.title, markdown: row.markdown };
+}
 
 export function buildServer(deps: ServerDeps): FastifyInstance {
   const app = Fastify({ logger: false });
   const exportRoot = deps.exportDir ?? resolve(process.cwd(), "data", "exports");
+  const shareStore: ShareStore = new FileShareStore(deps.shareDir ?? resolve(process.cwd(), "data"));
 
   // 微信小程序 wx.request POST 默认带 application/json 且 body 为空，
   // Fastify 默认会 400（FST_ERR_CTP_EMPTY_JSON_BODY）。空串按 {} 解析。
@@ -89,6 +106,31 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     const state = await deps.store.load(req.params.id);
     if (!state) return reply.code(404).send({ error: "session not found" });
     return state;
+  });
+
+  app.delete<{ Params: { id: string } }>("/api/session/:id", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
+    await deps.store.remove(req.params.id);
+    return reply.code(204).send();
+  });
+
+  app.post<{ Body: { markdown?: string; title?: string; history?: unknown } }>(
+    "/api/share",
+    async (req, reply) => {
+      const markdown = typeof req.body?.markdown === "string" ? req.body.markdown.trim() : "";
+      if (!markdown) return reply.code(400).send({ error: "markdown required" });
+      if (markdown.length > MAX_SHARE_MD) return reply.code(413).send({ error: "markdown too large" });
+      const title = titleFromMarkdown(markdown, req.body?.title);
+      const row = await shareStore.create({ title, markdown });
+      return publicShare(row);
+    },
+  );
+
+  app.get<{ Params: { id: string } }>("/api/share/:id", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid share id" });
+    const row = await shareStore.load(req.params.id);
+    if (!row) return reply.code(404).send({ error: "share not found" });
+    return publicShare(row);
   });
 
   app.post<{ Params: { id: string }; Body: { message: string } }>(

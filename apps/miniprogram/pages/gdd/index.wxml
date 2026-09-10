@@ -4,17 +4,21 @@
 </view>
 
 <view wx:if="{{ready && empty}}" class="empty">
-  <view class="empty-title">还没有文档</view>
-  <view class="muted">回到聊天里再聊几轮，出现「打开预览」后再进来。</view>
+  <view class="empty-title">{{fromShare ? '找不到这份分享' : '还没有文档'}}</view>
+  <view class="muted">{{fromShare ? '链接可能已失效。你可以自己开一轮共创。' : '回到聊天里再聊几轮，出现「打开预览」后再进来。'}}</view>
+  <button wx:if="{{fromShare}}" class="try-btn" hover-class="none" bindtap="onTryCoCreate">我也来共创</button>
 </view>
 
 <view wx:if="{{ready && !empty}}" class="wrap">
+  <view wx:if="{{fromShare}}" class="share-banner">来自分享的游戏文档</view>
   <view class="cover" bindtap="onCoverTap">
     <view class="cover-badge">封面位 · 点按看说明</view>
     <view class="cover-title">{{title}}</view>
     <view wx:if="{{pitch}}" class="cover-pitch">{{pitch}}</view>
     <view class="cover-brand">NewBee × ForgeaX</view>
   </view>
+
+  <button wx:if="{{!fromShare}}" class="share-btn" open-type="share" hover-class="none">分享给朋友</button>
 
   <view class="block">
     <view class="label">制作规划</view>
@@ -34,4 +38,10 @@
     <rich-text wx:if="{{html}}" nodes="{{html}}"></rich-text>
     <text wx:if="{{!html}}" class="doc-plain">{{plain}}</text>
   </view>
+
+  <view wx:if="{{fromShare}}" class="share-footer">
+    <button class="try-btn ghost" hover-class="none" bindtap="onTryCoCreate">我也来共创</button>
+  </view>
 </view>
+
+<canvas type="2d" id="shareCard" class="share-canvas"></canvas>
