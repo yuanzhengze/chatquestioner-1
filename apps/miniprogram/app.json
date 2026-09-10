@@ -1,6 +1,8 @@
 {
   "pages": [
-    "pages/stage/index"
+    "pages/landing/index",
+    "pages/stage/index",
+    "pages/gdd/index"
   ],
   "window": {
     "navigationBarTitleText": "NewBee · 游戏共创",

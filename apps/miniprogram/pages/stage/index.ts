@@ -1,8 +1,10 @@
 import { createSession, sendMessage } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
+import { GDD_DRAFT_KEY } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
 
 const { gddFromState } = require("../../utils/gdd.js");
+const { parseGddPreview } = require("../../utils/gddPreview.js");
 
 Page({
   data: {
@@ -17,14 +19,19 @@ Page({
     safeBottom: 0,
     keyboardHeight: 0,
     gddMarkdown: "",
+    gddTitle: "",
     showGdd: false,
     done: false,
   },
 
   onLoad() {
-    const sys = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-    const safeBottom = Math.max(0, (sys.screenHeight || 0) - (sys.safeArea?.bottom || sys.screenHeight || 0));
-    this.setData({ safeBottom });
+    try {
+      const sys = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      const safeBottom = Math.max(0, (sys.screenHeight || 0) - (sys.safeArea?.bottom || sys.screenHeight || 0));
+      this.setData({ safeBottom });
+    } catch (_e) {
+      this.setData({ safeBottom: 0 });
+    }
 
     this._sessionId = "";
     this._abort = null as null | (() => void);
@@ -35,13 +42,21 @@ Page({
     this._warnTick = 0;
     this._typing = false;
     this._synthesisMd = "";
-    this._driver = new AvatarDriver((poster, compact) => this.setData({ poster, compact }));
+    try {
+      this._driver = new AvatarDriver((poster, compact) => this.setData({ poster, compact }));
+    } catch (_e) {
+      this._driver = null;
+    }
 
     this._onKeyboard = (res: { height: number }) => {
       this.setData({ keyboardHeight: res.height || 0, compact: (res.height || 0) > 0 });
       this.syncAvatar();
     };
-    wx.onKeyboardHeightChange(this._onKeyboard);
+    try {
+      wx.onKeyboardHeightChange(this._onKeyboard);
+    } catch (_e) {
+      // 无键盘事件也不挡开场白
+    }
 
     this.boot();
   },
@@ -144,7 +159,29 @@ Page({
     const noOptions = (this.data.options?.length ?? 0) === 0;
     const showGdd = hasUser && noOptions && markdown.trim().length > 0;
     const done = showGdd && ready;
-    this.setData({ gddMarkdown: markdown, showGdd, done });
+    const gddTitle = showGdd ? parseGddPreview(markdown).title : "";
+    this.setData({ gddMarkdown: markdown, gddTitle, showGdd, done });
+  },
+
+  onOpenGdd() {
+    const markdown = this.data.gddMarkdown || "";
+    if (!markdown.trim()) {
+      wx.showToast({ title: "文档还没写好", icon: "none" });
+      return;
+    }
+    try {
+      wx.setStorageSync(GDD_DRAFT_KEY, { markdown });
+    } catch (_e) {
+      // 仍走 eventChannel
+    }
+    wx.navigateTo({
+      url: "/pages/gdd/index",
+      success(res) {
+        if (res.eventChannel) {
+          res.eventChannel.emit("gddDraft", { markdown });
+        }
+      },
+    });
   },
 
   scheduleFlush() {

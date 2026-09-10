@@ -1,17 +1,7 @@
-<scroll-view
-  class="stream"
-  scroll-y
-  scroll-into-view="{{anchor}}"
-  scroll-with-animation
->
-  <view
-    wx:for="{{messages}}"
-    wx:key="index"
-    id="msg-{{index}}"
-    class="bubble {{item.role}}"
-  >
-    <view class="role">{{item.role === 'user' ? '你' : 'NewBee'}}</view>
-    <view class="text">{{item.content || (busy && index === lastIndex ? '…' : '')}}</view>
+<view class="stream">
+  <view wx:for="{{items}}" wx:key="index" class="bubble {{item.role}}">
+    <view class="role">{{item.who}}</view>
+    <rich-text wx:if="{{item.html}}" nodes="{{item.html}}"></rich-text>
+    <view wx:if="{{!item.html}}" class="text">{{item.content}}</view>
   </view>
-  <view id="stream-end" class="end"></view>
-</scroll-view>
+</view>

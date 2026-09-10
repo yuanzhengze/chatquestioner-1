@@ -1,17 +1,45 @@
+const { mdToHtml } = require("../../utils/md.js");
+
 Component({
   properties: {
     messages: { type: Array, value: [] },
     busy: { type: Boolean, value: false },
   },
   data: {
-    lastIndex: 0,
-    anchor: "stream-end",
+    items: [] as Array<{
+      role: string;
+      who: string;
+      content: string;
+      html: string;
+    }>,
   },
   observers: {
-    messages(messages: Array<{ content?: string }>) {
-      const lastIndex = Math.max(0, (messages?.length ?? 1) - 1);
-      this.setData({ lastIndex, anchor: "" });
-      setTimeout(() => this.setData({ anchor: "stream-end" }), 16);
+    "messages, busy"(messages: Array<{ role?: string; content?: string }>, busy: boolean) {
+      const list = messages || [];
+      const lastIndex = Math.max(0, list.length - 1);
+      const items = list.map((m, index) => {
+        const role = m.role || "assistant";
+        const raw = m.content || "";
+        const user = role === "user";
+        let html = "";
+        if (!user && raw) {
+          try {
+            html = mdToHtml(raw);
+          } catch (_e) {
+            html = "";
+          }
+        }
+        let content = "";
+        if (user) content = raw;
+        else if (!html) content = busy && index === lastIndex ? "…" : "";
+        return {
+          role,
+          who: user ? "你" : "NewBee",
+          content,
+          html,
+        };
+      });
+      this.setData({ items });
     },
   },
 });

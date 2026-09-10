@@ -1,0 +1,32 @@
+<view wx:if="{{empty}}" class="empty">
+  <view class="empty-title">还没有文档</view>
+  <view class="muted">回到聊天里再聊几轮，出现「打开预览」后再进来。</view>
+</view>
+
+<view wx:if="{{!empty}}" class="wrap">
+  <view class="cover" bindtap="onCoverTap">
+    <view class="cover-badge">封面位 · 点按看说明</view>
+    <view class="cover-title">{{title}}</view>
+    <view wx:if="{{pitch}}" class="cover-pitch">{{pitch}}</view>
+    <view class="cover-brand">NewBee × ForgeaX</view>
+  </view>
+
+  <view class="block">
+    <view class="label">制作规划</view>
+    <view class="plan-h">本次会做</view>
+    <view wx:for="{{must}}" wx:key="index" class="plan-item">{{item}}</view>
+    <view wx:if="{{must.length === 0}}" class="muted">还没写下必须项，继续聊几轮就会出现。</view>
+    <view class="plan-h cut">先不做</view>
+    <view wx:for="{{cut}}" wx:key="index" class="plan-item">{{item}}</view>
+    <view wx:if="{{cut.length === 0}}" class="muted">裁剪项会在收敛范围时出现。</view>
+  </view>
+
+  <view class="block">
+    <view class="doc-head">
+      <view class="label">完整文档</view>
+      <view class="copy" bindtap="onCopy">复制全文</view>
+    </view>
+    <rich-text wx:if="{{html}}" nodes="{{html}}"></rich-text>
+    <text wx:if="{{!html}}" class="doc-plain">{{plain}}</text>
+  </view>
+</view>

@@ -1,7 +1,7 @@
 const raw = require("../lib/shared.js");
 
 /** esbuild CJS 在部分小程序运行时会挂在 .default 上，这里兼容两种形态。 */
-export const shared = (raw && raw.parseSseEvents ? raw : raw?.default) as {
+export const shared = (raw && raw.parseSseEvents ? raw : raw && raw.default) as {
   parseSseEvents: (buffer: string) => { events: Array<{ event: string; data: unknown }>; rest: string };
   initialView: (baseline?: string) => { baseline: string; emote: string | null; queue: string[] };
   reduce: (view: unknown, signal: unknown) => { baseline: string; emote: string | null; queue: string[] };

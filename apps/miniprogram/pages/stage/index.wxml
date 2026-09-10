@@ -5,11 +5,11 @@
     <view wx:if="{{error}}" class="err">出错：{{error}}</view>
   </view>
 
-  <view class="stream-wrap {{showGdd ? 'stream-thin' : ''}}">
+  <view class="stream-wrap">
     <nb-context-stream messages="{{messages}}" busy="{{busy}}"></nb-context-stream>
   </view>
 
-  <view class="stage {{showGdd ? 'stage-result' : ''}}">
+  <view class="stage">
     <view class="avatar-row">
       <nb-avatar src="{{poster}}" compact="{{compact || showGdd}}"></nb-avatar>
     </view>
@@ -24,7 +24,11 @@
         bind:choose="onChoose"
       />
     </view>
-    <nb-gdd-panel wx:if="{{showGdd}}" markdown="{{gddMarkdown}}"></nb-gdd-panel>
+    <view wx:if="{{showGdd}}" class="gdd-entry" bindtap="onOpenGdd">
+      <view class="gdd-kicker">游戏文档已成形</view>
+      <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
+      <view class="gdd-go">打开预览</view>
+    </view>
   </view>
 
   <nb-composer
@@ -36,5 +40,5 @@
     bind:send="onSend"
     bind:typing="onTyping"
   />
-  <view wx:else class="done-bar" style="padding-bottom: {{safeBottom + 12}}px;">对话已完成，游戏概念已成型。</view>
+  <view wx:if="{{done}}" class="done-bar" style="padding-bottom: {{safeBottom + 12}}px;">对话已完成，游戏概念已成型。</view>
 </view>

@@ -14,5 +14,5 @@
     bindblur="onBlur"
     bindconfirm="onConfirm"
   />
-  <button class="send" disabled="{{disabled || !value}}" bindtap="onSend">{{busy ? '构思中' : '发送'}}</button>
+  <button class="send {{disabled || !value ? 'off' : ''}}" disabled="{{disabled || !value}}" bindtap="onSend">{{busy ? '构思中' : '发送'}}</button>
 </view>

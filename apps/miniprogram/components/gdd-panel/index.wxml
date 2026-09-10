@@ -3,8 +3,8 @@
     <text class="title">GDD · 游戏设计文档</text>
     <view class="copy" bindtap="onCopy">复制全文</view>
   </view>
-  <scroll-view class="body" scroll-y enhanced show-scrollbar>
+  <view class="body">
     <rich-text wx:if="{{html}}" nodes="{{html}}"></rich-text>
-    <view wx:else class="empty">文档还在整理，稍等一轮就会出现。</view>
-  </scroll-view>
+    <view wx:if="{{!html}}" class="empty">文档还在整理，稍等一轮就会出现。</view>
+  </view>
 </view>

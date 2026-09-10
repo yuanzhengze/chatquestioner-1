@@ -43,7 +43,7 @@ function decodeUtf8(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
   try {
     return decodeURIComponent(escape(out));
-  } catch {
+  } catch (_e) {
     return out;
   }
 }

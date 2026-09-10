@@ -35,5 +35,5 @@
   font-weight: 600;
   border: none;
 }
-.send[disabled] { opacity: 0.45; }
+.send.off { opacity: 0.45; }
 .send::after { border: none; }

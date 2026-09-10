@@ -1,0 +1,55 @@
+<view class="page">
+  <view class="hero">
+    <view class="halo">
+      <view class="glow"></view>
+      <image
+        wx:if="{{!posterFailed}}"
+        class="face"
+        src="{{poster}}"
+        mode="aspectFit"
+        binderror="onPosterError"
+      />
+      <view wx:else class="face-fallback">😊</view>
+    </view>
+    <view class="brand">NewBee</view>
+    <view class="slogan">{{slogan}}</view>
+    <view class="sub">{{subline}}</view>
+  </view>
+
+  <view class="actions">
+    <button class="btn primary {{agreed ? '' : 'off'}}" bindtap="onStart">开始共创</button>
+    <button class="btn ghost" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
+
+    <label class="consent" bindtap="onToggleAgree">
+      <view class="box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
+      <view class="consent-text">
+        我已阅读并同意
+        <text class="link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
+        与
+        <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
+      </view>
+    </label>
+  </view>
+
+  <view wx:if="{{showLegal}}" class="mask" catchtap="onCloseSheets">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">{{legalTitle}}</view>
+      <scroll-view scroll-y class="sheet-body">
+        <text class="sheet-text">{{legalBody}}</text>
+      </scroll-view>
+      <button class="btn primary sheet-btn" bindtap="onCloseSheets">知道了</button>
+    </view>
+  </view>
+
+  <view wx:if="{{showLink}}" class="mask" catchtap="onCloseSheets">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">ForgeaX 开源项目</view>
+      <view class="sheet-body">
+        <text class="sheet-text">开发期小程序还不能直接打开外部网页（需要企业主体业务域名）。先复制链接，到系统浏览器打开。</text>
+        <view class="url">{{siteUrl}}</view>
+      </view>
+      <button class="btn primary sheet-btn" bindtap="onCopyLink">复制链接</button>
+      <button class="btn ghost sheet-btn" bindtap="onCloseSheets">关闭</button>
+    </view>
+  </view>
+</view>
