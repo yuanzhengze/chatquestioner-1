@@ -12,6 +12,7 @@ Component({
       content: string;
       html: string;
     }>,
+    anchor: "stream-end",
   },
   observers: {
     "messages, busy"(messages: Array<{ role?: string; content?: string }>, busy: boolean) {
@@ -39,7 +40,9 @@ Component({
           html,
         };
       });
-      this.setData({ items });
+      // scroll-into-view 只在值变化时滚动，流式追加不改 id，所以先清空再置回。
+      this.setData({ items, anchor: "" });
+      setTimeout(() => this.setData({ anchor: "stream-end" }), 16);
     },
   },
 });

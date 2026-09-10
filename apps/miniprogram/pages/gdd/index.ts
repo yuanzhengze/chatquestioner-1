@@ -12,9 +12,11 @@ Page({
     html: "",
     plain: "",
     empty: true,
+    ready: false,
   },
 
   _markdown: "",
+  _applied: false,
 
   onLoad() {
     const ch = this.getOpenerEventChannel();
@@ -23,7 +25,8 @@ Page({
         this.applyMarkdown(payload && payload.markdown);
       });
     }
-    this.applyFromStorage();
+    // eventChannel 已送到就别再读缓存：跳转后才异步补写，缓存里可能是上一份文档。
+    if (!this._applied) this.applyFromStorage();
   },
 
   applyFromStorage() {
@@ -40,7 +43,7 @@ Page({
     const markdown = String(raw || "").trim();
     if (!markdown) {
       this._markdown = "";
-      this.setData({ empty: true, title: "", pitch: "", must: [], cut: [], html: "", plain: "" });
+      this.setData({ ready: true, empty: true, title: "", pitch: "", must: [], cut: [], html: "", plain: "" });
       return;
     }
     const meta = parseGddPreview(markdown);
@@ -51,7 +54,9 @@ Page({
       html = "";
     }
     this._markdown = markdown;
+    this._applied = true;
     this.setData({
+      ready: true,
       empty: false,
       title: meta.title || "未命名游戏",
       pitch: meta.pitch || "",

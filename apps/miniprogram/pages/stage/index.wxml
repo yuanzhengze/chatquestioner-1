@@ -1,6 +1,9 @@
 <view class="page">
   <view class="header">
-    <view class="title">NewBee · 游戏共创</view>
+    <view class="header-row">
+      <view class="back" bindtap="onBackToGate">返回</view>
+      <view class="title">NewBee · 游戏共创</view>
+    </view>
     <view wx:if="{{stageLabel}}" class="stage-label">{{stageLabel}}</view>
     <view wx:if="{{error}}" class="err">出错：{{error}}</view>
   </view>
@@ -11,24 +14,26 @@
 
   <view class="stage">
     <view class="avatar-row">
-      <nb-avatar src="{{poster}}" compact="{{compact || showGdd}}"></nb-avatar>
+      <nb-avatar src="{{poster}}" compact="{{compact || showGdd || options.length > 0}}"></nb-avatar>
     </view>
-    <view wx:if="{{!showGdd}}" class="options">
-      <nb-option-card
-        wx:for="{{options}}"
-        wx:key="id"
-        option="{{item}}"
-        index="{{index}}"
-        phase="{{pendingId === item.id ? 'chosen' : pendingId ? 'dismissed' : ''}}"
-        disabled="{{busy}}"
-        bind:choose="onChoose"
-      />
-    </view>
-    <view wx:if="{{showGdd}}" class="gdd-entry" bindtap="onOpenGdd">
-      <view class="gdd-kicker">游戏文档已成形</view>
-      <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
-      <view class="gdd-go">打开预览</view>
-    </view>
+    <scroll-view wx:if="{{options.length > 0 || showGdd}}" class="stage-scroll" scroll-y>
+      <view wx:if="{{!showGdd}}" class="options">
+        <nb-option-card
+          wx:for="{{options}}"
+          wx:key="id"
+          option="{{item}}"
+          index="{{index}}"
+          phase="{{pendingId === item.id ? 'chosen' : pendingId ? 'dismissed' : ''}}"
+          disabled="{{busy}}"
+          bind:choose="onChoose"
+        />
+      </view>
+      <view wx:if="{{showGdd}}" class="gdd-entry" bindtap="onOpenGdd">
+        <view class="gdd-kicker">游戏文档已成形</view>
+        <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
+        <view class="gdd-go">打开预览</view>
+      </view>
+    </scroll-view>
   </view>
 
   <nb-composer
@@ -41,4 +46,69 @@
     bind:typing="onTyping"
   />
   <view wx:if="{{done}}" class="done-bar" style="padding-bottom: {{safeBottom + 12}}px;">对话已完成，游戏概念已成型。</view>
+
+  <view wx:if="{{openingGdd}}" class="loading-mask">
+    <view class="loading-card">
+      <view class="spinner"></view>
+      <view class="loading-text">正在打开文档…</view>
+    </view>
+  </view>
+
+  <!-- 首屏授权门：做成同页浮层而不是独立页面。微信新建页面的渲染层开销实测约 1 秒
+       （见开发日志 B14/B16），只有取消页面切换才能做到点击即进入。 -->
+  <view wx:if="{{!entered}}" class="gate">
+    <view class="gate-hero">
+      <view class="gate-halo">
+        <view class="gate-glow"></view>
+        <image
+          wx:if="{{!posterFailed}}"
+          class="gate-face"
+          src="{{gatePoster}}"
+          mode="aspectFit"
+          binderror="onPosterError"
+        />
+        <view wx:if="{{posterFailed}}" class="gate-face gate-face-fallback">😊</view>
+      </view>
+      <view class="gate-brand">NewBee</view>
+      <view class="gate-slogan">{{slogan}}</view>
+      <view class="gate-sub">{{subline}}</view>
+    </view>
+
+    <view class="gate-actions">
+      <button class="gate-btn primary {{agreed ? '' : 'off'}}" bindtap="onStart">开始共创</button>
+      <button class="gate-btn ghost" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
+
+      <label class="gate-consent" bindtap="onToggleAgree">
+        <view class="gate-box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
+        <view class="gate-consent-text">
+          我已阅读并同意
+          <text class="gate-link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
+          与
+          <text class="gate-link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
+        </view>
+      </label>
+    </view>
+
+    <view wx:if="{{showLegal}}" class="gate-mask" catchtap="onCloseSheets">
+      <view class="gate-sheet" catchtap="noop">
+        <view class="gate-sheet-title">{{legalTitle}}</view>
+        <scroll-view scroll-y class="gate-sheet-body">
+          <text class="gate-sheet-text">{{legalBody}}</text>
+        </scroll-view>
+        <button class="gate-btn primary gate-sheet-btn" bindtap="onCloseSheets">知道了</button>
+      </view>
+    </view>
+
+    <view wx:if="{{showLink}}" class="gate-mask" catchtap="onCloseSheets">
+      <view class="gate-sheet" catchtap="noop">
+        <view class="gate-sheet-title">ForgeaX 开源项目</view>
+        <view class="gate-sheet-body">
+          <text class="gate-sheet-text">开发期小程序还不能直接打开外部网页（需要企业主体业务域名）。先复制链接，到系统浏览器打开。</text>
+          <view class="gate-url">{{siteUrl}}</view>
+        </view>
+        <button class="gate-btn primary gate-sheet-btn" bindtap="onCopyLink">复制链接</button>
+        <button class="gate-btn ghost gate-sheet-btn" bindtap="onCloseSheets">关闭</button>
+      </view>
+    </view>
+  </view>
 </view>

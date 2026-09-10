@@ -1,6 +1,5 @@
 {
   "pages": [
-    "pages/landing/index",
     "pages/stage/index",
     "pages/gdd/index"
   ],
