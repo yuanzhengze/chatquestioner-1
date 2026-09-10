@@ -57,6 +57,26 @@ export function createSession(): Promise<{ id: string; opening: string }> {
   });
 }
 
+export function getSession(id: string): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${id}`,
+      method: "GET",
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          resolve(res.data as Record<string, unknown>);
+        } else {
+          reject(new Error(`getSession failed: ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "getSession network error"));
+      },
+    });
+  });
+}
+
 export function sendMessage(
   id: string,
   message: string,

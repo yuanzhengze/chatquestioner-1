@@ -87,6 +87,9 @@ export async function advance(
   state.stage = nextStage(state, parsed.control.stageComplete);
 
   const readyForSynthesis = parsed.control.readyForSynthesis;
+  // 每轮都覆盖：无选项时写成 []，否则续聊会把上一轮选项误恢复回来。
+  state.lastOptions = parsed.options?.length ? parsed.options : [];
+  state.readyForSynthesis = readyForSynthesis;
 
   return { reply: parsed.reply, state, readyForSynthesis, warnings: parsed.warnings, options: parsed.options };
 }

@@ -45,6 +45,8 @@ describe("advance", () => {
     ]);
     const res = await advance(createInitialState(), "差不多了", { llm, systemPrompt: SYS });
     expect(res.readyForSynthesis).toBe(true);
+    expect(res.state.readyForSynthesis).toBe(true);
+    expect(res.state.lastOptions).toEqual([]);
   });
 
   it("无 sentinel：不推进阶段并携带 warning", async () => {
@@ -79,5 +81,7 @@ describe("advance", () => {
     const res = await advance(createInitialState(), "嗨", { llm, systemPrompt: SYS });
     expect(res.options).toHaveLength(2);
     expect(res.options?.[0].id).toBe("A");
+    expect(res.state.lastOptions).toEqual(res.options);
+    expect(res.state.readyForSynthesis).toBe(false);
   });
 });

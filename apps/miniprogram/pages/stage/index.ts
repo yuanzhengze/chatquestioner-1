@@ -1,10 +1,11 @@
-import { createSession, sendMessage } from "../../utils/api";
+import { createSession, getSession, sendMessage } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
 import { API_BASE, FORGEAX_SITE_URL, GDD_DRAFT_KEY } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
 
 const { gddFromState } = require("../../utils/gdd.js");
 const { parseGddPreview } = require("../../utils/gddPreview.js");
+const sessionIndex = require("../../utils/sessionIndex.js");
 
 const TERMS = `【开发期占位，非正式法务文本】
 
@@ -29,6 +30,7 @@ Page({
     poster: "",
     compact: false,
     pendingId: "",
+    expandedId: "",
     safeBottom: 0,
     keyboardHeight: 0,
     gddMarkdown: "",
@@ -49,6 +51,9 @@ Page({
     showLink: false,
     siteUrl: FORGEAX_SITE_URL,
     openingGdd: false,
+    hasLast: false,
+    showHistory: false,
+    historyItems: [] as Array<{ id: string; title: string; current: boolean }>,
   },
 
   onLoad() {
@@ -69,6 +74,7 @@ Page({
     this._warnTick = 0;
     this._typing = false;
     this._synthesisMd = "";
+    this._lastOptions = [] as TurnOption[];
     this._driver = null;
 
     this._onKeyboard = (res: { height: number }) => {
@@ -81,8 +87,118 @@ Page({
       // 无键盘事件也不挡开场白
     }
 
-    // 不在这里建会话：等用户在授权门里点「开始共创」并勾选同意之后再建，
-    // 避免未同意就产生会话。
+    this.refreshIndexHint();
+  },
+
+  refreshIndexHint() {
+    const idx = sessionIndex.load();
+    const cur = sessionIndex.current();
+    this.setData({
+      hasLast: Boolean(cur && cur.id),
+      historyItems: idx.items.map((it: { id: string; title?: string }) => ({
+        id: it.id,
+        title: it.title || "未命名共创",
+        current: Boolean(cur && cur.id === it.id),
+      })),
+    });
+  },
+
+  asOptions(raw: unknown): TurnOption[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((o: { id?: string; label?: string; detail?: string }) =>
+      o && typeof o.id === "string" && typeof o.label === "string" && typeof o.detail === "string",
+    ) as TurnOption[];
+  },
+
+  hasUserSpeech() {
+    return this.data.messages.some((m) => m.role === "user" && String(m.content || "").trim());
+  },
+
+  rememberSession() {
+    const id = this._sessionId;
+    if (!id) return;
+    const hasUser = this.data.messages.some((m) => m.role === "user" && String(m.content || "").trim());
+    if (!hasUser) return;
+    sessionIndex.upsert({
+      id,
+      title: sessionIndex.titleFrom(this._state, this.data.messages),
+      updatedAt: Date.now(),
+      lastOptions: this._lastOptions || this.data.options || [],
+      readyForSynthesis: this._stage?.readyForSynthesis === true,
+    });
+    this.refreshIndexHint();
+  },
+
+  ensureDriver() {
+    if (this._driver) return;
+    try {
+      this._driver = new AvatarDriver((poster, compact) => this.setData({ poster, compact }));
+    } catch (_e) {
+      this._driver = null;
+    }
+  },
+
+  resetConversation() {
+    this._abort?.();
+    this._sessionId = "";
+    this._stream = "";
+    this._state = null;
+    this._stage = null;
+    this._synthesisMd = "";
+    this._lastOptions = [] as TurnOption[];
+    this._warnTick = 0;
+    this._typing = false;
+    this.setData({
+      messages: [{ role: "assistant", content: "正在唤醒 NewBee…" }],
+      options: [],
+      busy: false,
+      error: "",
+      stageLabel: "",
+      pendingId: "",
+      expandedId: "",
+      gddMarkdown: "",
+      gddTitle: "",
+      showGdd: false,
+      done: false,
+    });
+  },
+
+  hydrateFromState(id: string, state: Record<string, unknown>) {
+    const history = Array.isArray(state.history) ? state.history : [];
+    const messages = history
+      .filter((m: { role?: string; content?: string }) => m && (m.role === "user" || m.role === "assistant"))
+      .map((m: { role: string; content?: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: String(m.content || ""),
+      }));
+    const local = sessionIndex.load().items.find((it: { id: string }) => it.id === id);
+    // 服务端有 lastOptions 字段（含空数组）就以它为准，避免本机索引里更早一轮的选项顶上来。
+    const options = Array.isArray(state.lastOptions)
+      ? this.asOptions(state.lastOptions)
+      : this.asOptions(local && local.lastOptions);
+    const ready = state.readyForSynthesis === true
+      || (!("readyForSynthesis" in state) && local && local.readyForSynthesis === true);
+    this._sessionId = id;
+    this._state = state;
+    this._lastOptions = options;
+    this._stage = {
+      stage: Number(state.stage) || 0,
+      label: "",
+      readyForSynthesis: ready,
+    };
+    // 未出稿时不用 gddFromState 拼半成品，否则会冒充「文档已成形」。
+    this._synthesisMd = ready ? gddFromState(state) : "";
+    this.setData({
+      messages: messages.length ? messages : [{ role: "assistant", content: "正在唤醒 NewBee…" }],
+      options,
+      busy: false,
+      error: "",
+      pendingId: "",
+      expandedId: "",
+    });
+    this.refreshResult(ready);
+    this.rememberSession();
+    this.syncAvatar();
   },
 
   onPosterError() {
@@ -98,22 +214,93 @@ Page({
       wx.showToast({ title: "请先勾选同意", icon: "none" });
       return;
     }
-    // 从首屏返回后再进：会话已在，只揭开浮层，不重建。
-    if (this._sessionId) {
-      this.setData({ entered: true });
+    // 只有「已经说过话」的内存会话才直接揭开。没发过言的新共创返回首页后应丢掉，
+    // 否则「继续共创」会走进一个未落盘、也不在「已保存」里的空会话。
+    if (this._sessionId && this.hasUserSpeech()) {
+      this.setData({ entered: true, showHistory: false });
       return;
     }
-    try {
-      this._driver = new AvatarDriver((poster, compact) => this.setData({ poster, compact }));
-    } catch (_e) {
-      this._driver = null;
+    if (this._sessionId && !this.hasUserSpeech()) {
+      this.resetConversation();
     }
-    this.setData({ entered: true });
+    this.ensureDriver();
+    this.setData({ entered: true, showHistory: false });
+    if (this.data.hasLast) {
+      void this.resumeLast();
+    } else {
+      this.boot();
+    }
+  },
+
+  onNewSession() {
+    if (!this.data.entered && !this.data.agreed) {
+      wx.showToast({ title: "请先勾选同意", icon: "none" });
+      return;
+    }
+    this.resetConversation();
+    this.ensureDriver();
+    this.setData({ entered: true, showHistory: false });
     this.boot();
   },
 
+  async resumeLast() {
+    const cur = sessionIndex.current();
+    if (!cur || !cur.id) {
+      this.boot();
+      return;
+    }
+    try {
+      const state = await getSession(cur.id);
+      this.hydrateFromState(cur.id, state);
+    } catch (_e) {
+      this.boot();
+    }
+  },
+
   onBackToGate() {
-    this.setData({ entered: false, showLegal: false, showLink: false, openingGdd: false });
+    if (!this.hasUserSpeech()) this.resetConversation();
+    this.setData({
+      entered: false,
+      showLegal: false,
+      showLink: false,
+      openingGdd: false,
+      showHistory: false,
+    });
+    this.refreshIndexHint();
+  },
+
+  onOpenHistory() {
+    this.refreshIndexHint();
+    this.setData({ showHistory: true });
+  },
+
+  onCloseHistory() {
+    this.setData({ showHistory: false });
+  },
+
+  onPickSession(e: { currentTarget: { dataset: { id?: string } } }) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    if (!this.data.entered && !this.data.agreed) {
+      wx.showToast({ title: "请先勾选同意", icon: "none" });
+      return;
+    }
+    this.setData({ showHistory: false, entered: true });
+    void this.openSession(id);
+  },
+
+  async openSession(id: string) {
+    if (id === this._sessionId && this.hasUserSpeech()) return;
+    this.ensureDriver();
+    try {
+      const state = await getSession(id);
+      sessionIndex.setCurrent(id);
+      this.hydrateFromState(id, state);
+      this.refreshIndexHint();
+    } catch (_e) {
+      wx.showToast({ title: "这条共创找不到了", icon: "none" });
+      this.refreshIndexHint();
+    }
   },
 
   onShow() {
@@ -174,12 +361,29 @@ Page({
     void this.send(e.detail.text);
   },
 
+  onToggleOption(e: { detail: { id?: string } }) {
+    const id = e.detail?.id;
+    if (!id || this.data.busy || this.data.pendingId) return;
+    if (this.data.expandedId === id) {
+      const opt = this.data.options.find((o) => o.id === id);
+      if (opt) this.onChoose({ detail: opt });
+      return;
+    }
+    this.setData({ expandedId: id });
+  },
+
+  onCollapseOption(e: { detail: { id?: string } }) {
+    const id = e.detail?.id;
+    if (!id || this.data.busy || this.data.pendingId) return;
+    if (this.data.expandedId === id) this.setData({ expandedId: "" });
+  },
+
   onChoose(e: { detail: TurnOption }) {
     const opt = e.detail;
     if (this.data.busy || this.data.pendingId) return;
-    this.setData({ pendingId: opt.id });
+    this.setData({ pendingId: opt.id, expandedId: opt.id });
     setTimeout(() => {
-      this.setData({ pendingId: "", options: [] });
+      this.setData({ pendingId: "", options: [], expandedId: "" });
       void this.send(opt.detail);
     }, 260);
   },
@@ -199,7 +403,8 @@ Page({
       { role: "user" as const, content: trimmed },
       { role: "assistant" as const, content: "" },
     ];
-    this.setData({ busy: true, error: "", options: [], messages, showGdd: false, done: false });
+    this._lastOptions = [];
+    this.setData({ busy: true, error: "", options: [], expandedId: "", messages, showGdd: false, done: false });
     this.syncAvatar();
 
     const { abort } = sendMessage(id, trimmed, {
@@ -209,6 +414,8 @@ Page({
       },
       onState: (s) => {
         this._state = s;
+        if (Array.isArray(s.lastOptions)) this._lastOptions = this.asOptions(s.lastOptions);
+        this.rememberSession();
         this.syncAvatar();
       },
       onStage: (info) => {
@@ -218,7 +425,8 @@ Page({
       },
       onOptions: (opts) => {
         this.flushNow();
-        this.setData({ options: opts || [] });
+        this._lastOptions = opts || [];
+        this.setData({ options: opts || [], expandedId: "" });
         this.syncAvatar();
       },
       onSynthesis: (payload) => {
@@ -231,7 +439,11 @@ Page({
       onError: (msg) => this.setData({ error: msg }),
       onDone: (ready) => {
         this.flushNow();
-        this.setData({ busy: false }, () => this.refreshResult(ready));
+        if (this._stage) this._stage.readyForSynthesis = ready;
+        this.setData({ busy: false }, () => {
+          this.refreshResult(ready);
+          this.rememberSession();
+        });
         this.syncAvatar();
       },
     });
@@ -240,11 +452,13 @@ Page({
 
   refreshResult(readyFromDone?: boolean) {
     const ready = readyFromDone === true || this._stage?.readyForSynthesis === true;
+    if (this._stage) this._stage.readyForSynthesis = ready;
     const hasUser = this.data.messages.some((m) => m.role === "user");
-    const markdown = this._synthesisMd || gddFromState(this._state);
+    const markdown = ready ? (this._synthesisMd || gddFromState(this._state)) : "";
     const noOptions = (this.data.options?.length ?? 0) === 0;
-    const showGdd = hasUser && noOptions && markdown.trim().length > 0;
-    const done = showGdd && ready;
+    // 只有 LLM 明确出稿才出示入口。半成品字段 + 无选项 ≠ 文档已成形。
+    const showGdd = hasUser && noOptions && ready && markdown.trim().length > 0;
+    const done = showGdd;
     const gddTitle = showGdd ? parseGddPreview(markdown).title : "";
     this.setData({ gddMarkdown: markdown, gddTitle, showGdd, done });
   },

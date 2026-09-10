@@ -1,8 +1,28 @@
 <view
-  class="card {{phase}} {{alt}}"
-  hover-class="{{disabled ? '' : 'hover'}}"
-  bindtap="onTap"
+  class="card {{phase}} {{alt}} {{expanded ? 'open' : ''}}"
+  style="animation-delay: {{index * 50}}ms"
+  hover-class="{{disabled ? '' : 'hover-head'}}"
+  bindtap="onToggle"
 >
-  <view class="tag">{{tag}}</view>
-  <view class="detail">{{shown}}<text wx:if="{{!done}}" class="caret"></text></view>
+  <view class="head">
+    <view class="title-row">
+      <view class="line">
+        <text class="kicker">{{kicker}}</text>
+        <text class="sep"> · </text>
+        <text class="label">{{labelText}}</text>
+      </view>
+      <view
+        class="chevron-btn"
+        hover-class="{{disabled ? '' : 'chevron-hover'}}"
+        aria-role="button"
+        aria-label="{{expanded ? '收起' : '展开'}}"
+        catchtap="onChevron"
+      >
+        <view class="chevron {{expanded ? 'up' : ''}}"></view>
+      </view>
+    </view>
+  </view>
+  <view class="body">
+    <view class="detail">{{shown}}</view>
+  </view>
 </view>

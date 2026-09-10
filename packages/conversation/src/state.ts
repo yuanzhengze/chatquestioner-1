@@ -3,6 +3,7 @@ import type {
   Dimension, Engine, Modality, Networking, Orientation, Platform,
 } from "./signals.js";
 import type { ChatMessage } from "./llm.js";
+import type { TurnOption } from "./turn.js";
 
 /** 四级核心循环（30s / 5min / 30min / 长线） */
 export interface LoopState {
@@ -67,6 +68,11 @@ export interface ConversationState {
   engineering: EngineeringSignals;
   constitution: string[];
   history: ChatMessage[];
+
+  /** 上一轮给用户的方向选项。续聊时要恢复；无选项时为空数组，避免沿用更早一轮。 */
+  lastOptions?: TurnOption[];
+  /** 上一轮 LLM 是否认为可以出稿。续聊时据此决定是否出示 GDD，而不是「有半成品字段就出」。 */
+  readyForSynthesis?: boolean;
 }
 
 export function createInitialState(): ConversationState {

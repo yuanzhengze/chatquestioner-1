@@ -11,3 +11,6 @@ export const FORGEAX_SITE_URL = "https://github.com/ForgeaX-Games";
 
 /** 聊天页把 GDD Markdown 交给独立预览页（过长不宜走 URL query）。 */
 export const GDD_DRAFT_KEY = "nb.gddDraft";
+
+/** 本机会话索引（D17）。只存 id/标题/时间，正文在服务端 data/sessions。 */
+export const SESSION_INDEX_KEY = "nb.sessionIndex";
