@@ -1,4 +1,4 @@
-import { GDD_DRAFT_KEY } from "../../config";
+import { GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
 import { createShare, getShare } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
@@ -82,6 +82,7 @@ function drawShareCard(
     fill: () => void;
     fillText: (t: string, x: number, y: number) => void;
     measureText: (t: string) => { width: number };
+    drawImage?: (img: unknown, x: number, y: number, w: number, h: number) => void;
     roundRect?: (x: number, y: number, w: number, h: number, r: number) => void;
     moveTo: (x: number, y: number) => void;
     arcTo: (x1: number, y1: number, x2: number, y2: number, r: number) => void;
@@ -92,6 +93,7 @@ function drawShareCard(
   },
   title: string,
   pitch: string,
+  logo: unknown | null,
 ) {
   ctx.fillStyle = "#0D0D0D";
   ctx.fillRect(0, 0, SHARE_W, SHARE_H);
@@ -104,6 +106,10 @@ function drawShareCard(
   ctx.fillStyle = "#0D0D0D";
   ctx.font = "20px sans-serif";
   ctx.fillText("游戏文档", 48, 53);
+
+  if (logo && typeof ctx.drawImage === "function") {
+    ctx.drawImage(logo, SHARE_W - 116, 20, 88, 88);
+  }
 
   ctx.fillStyle = "#FFFFFF";
   ctx.font = "bold 40px sans-serif";
@@ -130,6 +136,32 @@ function drawShareCard(
   ctx.fillText("NewBee × ForgeaX", 28, SHARE_H - 36);
 }
 
+function loadShareLogo(canvas: { createImage?: () => { src: string; onload: (() => void) | null; onerror: (() => void) | null } }): Promise<unknown | null> {
+  return new Promise((resolve) => {
+    if (!canvas || typeof canvas.createImage !== "function") {
+      resolve(null);
+      return;
+    }
+    let done = false;
+    const finish = (img: unknown | null) => {
+      if (done) return;
+      done = true;
+      resolve(img);
+    };
+    const timer = setTimeout(() => finish(null), 800);
+    const img = canvas.createImage();
+    img.onload = () => {
+      clearTimeout(timer);
+      finish(img);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      finish(null);
+    };
+    img.src = LOGO_SRC;
+  });
+}
+
 Page({
   data: {
     title: "",
@@ -141,6 +173,7 @@ Page({
     empty: true,
     ready: false,
     fromShare: false,
+    logoSrc: LOGO_SRC,
   },
 
   _markdown: "",
@@ -301,16 +334,18 @@ Page({
               return;
             }
             ctx.scale(dpr, dpr);
-            drawShareCard(ctx, title, pitch);
-            wx.canvasToTempFilePath({
-              canvas,
-              fileType: "jpg",
-              quality: 0.92,
-              success: (r) => {
-                this._shareImage = r.tempFilePath;
-                resolve(r.tempFilePath);
-              },
-              fail: () => resolve(""),
+            void loadShareLogo(canvas).then((logo) => {
+              drawShareCard(ctx, title, pitch, logo);
+              wx.canvasToTempFilePath({
+                canvas,
+                fileType: "jpg",
+                quality: 0.92,
+                success: (r) => {
+                  this._shareImage = r.tempFilePath;
+                  resolve(r.tempFilePath);
+                },
+                fail: () => resolve(""),
+              });
             });
           });
       };

@@ -30,3 +30,6 @@ data/
 
 # git worktrees
 .worktrees/
+
+# local unpack of the ForgeAX logo demo zip (videos are huge)
+_tmp-logo-pack/

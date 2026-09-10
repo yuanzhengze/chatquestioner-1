@@ -1,4 +1,4 @@
-import { API_BASE } from "../config";
+import { LOGO_SRC } from "../config";
 import { shared } from "./shared";
 
 export interface AvatarView {
@@ -8,7 +8,6 @@ export interface AvatarView {
 }
 
 const EMOTE_MS = 1200;
-const avatarBase = `${API_BASE.replace(/\/$/, "")}/avatar`;
 
 export class AvatarDriver {
   view: AvatarView = shared.initialView("idle");
@@ -96,8 +95,7 @@ export class AvatarDriver {
   }
 }
 
-function posterOf(view: AvatarView): string {
-  const state = view.emote ?? view.baseline;
-  const primitive = shared.bindingFor(state).primitive;
-  return shared.assetUrls(primitive, avatarBase).poster;
+function posterOf(_view: AvatarView): string {
+  // 情绪状态机仍在跑（compact / 后续动效），画面统一用品牌 Logo，不再拉 /avatar/*.png。
+  return LOGO_SRC;
 }

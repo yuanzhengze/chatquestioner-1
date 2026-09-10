@@ -12,6 +12,7 @@
           </view>
         </view>
       </view>
+      <image class="header-logo" src="{{logoSrc}}" mode="aspectFit" />
       <view class="title">NewBee · 游戏共创</view>
       <view class="new-chat" bindtap="onNewSession">新共创</view>
     </view>
@@ -62,6 +63,7 @@
 
   <view wx:if="{{openingGdd}}" class="loading-mask">
     <view class="loading-card">
+      <image class="loading-logo" src="{{logoSrc}}" mode="aspectFit" />
       <view class="spinner"></view>
       <view class="loading-text">正在打开文档…</view>
     </view>
@@ -71,7 +73,7 @@
   <view wx:if="{{!entered}}" class="gate" style="padding-bottom: {{safeBottom + 24}}px;">
     <view class="gate-brandrow">
       <view class="gate-mark">
-        <view class="gate-mark-cube"></view>
+        <image class="gate-mark-logo" src="{{logoSrc}}" mode="aspectFit" />
       </view>
       <view class="gate-brand-copy">
         <view class="gate-wordmark">NewBee</view>
@@ -82,7 +84,7 @@
     <view class="gate-visual">
       <view class="gate-window">
         <view class="gate-window-bar">
-          <view class="gate-window-cap">产品形象</view>
+          <view class="gate-window-cap">Logo</view>
         </view>
         <view class="gate-window-body">
           <image
@@ -147,7 +149,10 @@
 
   <view wx:if="{{showHistory}}" class="hist-mask" catchtap="onCloseHistory">
     <view class="hist-panel" catchtap="noop">
-      <view class="hist-head">共创记录</view>
+      <view class="hist-head">
+        <image class="hist-logo" src="{{logoSrc}}" mode="aspectFit" />
+        <view>共创记录</view>
+      </view>
       <view wx:if="{{historyItems.length === 0}}" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
       <scroll-view wx:if="{{historyItems.length > 0}}" scroll-y class="hist-list">
         <view

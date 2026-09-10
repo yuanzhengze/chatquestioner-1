@@ -14,3 +14,6 @@ export const GDD_DRAFT_KEY = "nb.gddDraft";
 
 /** 本机会话索引（D17）。只存 id/标题/时间，正文在服务端 data/sessions。 */
 export const SESSION_INDEX_KEY = "nb.sessionIndex";
+
+/** 全站品牌静帧。Loader 视频未进包前，首屏/对话/文档/分享卡共用这一张。 */
+export const LOGO_SRC = "/images/forgeax-logo.png";

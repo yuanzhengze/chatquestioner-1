@@ -1,9 +1,11 @@
 <view wx:if="{{!ready}}" class="loading">
+  <image class="loading-logo" src="{{logoSrc}}" mode="aspectFit" />
   <view class="spinner"></view>
   <view class="muted">正在打开文档…</view>
 </view>
 
 <view wx:if="{{ready && empty}}" class="empty">
+  <image class="empty-logo" src="{{logoSrc}}" mode="aspectFit" />
   <view class="empty-title">{{fromShare ? '找不到这份分享' : '还没有文档'}}</view>
   <view class="muted">{{fromShare ? '链接可能已失效。你可以自己开一轮共创。' : '回到聊天里再聊几轮，出现「打开预览」后再进来。'}}</view>
   <button wx:if="{{fromShare}}" class="try-btn" hover-class="none" bindtap="onTryCoCreate">我也来共创</button>
@@ -12,7 +14,10 @@
 <view wx:if="{{ready && !empty}}" class="wrap">
   <view wx:if="{{fromShare}}" class="share-banner">来自分享的游戏文档</view>
   <view class="cover" bindtap="onCoverTap">
-    <view class="cover-badge">封面位 · 点按看说明</view>
+    <view class="cover-top">
+      <view class="cover-badge">封面位 · 点按看说明</view>
+      <image class="cover-logo" src="{{logoSrc}}" mode="aspectFit" />
+    </view>
     <view class="cover-title">{{title}}</view>
     <view wx:if="{{pitch}}" class="cover-pitch">{{pitch}}</view>
     <view class="cover-brand">NewBee × ForgeaX</view>

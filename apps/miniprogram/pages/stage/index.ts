@@ -1,6 +1,6 @@
 import { createSession, getSession, deleteSession, sendMessage } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
-import { API_BASE, FORGEAX_SITE_URL, GDD_DRAFT_KEY } from "../../config";
+import { FORGEAX_SITE_URL, GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
 
 const { gddFromState } = require("../../utils/gdd.js");
@@ -27,7 +27,7 @@ Page({
     busy: false,
     error: "",
     stageLabel: "",
-    poster: "",
+    poster: LOGO_SRC,
     compact: false,
     pendingId: "",
     expandedId: "",
@@ -41,7 +41,8 @@ Page({
     // 首屏授权门（原独立落地页）
     entered: false,
     agreed: false,
-    gatePoster: `${API_BASE.replace(/\/$/, "")}/avatar/calm.png`,
+    logoSrc: LOGO_SRC,
+    gatePoster: LOGO_SRC,
     posterFailed: false,
     slogan: "把一句脑洞，聊成一份能做的游戏",
     subline: "ForgeaX 前置共创 · 产出游戏产品文档",
