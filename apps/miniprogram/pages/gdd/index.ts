@@ -17,6 +17,7 @@ Page({
 
   _markdown: "",
   _applied: false,
+  _waitTimer: 0 as number,
 
   onLoad() {
     const ch = this.getOpenerEventChannel();
@@ -25,8 +26,22 @@ Page({
         this.applyMarkdown(payload && payload.markdown);
       });
     }
-    // eventChannel 已送到就别再读缓存：跳转后才异步补写，缓存里可能是上一份文档。
     if (!this._applied) this.applyFromStorage();
+    // eventChannel 可能晚于 onLoad，缓存也可能还没写完。最多等一会儿，不要永远转圈。
+    this._waitTimer = setTimeout(() => {
+      this._waitTimer = 0;
+      if (this._applied) return;
+      this.applyFromStorage();
+      if (!this._applied) this.applyMarkdown("");
+    }, 1200) as unknown as number;
+  },
+
+  onShow() {
+    if (!this._applied) this.applyFromStorage();
+  },
+
+  onUnload() {
+    if (this._waitTimer) clearTimeout(this._waitTimer);
   },
 
   applyFromStorage() {
@@ -35,7 +50,7 @@ Page({
       const markdown = draft && typeof draft === "object" ? draft.markdown : "";
       if (markdown) this.applyMarkdown(markdown);
     } catch (_e) {
-      // 读缓存失败时等 eventChannel
+      // 读缓存失败时等 eventChannel / 超时
     }
   },
 
@@ -43,6 +58,7 @@ Page({
     const markdown = String(raw || "").trim();
     if (!markdown) {
       this._markdown = "";
+      this._applied = true;
       this.setData({ ready: true, empty: true, title: "", pitch: "", must: [], cut: [], html: "", plain: "" });
       return;
     }

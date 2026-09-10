@@ -75,6 +75,7 @@ Page({
     this._typing = false;
     this._synthesisMd = "";
     this._lastOptions = [] as TurnOption[];
+    this._openGddTimer = 0 as number;
     this._driver = null;
 
     this._onKeyboard = (res: { height: number }) => {
@@ -259,11 +260,11 @@ Page({
 
   onBackToGate() {
     if (!this.hasUserSpeech()) this.resetConversation();
+    this.clearOpenGdd();
     this.setData({
       entered: false,
       showLegal: false,
       showLink: false,
-      openingGdd: false,
       showHistory: false,
     });
     this.refreshIndexHint();
@@ -304,7 +305,11 @@ Page({
   },
 
   onShow() {
-    if (this.data.openingGdd) this.setData({ openingGdd: false });
+    this.clearOpenGdd();
+  },
+
+  onHide() {
+    this.clearOpenGdd();
   },
 
   onOpenLink() {
@@ -338,6 +343,7 @@ Page({
     this._abort?.();
     this._driver?.destroy();
     if (this._flushTimer) clearTimeout(this._flushTimer);
+    if (this._openGddTimer) clearTimeout(this._openGddTimer);
     if (this._onKeyboard) wx.offKeyboardHeightChange(this._onKeyboard);
   },
 
@@ -463,6 +469,14 @@ Page({
     this.setData({ gddMarkdown: markdown, gddTitle, showGdd, done });
   },
 
+  clearOpenGdd() {
+    if (this._openGddTimer) {
+      clearTimeout(this._openGddTimer);
+      this._openGddTimer = 0;
+    }
+    if (this.data.openingGdd) this.setData({ openingGdd: false });
+  },
+
   onOpenGdd() {
     const markdown = this.data.gddMarkdown || "";
     if (this.data.openingGdd) return;
@@ -470,9 +484,16 @@ Page({
       wx.showToast({ title: "文档还没写好", icon: "none" });
       return;
     }
-    // 先出加载层再跳：navigateTo 建页在本机模拟器约 1 秒（B16），盖住这段空白。
-    // 存储写完再跳，预览页 onLoad 就能立刻读到，减少白屏。
+    // 先出加载层再跳：navigateTo 建页在本机模拟器约 1 秒（B16）。
+    // 若 success/fail 都不来（热重载、模拟器卡住），遮罩会永远挡住，所以加超时。
     this.setData({ openingGdd: true }, () => {
+      this._openGddTimer = setTimeout(() => {
+        this._openGddTimer = 0;
+        if (!this.data.openingGdd) return;
+        this.setData({ openingGdd: false });
+        wx.showToast({ title: "打开有点慢，请再点一次", icon: "none" });
+      }, 3500) as unknown as number;
+
       wx.setStorage({
         key: GDD_DRAFT_KEY,
         data: { markdown },
@@ -482,7 +503,10 @@ Page({
             success: (res) => {
               if (res.eventChannel) res.eventChannel.emit("gddDraft", { markdown });
             },
-            fail: () => this.setData({ openingGdd: false }),
+            fail: () => {
+              this.clearOpenGdd();
+              wx.showToast({ title: "打不开文档页", icon: "none" });
+            },
           });
         },
       });
