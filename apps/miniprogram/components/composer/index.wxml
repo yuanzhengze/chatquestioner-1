@@ -16,5 +16,14 @@
     bindblur="onBlur"
     bindconfirm="onConfirm"
   />
-  <button class="send {{disabled || !value ? 'off' : ''}}" disabled="{{disabled || !value}}" bindtap="onSend">{{busy ? '构思中' : '发送'}}</button>
+  <view
+    class="send {{disabled || busy || !value ? 'off' : ''}}"
+    hover-class="{{disabled || busy || !value ? 'none' : 'send-press'}}"
+    bindtap="onSend"
+    aria-role="button"
+    aria-label="发送"
+  >
+    <view wx:if="{{busy}}" class="send-spin"></view>
+    <view wx:else class="send-arrow"></view>
+  </view>
 </view>

@@ -4,6 +4,8 @@ Component({
     disabled: { type: Boolean, value: false },
     safeBottom: { type: Number, value: 0 },
     keyboardHeight: { type: Number, value: 0 },
+    seed: { type: String, value: "" },
+    seedSeq: { type: Number, value: 0 },
   },
   data: {
     value: "",
@@ -14,6 +16,9 @@ Component({
     "safeBottom, keyboardHeight"(safeBottom: number, keyboardHeight: number) {
       const extra = keyboardHeight > 0 ? keyboardHeight : safeBottom;
       this.setData({ padBottom: Math.max(12, extra) });
+    },
+    "seed, seedSeq"(seed: string) {
+      this.setData({ value: seed || "" });
     },
   },
   methods: {

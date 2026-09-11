@@ -17,3 +17,12 @@ export const SESSION_INDEX_KEY = "nb.sessionIndex";
 
 /** 全站品牌静帧。Loader 视频未进包前，首屏/对话/文档/分享卡共用这一张。 */
 export const LOGO_SRC = "/images/forgeax-logo.png";
+
+/** 首页协议勾选。拆成 Tab 后必须落盘，共创发送时读取。 */
+export const AGREED_KEY = "nb.agreed";
+
+/** 首页示例预填到共创输入框。switchTab 不能带 query。 */
+export const PENDING_PROMPT_KEY = "nb.pendingPrompt";
+
+/** 首页/我的交给共创页的动作：boot / resume / open。 */
+export const PENDING_CHAT_KEY = "nb.pendingChat";

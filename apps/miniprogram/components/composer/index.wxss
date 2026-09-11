@@ -8,6 +8,7 @@
 }
 .input {
   flex: 1;
+  min-width: 0;
   min-height: 72rpx;
   max-height: 200rpx;
   background: #242424;
@@ -24,16 +25,33 @@
 .ph { color: rgba(255, 255, 255, 0.30); }
 .send {
   flex-shrink: 0;
-  margin: 0;
-  height: 88rpx;
-  line-height: 88rpx;
-  padding: 0 36rpx;
+  width: 72rpx;
+  height: 72rpx;
+  margin-bottom: 2rpx;
+  border-radius: 50%;
   background: #d4ff48;
-  color: #0d0d0d;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  font-weight: 600;
-  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.send.off { opacity: 0.2; }
-.send::after { border: none; }
+.send.off { opacity: 0.22; }
+.send-press { opacity: 0.82; }
+.send-arrow {
+  width: 0;
+  height: 0;
+  border-left: 12rpx solid transparent;
+  border-right: 12rpx solid transparent;
+  border-bottom: 18rpx solid #0d0d0d;
+  margin-top: -4rpx;
+}
+.send-spin {
+  width: 28rpx;
+  height: 28rpx;
+  border: 4rpx solid rgba(13, 13, 13, 0.22);
+  border-top-color: #0d0d0d;
+  border-radius: 50%;
+  animation: sendSpin 0.7s linear infinite;
+}
+@keyframes sendSpin {
+  to { transform: rotate(360deg); }
+}

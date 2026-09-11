@@ -1,6 +1,6 @@
 # chat-questioner 竖屏微信小程序
 
-第一版只做共创对话：NewBee 形象 + 流式回复 + 选项卡片 + 底部输入。后端仍是仓库里的 Fastify（`pnpm dev:server`）。
+第一版是底部 Tab：首页 / 共创 / 我的。对话仍走本机 Fastify（`pnpm dev:server`）。
 
 ## 打开项目
 

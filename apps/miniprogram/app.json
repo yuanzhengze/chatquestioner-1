@@ -1,6 +1,8 @@
 {
   "pages": [
+    "pages/home/index",
     "pages/stage/index",
+    "pages/mine/index",
     "pages/gdd/index"
   ],
   "window": {
@@ -10,6 +12,32 @@
     "backgroundColor": "#0D0D0D",
     "backgroundTextStyle": "light",
     "pageOrientation": "portrait"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#D4FF48",
+    "backgroundColor": "#191919",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "images/tab/home.png",
+        "selectedIconPath": "images/tab/home-on.png"
+      },
+      {
+        "pagePath": "pages/stage/index",
+        "text": "共创",
+        "iconPath": "images/tab/chat.png",
+        "selectedIconPath": "images/tab/chat-on.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "images/tab/mine.png",
+        "selectedIconPath": "images/tab/mine-on.png"
+      }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

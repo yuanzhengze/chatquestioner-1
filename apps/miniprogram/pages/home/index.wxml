@@ -1,0 +1,128 @@
+<swiper
+  class="pager"
+  vertical
+  circular="{{false}}"
+  current="{{screen}}"
+  duration="520"
+  easing-function="easeInOutCubic"
+  skip-hidden-item-layout="{{true}}"
+  bindchange="onScreenChange"
+>
+  <swiper-item>
+    <view class="screen one">
+      <view class="brandrow">
+        <view class="mark">
+          <image class="mark-logo" src="{{logoSrc}}" mode="aspectFit" />
+        </view>
+        <view class="brand-copy">
+          <view class="wordmark">NewBee</view>
+          <view class="kicker">ForgeaX 前置共创</view>
+        </view>
+      </view>
+
+      <view class="window">
+        <view class="window-bar">
+          <view class="window-cap">Logo</view>
+        </view>
+        <view class="window-body">
+          <image
+            wx:if="{{!posterFailed}}"
+            class="face"
+            src="{{gatePoster}}"
+            mode="aspectFit"
+            binderror="onPosterError"
+          />
+          <view wx:if="{{posterFailed}}" class="face face-fallback">?</view>
+        </view>
+      </view>
+
+      <view class="copy">
+        <view class="eyebrow">
+          <view class="eyebrow-bar"></view>
+          <text>灵感引导 · 游戏文档</text>
+        </view>
+        <view class="title">把一句脑洞，聊成一份<text class="em">能做的游戏</text></view>
+        <view class="sub">{{subline}}</view>
+      </view>
+
+      <view class="actions">
+        <view class="consent" bindtap="onToggleAgree">
+          <view class="box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
+          <view class="consent-text">
+            我已阅读并同意
+            <text class="link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
+            与
+            <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
+          </view>
+        </view>
+        <button class="btn primary {{agreed ? '' : 'off'}}" hover-class="press" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
+        <button wx:if="{{hasLast}}" class="btn ghost" hover-class="press" bindtap="onNewSession">新的共创</button>
+        <button class="btn ghost" hover-class="press" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
+      </view>
+
+      <view class="hint" bindtap="onSeeExamples">
+        <view class="hint-chevron"></view>
+        <view class="hint-text">上滑看示例</view>
+      </view>
+    </view>
+  </swiper-item>
+
+  <swiper-item>
+    <scroll-view scroll-y class="screen two">
+      <view class="hint back" bindtap="onSeeCover">
+        <view class="hint-chevron up"></view>
+        <view class="hint-text">下滑回封面</view>
+      </view>
+      <view class="section">
+        <view class="section-label">示例脑洞</view>
+        <view class="section-hint">点一下会带到共创页，预填进输入框，不会自动发送。</view>
+        <view
+          wx:for="{{ideas}}"
+          wx:key="id"
+          class="idea"
+          data-text="{{item.text}}"
+          bindtap="onUseIdea"
+        >{{item.text}}</view>
+      </view>
+
+      <view class="section">
+        <view class="section-label">示例案例</view>
+        <view class="section-hint">不是真实用户作品，只用来示范文档会长什么样。</view>
+        <view
+          wx:for="{{cases}}"
+          wx:key="id"
+          class="case"
+          data-title="{{item.title}}"
+          data-pitch="{{item.pitch}}"
+          bindtap="onUseCase"
+        >
+          <view class="case-badge">示例</view>
+          <view class="case-title">{{item.title}}</view>
+          <view class="case-pitch">{{item.pitch}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </swiper-item>
+</swiper>
+
+<view wx:if="{{showLegal}}" class="mask" catchtap="onCloseSheets">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">{{legalTitle}}</view>
+    <scroll-view scroll-y class="sheet-body">
+      <text class="sheet-text">{{legalBody}}</text>
+    </scroll-view>
+    <button class="btn primary sheet-btn" hover-class="press" bindtap="onCloseSheets">知道了</button>
+  </view>
+</view>
+
+<view wx:if="{{showLink}}" class="mask" catchtap="onCloseSheets">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">ForgeaX 开源项目</view>
+    <view class="sheet-body">
+      <text class="sheet-text">开发期小程序还不能直接打开外部网页（需要企业主体业务域名）。先复制链接，到系统浏览器打开。</text>
+      <view class="url">{{siteUrl}}</view>
+    </view>
+    <button class="btn primary sheet-btn" hover-class="press" bindtap="onCopyLink">复制链接</button>
+    <button class="btn ghost sheet-btn" hover-class="press" bindtap="onCloseSheets">关闭</button>
+  </view>
+</view>

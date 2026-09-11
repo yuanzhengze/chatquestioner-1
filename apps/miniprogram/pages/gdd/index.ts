@@ -396,6 +396,6 @@ Page({
   },
 
   onTryCoCreate() {
-    wx.reLaunch({ url: "/pages/stage/index" });
+    wx.switchTab({ url: "/pages/home/index" });
   },
 });

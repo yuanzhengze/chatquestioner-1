@@ -2,10 +2,10 @@
   <view class="header">
     <view class="header-row">
       <view class="header-left">
-        <view class="icon-btn" bindtap="onBackToGate" aria-role="button" aria-label="返回">
+        <view class="icon-btn" bindtap="onBackToHome" aria-role="button" aria-label="返回首页">
           <view class="i-chevron"></view>
         </view>
-        <view class="icon-btn" bindtap="onOpenHistory" aria-role="button" aria-label="历史">
+        <view class="icon-btn" bindtap="onOpenHistory" aria-role="button" aria-label="共创历史">
           <view class="i-clock">
             <view class="i-clock-h"></view>
             <view class="i-clock-m"></view>
@@ -54,105 +54,18 @@
     wx:if="{{!done}}"
     busy="{{busy}}"
     disabled="{{busy}}"
-    safe-bottom="{{safeBottom}}"
+    safe-bottom="{{0}}"
     keyboard-height="{{keyboardHeight}}"
+    seed="{{composerSeed}}"
+    seed-seq="{{seedSeq}}"
     bind:send="onSend"
     bind:typing="onTyping"
   />
-  <view wx:if="{{done}}" class="done-bar" style="padding-bottom: {{safeBottom + 12}}px;">对话已完成，游戏概念已成型。</view>
-
-  <view wx:if="{{openingGdd}}" class="loading-mask">
-    <view class="loading-card">
-      <image class="loading-logo" src="{{logoSrc}}" mode="aspectFit" />
-      <view class="spinner"></view>
-      <view class="loading-text">正在打开文档…</view>
-    </view>
-  </view>
-
-  <!-- 首屏授权门：同页浮层。色与圆角跟 Forgeax ui-status-audit。 -->
-  <view wx:if="{{!entered}}" class="gate" style="padding-bottom: {{safeBottom + 24}}px;">
-    <view class="gate-brandrow">
-      <view class="gate-mark">
-        <image class="gate-mark-logo" src="{{logoSrc}}" mode="aspectFit" />
-      </view>
-      <view class="gate-brand-copy">
-        <view class="gate-wordmark">NewBee</view>
-        <view class="gate-kicker">ForgeaX 前置共创</view>
-      </view>
-    </view>
-
-    <view class="gate-visual">
-      <view class="gate-window">
-        <view class="gate-window-bar">
-          <view class="gate-window-cap">Logo</view>
-        </view>
-        <view class="gate-window-body">
-          <image
-            wx:if="{{!posterFailed}}"
-            class="gate-face"
-            src="{{gatePoster}}"
-            mode="aspectFit"
-            binderror="onPosterError"
-          />
-          <view wx:if="{{posterFailed}}" class="gate-face gate-face-fallback">😊</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="gate-copy">
-      <view class="gate-eyebrow">
-        <view class="gate-eyebrow-bar"></view>
-        <text>灵感引导 · 游戏文档</text>
-      </view>
-      <view class="gate-title">把一句脑洞，聊成一份<text class="gate-em">能做的游戏</text></view>
-      <view class="gate-sub">{{subline}}</view>
-    </view>
-
-    <view class="gate-actions">
-      <button class="gate-btn primary {{agreed ? '' : 'off'}}" hover-class="gate-press" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
-      <button wx:if="{{hasLast}}" class="gate-btn ghost" hover-class="gate-press" bindtap="onNewSession">新的共创</button>
-      <button class="gate-btn ghost" hover-class="gate-press" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
-
-      <label class="gate-consent" bindtap="onToggleAgree">
-        <view class="gate-box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
-        <view class="gate-consent-text">
-          我已阅读并同意
-          <text class="gate-link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
-          与
-          <text class="gate-link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
-        </view>
-      </label>
-    </view>
-
-    <view wx:if="{{showLegal}}" class="gate-mask" catchtap="onCloseSheets">
-      <view class="gate-sheet" catchtap="noop">
-        <view class="gate-sheet-title">{{legalTitle}}</view>
-        <scroll-view scroll-y class="gate-sheet-body">
-          <text class="gate-sheet-text">{{legalBody}}</text>
-        </scroll-view>
-        <button class="gate-btn primary gate-sheet-btn" hover-class="gate-press" bindtap="onCloseSheets">知道了</button>
-      </view>
-    </view>
-
-    <view wx:if="{{showLink}}" class="gate-mask" catchtap="onCloseSheets">
-      <view class="gate-sheet" catchtap="noop">
-        <view class="gate-sheet-title">ForgeaX 开源项目</view>
-        <view class="gate-sheet-body">
-          <text class="gate-sheet-text">开发期小程序还不能直接打开外部网页（需要企业主体业务域名）。先复制链接，到系统浏览器打开。</text>
-          <view class="gate-url">{{siteUrl}}</view>
-        </view>
-        <button class="gate-btn primary gate-sheet-btn" hover-class="gate-press" bindtap="onCopyLink">复制链接</button>
-        <button class="gate-btn ghost gate-sheet-btn" hover-class="gate-press" bindtap="onCloseSheets">关闭</button>
-      </view>
-    </view>
-  </view>
+  <view wx:if="{{done}}" class="done-bar">对话已完成，游戏概念已成型。</view>
 
   <view wx:if="{{showHistory}}" class="hist-mask" catchtap="onCloseHistory">
     <view class="hist-panel" catchtap="noop">
-      <view class="hist-head">
-        <image class="hist-logo" src="{{logoSrc}}" mode="aspectFit" />
-        <view>共创记录</view>
-      </view>
+      <view class="hist-head">共创历史</view>
       <view wx:if="{{historyItems.length === 0}}" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
       <scroll-view wx:if="{{historyItems.length > 0}}" scroll-y class="hist-list">
         <view
@@ -166,7 +79,45 @@
           <view class="hist-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
         </view>
       </scroll-view>
-      <button class="gate-btn ghost hist-close" bindtap="onCloseHistory">关闭</button>
+      <view class="hist-close" bindtap="onCloseHistory">关闭</view>
+    </view>
+  </view>
+
+  <view wx:if="{{showConsent}}" class="consent-mask" catchtap="onCloseConsent">
+    <view class="consent-card" catchtap="noop">
+      <view class="consent-title">开始共创前请先确认</view>
+      <view class="consent-copy">勾选同意后就可以说话。协议可随时在「我的」里再看。</view>
+      <view class="consent-row" bindtap="onToggleConsent">
+        <view class="box {{consentChecked ? 'on' : ''}}">{{consentChecked ? '✓' : ''}}</view>
+        <view class="consent-text">
+          我已阅读并同意
+          <text class="link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
+          与
+          <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
+        </view>
+      </view>
+      <view class="consent-actions">
+        <view class="btn ghost" bindtap="onCloseConsent">稍后再说</view>
+        <view class="btn primary {{consentChecked ? '' : 'off'}}" bindtap="onConfirmConsent">同意并继续</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showLegal}}" class="legal-mask" catchtap="onCloseLegal">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">{{legalTitle}}</view>
+      <scroll-view scroll-y class="sheet-body">
+        <text class="sheet-text">{{legalBody}}</text>
+      </scroll-view>
+      <view class="btn primary" bindtap="onCloseLegal">知道了</view>
+    </view>
+  </view>
+
+  <view wx:if="{{openingGdd}}" class="loading-mask">
+    <view class="loading-card">
+      <image class="loading-logo" src="{{logoSrc}}" mode="aspectFit" />
+      <view class="spinner"></view>
+      <view class="loading-text">正在打开文档…</view>
     </view>
   </view>
 </view>

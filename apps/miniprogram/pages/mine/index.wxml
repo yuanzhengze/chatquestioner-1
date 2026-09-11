@@ -1,0 +1,77 @@
+<view class="mine">
+  <view class="hero">
+    <image class="hero-logo" src="{{logoSrc}}" mode="aspectFit" />
+    <view class="hero-name">NewBee</view>
+    <view class="hero-sub">ForgeaX 前置共创</view>
+  </view>
+
+  <view class="card">
+    <view class="login" bindtap="onLogin">
+      <view class="login-title">登录</view>
+      <view class="login-hint">开发期不绑定微信账号</view>
+    </view>
+  </view>
+
+  <view class="hist-card">
+    <view class="hist-toggle" bindtap="onToggleHist">
+      <view class="hist-toggle-title">共创记录</view>
+      <view class="hist-chevron {{histOpen ? 'on' : ''}}"></view>
+    </view>
+    <view wx:if="{{histOpen}}" class="hist-body">
+      <view wx:if="{{historyItems.length === 0}}" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
+      <scroll-view wx:if="{{historyItems.length > 0}}" scroll-y class="hist-list" style="height: {{histListHeight}}rpx;">
+        <view
+          wx:for="{{historyItems}}"
+          wx:key="id"
+          class="hist-item {{item.current ? 'on' : ''}}"
+        >
+          <view class="hist-main" data-id="{{item.id}}" bindtap="onPickSession">
+            <view class="hist-title">{{item.title}}</view>
+          </view>
+          <view class="hist-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <view class="list">
+    <view class="row" bindtap="onShowLegal" data-kind="terms">
+      <view class="row-label">用户协议</view>
+      <view class="row-go">></view>
+    </view>
+    <view class="row" bindtap="onShowLegal" data-kind="privacy">
+      <view class="row-label">隐私政策</view>
+      <view class="row-go">></view>
+    </view>
+    <view class="row" bindtap="onOpenAbout">
+      <view class="row-label">关于 NewBee</view>
+      <view class="row-go">></view>
+    </view>
+    <view class="row" bindtap="onSettings">
+      <view class="row-label">设置</view>
+      <view class="row-go">></view>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{showLegal}}" class="mask" catchtap="onCloseSheets">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">{{legalTitle}}</view>
+    <scroll-view scroll-y class="sheet-body">
+      <text class="sheet-text">{{legalBody}}</text>
+    </scroll-view>
+    <button class="btn primary" hover-class="press" bindtap="onCloseSheets">知道了</button>
+  </view>
+</view>
+
+<view wx:if="{{showAbout}}" class="mask" catchtap="onCloseSheets">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">关于 NewBee</view>
+    <view class="sheet-body">
+      <text class="sheet-text">NewBee 把一句脑洞聊成一份能做的游戏文档，再手动交给 ForgeaX。</text>
+      <view class="url" bindtap="onCopyLink">{{siteUrl}}</view>
+    </view>
+    <button class="btn primary sheet-btn" hover-class="press" bindtap="onCopyLink">复制开源链接</button>
+    <button class="btn ghost sheet-btn" hover-class="press" bindtap="onCloseSheets">关闭</button>
+  </view>
+</view>
