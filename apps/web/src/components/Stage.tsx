@@ -18,7 +18,7 @@ export function Stage({ session }: { session: UseSession }) {
 
   const { view, onEmoteEnded } = useAvatar(session, typing);
 
-  const ended = session.stage?.readyForSynthesis === true && !!session.synthesis;
+  const ended = session.synthesis?.complete === true;
 
   // 新一轮（options 变化）清掉上一轮的待选高亮。
   useEffect(() => { setPendingId(null); }, [session.options]);

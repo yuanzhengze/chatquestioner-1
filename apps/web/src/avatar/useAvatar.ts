@@ -50,7 +50,7 @@ export function useAvatar(session: UseSession, typing: boolean): {
   // 收敛达成：预览随后每轮都会刷新（对象引用变化），仅在首次出现时庆祝一次。
   const celebratedRef = useRef(false);
   useEffect(() => {
-    if (session.synthesis && !celebratedRef.current) {
+    if (session.synthesis?.complete === true && !celebratedRef.current) {
       celebratedRef.current = true;
       dispatch(emote("synthesis"));
     }

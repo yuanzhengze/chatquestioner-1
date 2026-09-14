@@ -39,6 +39,8 @@ describe("routes", () => {
     const body = r.json();
     expect(body.id).toMatch(/[0-9a-f-]{36}/);
     expect(body.opening).toContain("NewBee");
+    expect(body.opening).not.toContain("10 轮");
+    expect(body.options).toBeUndefined();
     // 关键：此刻不应有任何持久化（未发首句）。
     expect(await store.load(body.id)).toBeNull();
     await app.close();
@@ -115,6 +117,59 @@ describe("routes", () => {
     await app.close();
   });
 
+  it("GET 会话：只有口头总结、用户还没确认生成 → 不出草稿", async () => {
+    const { app, store } = makeApp();
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    const s = createInitialState();
+    s.guidance = "accepted";
+    s.spark = "九龙城寨开火焦虑";
+    s.coreEmotion = "开火焦虑";
+    s.readyForSynthesis = true;
+    s.history = [
+      {
+        role: "assistant",
+        content: "> 📌 **暂定名**：《城寨：风水魇》\n> 📌 **一句话亮点**：开火即逃亡。",
+      },
+    ];
+    await store.save(created.id, s);
+    const got = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
+    expect(got.statusCode).toBe(200);
+    const body = got.json();
+    expect(body.readyForSynthesis).toBe(false);
+    expect(body.gddMarkdown).toBeUndefined();
+    expect(body.workingTitle).toBe("城寨：风水魇");
+    await app.close();
+  });
+
+  it("GET 会话：用户确认生成后出草稿，并带上对话里已有的内容", async () => {
+    const { app, store } = makeApp();
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    const s = createInitialState();
+    s.guidance = "accepted";
+    s.spark = "九龙城寨开火焦虑";
+    s.coreEmotion = "开火焦虑";
+    s.reward = "废弃冰室补给";
+    s.failRule = "被抓惨死回冰室";
+    s.history = [
+      {
+        role: "assistant",
+        content: "> 📌 **暂定游戏名**：《城寨幽鸣》\n> 📌 **一句话亮点**：开火即逃亡。\n> 📌 **核心循环**：搜刮 ➔ 潜行 ➔ 开枪逃跑",
+      },
+      { role: "user", content: "确认当前的总结完美契合心中构想，直接生成最终的设计文档。" },
+    ];
+    await store.save(created.id, s);
+    const got = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
+    expect(got.statusCode).toBe(200);
+    const body = got.json();
+    expect(body.readyForSynthesis).toBe(true);
+    expect(body.gddComplete).toBe(false);
+    expect(body.workingTitle).toBe("城寨幽鸣");
+    expect(body.gddMarkdown).toContain("城寨幽鸣");
+    expect(body.gddMarkdown).toContain("冰室");
+    expect(body.gddModel.title).toBe("城寨幽鸣");
+    await app.close();
+  });
+
   it("POST /api/share 只存文档快照；GET 不含 history", async () => {
     const { app } = makeApp();
     const missing = await app.inject({ method: "GET", url: "/api/share/nope" });
@@ -144,10 +199,36 @@ describe("routes", () => {
     expect(body.title).toBe("梦境便利店");
     expect(body.markdown).toContain("梦境便利店");
     expect(body).not.toHaveProperty("history");
+    expect(body).not.toHaveProperty("model");
 
     const got = await app.inject({ method: "GET", url: `/api/share/${body.id}` });
     expect(got.statusCode).toBe(200);
     expect(got.json().markdown).toContain("便利店");
+    expect(got.json()).not.toHaveProperty("history");
+    await app.close();
+  });
+
+  it("POST /api/share 带 model 则为 v2，GET 仍不含 history", async () => {
+    const { app } = makeApp();
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/share",
+      payload: {
+        markdown: "# 夜猫\n\n> 一句话 Pitch：猫咖\n",
+        title: "夜猫",
+        model: { title: "夜猫", pitch: "猫咖" },
+        complete: false,
+        history: [{ role: "user", content: "秘密对话" }],
+      },
+    });
+    expect(created.statusCode).toBe(200);
+    const body = created.json();
+    expect(body.v).toBe(2);
+    expect(body.model).toEqual({ title: "夜猫", pitch: "猫咖" });
+    expect(body.complete).toBe(false);
+    expect(body).not.toHaveProperty("history");
+    const got = await app.inject({ method: "GET", url: `/api/share/${body.id}` });
+    expect(got.json().v).toBe(2);
     expect(got.json()).not.toHaveProperty("history");
     await app.close();
   });

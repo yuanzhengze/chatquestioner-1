@@ -19,7 +19,11 @@ function dispatch(ev: { event: string; data: unknown }, h: SseHandlers): void {
       h.onOptions?.((data.options as TurnOption[]) ?? []);
       break;
     case "synthesis":
-      h.onSynthesis?.({ gddMarkdown: String(data.gddMarkdown ?? "") });
+      h.onSynthesis?.({
+        gddMarkdown: String(data.gddMarkdown ?? ""),
+        gddModel: data.gddModel,
+        complete: data.complete === true,
+      });
       break;
     case "warning":
       h.onWarning?.();
@@ -35,7 +39,7 @@ function dispatch(ev: { event: string; data: unknown }, h: SseHandlers): void {
   }
 }
 
-export function createSession(): Promise<{ id: string; opening: string }> {
+export function createSession(): Promise<{ id: string; opening: string; options?: TurnOption[] }> {
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${API_BASE}/api/session`,
@@ -45,7 +49,7 @@ export function createSession(): Promise<{ id: string; opening: string }> {
       timeout: 20000,
       success(res: { statusCode: number; data: unknown }) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data as { id: string; opening: string });
+          resolve(res.data as { id: string; opening: string; options?: TurnOption[] });
         } else {
           reject(new Error(`createSession failed: ${res.statusCode}`));
         }
@@ -97,13 +101,22 @@ export function deleteSession(id: string): Promise<void> {
   });
 }
 
-export function createShare(markdown: string, title?: string): Promise<{ id: string; title: string }> {
+export function createShare(
+  markdown: string,
+  title?: string,
+  extra?: { model?: unknown; complete?: boolean },
+): Promise<{ id: string; title: string }> {
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${API_BASE}/api/share`,
       method: "POST",
       header: { "Content-Type": "application/json" },
-      data: { markdown, title: title || "" },
+      data: {
+        markdown,
+        title: title || "",
+        model: extra && extra.model ? extra.model : undefined,
+        complete: extra && extra.complete === true,
+      },
       timeout: 20000,
       success(res: { statusCode: number; data: unknown }) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
@@ -121,7 +134,14 @@ export function createShare(markdown: string, title?: string): Promise<{ id: str
   });
 }
 
-export function getShare(id: string): Promise<{ id: string; title: string; markdown: string }> {
+export function getShare(id: string): Promise<{
+  id: string;
+  title: string;
+  markdown: string;
+  model?: unknown;
+  complete?: boolean;
+  v?: number;
+}> {
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${API_BASE}/api/share/${id}`,
@@ -129,11 +149,21 @@ export function getShare(id: string): Promise<{ id: string; title: string; markd
       timeout: 20000,
       success(res: { statusCode: number; data: unknown }) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
-          const body = res.data as { id?: string; title?: string; markdown?: string };
+          const body = res.data as {
+            id?: string;
+            title?: string;
+            markdown?: string;
+            model?: unknown;
+            complete?: boolean;
+            v?: number;
+          };
           resolve({
             id: String(body.id || id),
             title: String(body.title || ""),
             markdown: String(body.markdown || ""),
+            model: body.model,
+            complete: body.complete === true,
+            v: typeof body.v === "number" ? body.v : 1,
           });
         } else {
           reject(new Error(`getShare failed: ${res.statusCode}`));

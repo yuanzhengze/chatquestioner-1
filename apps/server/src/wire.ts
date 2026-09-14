@@ -17,15 +17,25 @@ export interface WarningEvent { messages: string[] }
 export type StateEvent = ConversationState;
 export interface StageEvent { stage: number; label: string; readyForSynthesis: boolean }
 export interface OptionsEvent { options: TurnOption[] }
-export interface SynthesisEvent { gddMarkdown: string }
+export interface SynthesisEvent {
+  gddMarkdown: string;
+  gddModel?: unknown;
+  complete?: boolean;
+}
 export interface ErrorEvent { message: string }
 export interface DoneEvent { readyForSynthesis: boolean }
 
 /** POST /api/session 返回 */
-export interface CreateSessionResponse { id: string; opening: string }
+export interface CreateSessionResponse {
+  id: string;
+  opening: string;
+  options?: TurnOption[];
+}
 /** POST /api/session/:id/export 返回 */
 export interface ExportResponse {
   dir: string;
   artifactId?: string;
   gddMarkdown: string;
+  gddModel?: unknown;
+  complete?: boolean;
 }

@@ -45,6 +45,13 @@ describe("mergeStateDelta", () => {
     expect(s.engineering.modalities).toEqual(["image", "audio"]);
   });
 
+  it("constitution 对象写入 constitutionFields", () => {
+    const s = createInitialState();
+    mergeStateDelta(s, { constitution: { coreFantasy: "灯塔守夜人", extras: ["不可改幻想"] } });
+    expect(s.constitutionFields.coreFantasy).toBe("灯塔守夜人");
+    expect(s.constitutionFields.extras).toEqual(["不可改幻想"]);
+  });
+
   it("返回的就是传入对象（原地修改）", () => {
     const s = createInitialState();
     expect(mergeStateDelta(s, { pitch: "x" })).toBe(s);
@@ -56,5 +63,13 @@ describe("mergeStateDelta", () => {
     expect(s.references).toEqual([]);
     mergeStateDelta(s, { engineering: { modalities: "image" as unknown as [] } });
     expect(s.engineering.modalities).toEqual([]);
+  });
+
+  it("presentation.assets 被写成数组时收成一句话，不把数组写进状态", () => {
+    const s = createInitialState();
+    mergeStateDelta(s, {
+      presentation: { assets: ["3D大鹅模型", "派对BGM"] as unknown as string },
+    });
+    expect(s.presentation.assets).toBe("3D大鹅模型、派对BGM");
   });
 });

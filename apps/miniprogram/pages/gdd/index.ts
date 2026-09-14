@@ -3,6 +3,7 @@ import { createShare, getShare } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
 const { parseGddPreview } = require("../../utils/gddPreview.js");
+const { sectionsFromModel } = require("../../utils/gddSections.js");
 
 /** 微信分享图建议 5:4，避免不设 imageUrl 时退回整页截屏。 */
 const SHARE_W = 500;
@@ -166,17 +167,20 @@ Page({
   data: {
     title: "",
     pitch: "",
-    must: [] as string[],
-    cut: [] as string[],
     html: "",
     plain: "",
     empty: true,
     ready: false,
     fromShare: false,
     logoSrc: LOGO_SRC,
+    draft: false,
+    sections: [] as Array<{ id: string; title: string; lines: string[] }>,
+    expandedId: "constitution",
   },
 
   _markdown: "",
+  _model: null as unknown,
+  _complete: false,
   _applied: false,
   _waitTimer: 0 as number,
   _shareId: "",
@@ -207,8 +211,8 @@ Page({
 
     const ch = this.getOpenerEventChannel();
     if (ch && typeof ch.on === "function") {
-      ch.on("gddDraft", (payload: { markdown?: string }) => {
-        this.applyMarkdown(payload && payload.markdown);
+      ch.on("gddDraft", (payload: { markdown?: string; model?: unknown; complete?: boolean }) => {
+        this.applyPayload(payload);
       });
     }
     if (!this._applied) this.applyFromStorage();
@@ -216,7 +220,7 @@ Page({
       this._waitTimer = 0;
       if (this._applied) return;
       this.applyFromStorage();
-      if (!this._applied) this.applyMarkdown("");
+      if (!this._applied) this.applyPayload({});
     }, 1200) as unknown as number;
   },
 
@@ -232,32 +236,49 @@ Page({
   async loadShare(id: string) {
     try {
       const snap = await getShare(id);
-      this.applyMarkdown(snap.markdown);
+      this.applyPayload({
+        markdown: snap.markdown,
+        model: snap.model,
+        complete: snap.complete,
+      });
     } catch (_e) {
       this._shareId = "";
-      this.applyMarkdown("");
+      this.applyPayload({});
       wx.showToast({ title: "这份分享找不到了", icon: "none" });
     }
   },
 
   applyFromStorage() {
     try {
-      const draft = wx.getStorageSync(GDD_DRAFT_KEY) as { markdown?: string } | "";
-      const markdown = draft && typeof draft === "object" ? draft.markdown : "";
-      if (markdown) this.applyMarkdown(markdown);
+      const draft = wx.getStorageSync(GDD_DRAFT_KEY) as { markdown?: string; model?: unknown; complete?: boolean } | "";
+      if (draft && typeof draft === "object" && draft.markdown) this.applyPayload(draft);
     } catch (_e) {
       // 读缓存失败时等 eventChannel / 超时
     }
   },
 
-  applyMarkdown(raw?: string) {
-    const markdown = String(raw || "").trim();
+  applyPayload(payload?: { markdown?: string; model?: unknown; complete?: boolean }) {
+    const markdown = String((payload && payload.markdown) || "").trim();
+    const model = payload && payload.model && typeof payload.model === "object" ? payload.model : null;
+    const complete = payload && payload.complete === true;
     if (!markdown) {
       this._markdown = "";
+      this._model = null;
+      this._complete = false;
       this._applied = true;
       this._shareImage = "";
       this._shareImagePromise = null;
-      this.setData({ ready: true, empty: true, title: "", pitch: "", must: [], cut: [], html: "", plain: "" });
+      this.setData({
+        ready: true,
+        empty: true,
+        title: "",
+        pitch: "",
+        html: "",
+        plain: "",
+        draft: false,
+        sections: [],
+        expandedId: "constitution",
+      });
       return;
     }
     const meta = parseGddPreview(markdown);
@@ -267,19 +288,27 @@ Page({
     } catch (_e) {
       html = "";
     }
-    const title = meta.title || "未命名游戏";
-    const pitch = meta.pitch || "";
+    const title = (model && typeof model === "object" && (model as { title?: string }).title)
+      || meta.title
+      || "未命名游戏";
+    const pitch = (model && typeof model === "object" && (model as { pitch?: string }).pitch)
+      || meta.pitch
+      || "";
+    const sections = sectionsFromModel(model, complete) as Array<{ id: string; title: string; lines: string[] }>;
     this._markdown = markdown;
+    this._model = model;
+    this._complete = complete;
     this._applied = true;
     this.setData({
       ready: true,
       empty: false,
       title,
       pitch,
-      must: meta.must || [],
-      cut: meta.cut || [],
       html,
       plain: markdown,
+      draft: Boolean(model) && !complete,
+      sections,
+      expandedId: sections.length ? sections[0].id : "",
     });
     if (!this._fromShare) {
       void this.startShare();
@@ -295,7 +324,10 @@ Page({
     const markdown = this._markdown;
     const title = this.data.title || "未命名游戏";
     if (!markdown) return Promise.reject(new Error("empty markdown"));
-    this._sharePromise = createShare(markdown, title)
+    this._sharePromise = createShare(markdown, title, {
+      model: this._model || undefined,
+      complete: this._complete === true,
+    })
       .then((res) => {
         this._shareId = res.id;
         return res;
@@ -382,6 +414,12 @@ Page({
 
   onCoverTap() {
     wx.showToast({ title: "封面生图稍后接入", icon: "none" });
+  },
+
+  onToggleSection(e: { currentTarget: { dataset: { id?: string } } }) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    this.setData({ expandedId: this.data.expandedId === id ? "" : id });
   },
 
   onCopy() {

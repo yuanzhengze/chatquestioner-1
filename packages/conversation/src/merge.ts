@@ -1,5 +1,6 @@
-import type { ConversationState, EngineeringSignals, LoopState } from "./state.js";
-import type { KeywordPools } from "@cq/gdd";
+import type { ConversationState, EngineeringSignals, LoopState, PresentationState, DifficultyState, ContentState } from "./state.js";
+import type { KeywordPools, Constitution, ContentFlags } from "@cq/gdd";
+import { asGddText } from "@cq/gdd";
 
 /** 一轮 LLM 抽取的状态增量（全可选，camelCase 对齐 ConversationState）。 */
 export interface StateDelta {
@@ -7,6 +8,7 @@ export interface StateDelta {
   references?: string[];
   avoidReferences?: string[];
   coreEmotion?: string;
+  forbiddenEmotion?: string;
   coreFantasy?: string;
   coreAction?: string;
   theme?: string;
@@ -19,8 +21,10 @@ export interface StateDelta {
   loop?: Partial<LoopState>;
   reward?: string;
   failRule?: string;
+  winRule?: string;
   difficultyCurve?: string;
   replayMotivation?: string;
+  mechanics?: string[];
   workingTitle?: string;
   pitch?: string;
   coreExperience?: string;
@@ -29,11 +33,14 @@ export interface StateDelta {
   risks?: string[];
   mvpScope?: { must?: string[]; cut?: string[] };
   engineering?: Partial<EngineeringSignals>;
-  constitution?: string[];
+  constitution?: string[] | Partial<Constitution>;
+  constitutionFields?: Partial<Constitution>;
+  presentation?: Partial<PresentationState>;
+  difficulty?: Partial<DifficultyState>;
+  content?: Partial<Omit<ContentState, "flags">> & { flags?: Partial<ContentFlags> };
 }
 
 function uniqMerge(existing: string[], incoming?: string[]): string[] {
-  // 鲁棒：LLM 可能把数组字段误写成字符串/对象，非数组一律忽略（绝不逐字符拆散污染状态）。
   if (!Array.isArray(incoming)) return existing;
   const out = [...existing];
   for (const v of incoming) {
@@ -47,36 +54,57 @@ function setIf<T>(value: T | undefined, apply: (v: T) => void): void {
   if (value !== undefined && value !== null && value !== "") apply(value);
 }
 
-/** 原地把 delta 合并进 state 并返回 state。 */
+function setText(value: unknown, apply: (v: string) => void): void {
+  const t = asGddText(value);
+  if (t) apply(t);
+}
+
+function setIfEmpty(cur: unknown, incoming: unknown, apply: (v: string) => void): void {
+  const t = asGddText(incoming);
+  if (!t) return;
+  if (asGddText(cur)) return;
+  apply(t);
+}
+
+/** 原地把 delta 合并进 state 并返回 state。已有字符串会被覆盖。 */
 export function mergeStateDelta(state: ConversationState, delta: StateDelta): ConversationState {
-  setIf(delta.spark, (v) => (state.spark = v));
-  setIf(delta.coreEmotion, (v) => (state.coreEmotion = v));
-  setIf(delta.coreFantasy, (v) => (state.coreFantasy = v));
-  setIf(delta.coreAction, (v) => (state.coreAction = v));
-  setIf(delta.theme, (v) => (state.theme = v));
-  setIf(delta.world, (v) => (state.world = v));
-  setIf(delta.narrative, (v) => (state.narrative = v));
-  setIf(delta.playerIdentity, (v) => (state.playerIdentity = v));
-  setIf(delta.aesthetic, (v) => (state.aesthetic = v));
-  setIf(delta.gameFeel, (v) => (state.gameFeel = v));
-  setIf(delta.reward, (v) => (state.reward = v));
-  setIf(delta.failRule, (v) => (state.failRule = v));
-  setIf(delta.difficultyCurve, (v) => (state.difficultyCurve = v));
-  setIf(delta.replayMotivation, (v) => (state.replayMotivation = v));
-  setIf(delta.workingTitle, (v) => (state.workingTitle = v));
-  setIf(delta.pitch, (v) => (state.pitch = v));
-  setIf(delta.coreExperience, (v) => (state.coreExperience = v));
-  setIf(delta.differentiator, (v) => (state.differentiator = v));
+  setText(delta.spark, (v) => (state.spark = v));
+  setText(delta.coreEmotion, (v) => (state.coreEmotion = v));
+  setText(delta.forbiddenEmotion, (v) => (state.forbiddenEmotion = v));
+  setText(delta.coreFantasy, (v) => (state.coreFantasy = v));
+  setText(delta.coreAction, (v) => (state.coreAction = v));
+  setText(delta.theme, (v) => (state.theme = v));
+  setText(delta.world, (v) => (state.world = v));
+  setText(delta.narrative, (v) => (state.narrative = v));
+  setText(delta.playerIdentity, (v) => (state.playerIdentity = v));
+  setText(delta.aesthetic, (v) => (state.aesthetic = v));
+  setText(delta.gameFeel, (v) => (state.gameFeel = v));
+  setText(delta.reward, (v) => (state.reward = v));
+  setText(delta.failRule, (v) => (state.failRule = v));
+  setText(delta.winRule, (v) => (state.winRule = v));
+  setText(delta.difficultyCurve, (v) => (state.difficultyCurve = v));
+  setText(delta.replayMotivation, (v) => (state.replayMotivation = v));
+  setText(delta.workingTitle, (v) => (state.workingTitle = v));
+  setText(delta.pitch, (v) => (state.pitch = v));
+  setText(delta.coreExperience, (v) => (state.coreExperience = v));
+  setText(delta.differentiator, (v) => (state.differentiator = v));
 
   state.references = uniqMerge(state.references, delta.references);
   state.avoidReferences = uniqMerge(state.avoidReferences, delta.avoidReferences);
   state.juice = uniqMerge(state.juice, delta.juice);
   state.risks = uniqMerge(state.risks, delta.risks);
-  state.constitution = uniqMerge(state.constitution, delta.constitution);
+  state.mechanics = uniqMerge(state.mechanics, delta.mechanics);
+
+  if (Array.isArray(delta.constitution)) {
+    state.constitution = uniqMerge(state.constitution, delta.constitution);
+  } else if (delta.constitution && typeof delta.constitution === "object") {
+    mergeConstitution(state, delta.constitution);
+  }
+  if (delta.constitutionFields) mergeConstitution(state, delta.constitutionFields);
 
   if (delta.loop) {
     for (const k of ["thirtySec", "fiveMin", "thirtyMin", "longTerm"] as const) {
-      setIf(delta.loop[k], (v) => (state.loop[k] = v));
+      setText(delta.loop[k], (v) => (state.loop[k] = v));
     }
   }
 
@@ -89,6 +117,37 @@ export function mergeStateDelta(state: ConversationState, delta: StateDelta): Co
   if (delta.mvpScope) {
     state.mvpScope.must = uniqMerge(state.mvpScope.must, delta.mvpScope.must);
     state.mvpScope.cut = uniqMerge(state.mvpScope.cut, delta.mvpScope.cut);
+  }
+
+  if (delta.presentation) {
+    const p = delta.presentation;
+    setText(p.where, (v) => (state.presentation.where = v));
+    setText(p.dimension, (v) => (state.presentation.dimension = v));
+    setText(p.orientation, (v) => (state.presentation.orientation = v));
+    setText(p.players, (v) => (state.presentation.players = v));
+    setText(p.assets, (v) => (state.presentation.assets = v));
+  }
+
+  if (delta.difficulty) {
+    const d = delta.difficulty;
+    setText(d.ramp, (v) => (state.difficulty.ramp = v));
+    setText(d.firstMinutes, (v) => (state.difficulty.firstMinutes = v));
+    setText(d.fatigue, (v) => (state.difficulty.fatigue = v));
+  }
+
+  if (delta.content) {
+    const c = delta.content;
+    setText(c.overview, (v) => (state.content.overview = v));
+    setText(c.levels, (v) => (state.content.levels = v));
+    setText(c.boss, (v) => (state.content.boss = v));
+    setText(c.progression, (v) => (state.content.progression = v));
+    setText(c.multiplayer, (v) => (state.content.multiplayer = v));
+    if (c.flags) {
+      if (c.flags.levels === true) state.content.flags.levels = true;
+      if (c.flags.boss === true) state.content.flags.boss = true;
+      if (c.flags.progression === true) state.content.flags.progression = true;
+      if (c.flags.multiplayer === true) state.content.flags.multiplayer = true;
+    }
   }
 
   if (delta.engineering) {
@@ -104,6 +163,112 @@ export function mergeStateDelta(state: ConversationState, delta: StateDelta): Co
     state.engineering.mechanics = uniqMerge(state.engineering.mechanics, e.mechanics);
     state.engineering.intentTerms = uniqMerge(state.engineering.intentTerms, e.intentTerms);
     state.engineering.signatureTerms = uniqMerge(state.engineering.signatureTerms, e.signatureTerms);
+    if (e.mechanics?.length) state.mechanics = uniqMerge(state.mechanics, e.mechanics);
+  }
+
+  return state;
+}
+
+function mergeConstitution(state: ConversationState, c: Partial<Constitution>, fillEmptyOnly = false): void {
+  const put = fillEmptyOnly ? setIfEmpty : (_cur: unknown, incoming: unknown, apply: (v: string) => void) => {
+    setText(incoming, apply);
+  };
+  put(state.constitutionFields.coreFantasy, c.coreFantasy, (v) => (state.constitutionFields.coreFantasy = v));
+  put(state.constitutionFields.coreLoop, c.coreLoop, (v) => (state.constitutionFields.coreLoop = v));
+  put(state.constitutionFields.artRule, c.artRule, (v) => (state.constitutionFields.artRule = v));
+  put(state.constitutionFields.contentBoundary, c.contentBoundary, (v) => (state.constitutionFields.contentBoundary = v));
+  put(state.constitutionFields.presentationBoundary, c.presentationBoundary, (v) => {
+    state.constitutionFields.presentationBoundary = v;
+  });
+  if (Array.isArray(c.extras)) {
+    state.constitutionFields.extras = uniqMerge(state.constitutionFields.extras, c.extras);
+  }
+}
+
+/**
+ * 只填空，不覆盖已有事实。抽取层用这个，避免把对话里已经钉住的值改写掉。
+ */
+export function mergeFillEmpty(state: ConversationState, delta: StateDelta): ConversationState {
+  setIfEmpty(state.spark, delta.spark, (v) => (state.spark = v));
+  setIfEmpty(state.coreEmotion, delta.coreEmotion, (v) => (state.coreEmotion = v));
+  setIfEmpty(state.forbiddenEmotion, delta.forbiddenEmotion, (v) => (state.forbiddenEmotion = v));
+  setIfEmpty(state.coreFantasy, delta.coreFantasy, (v) => (state.coreFantasy = v));
+  setIfEmpty(state.coreAction, delta.coreAction, (v) => (state.coreAction = v));
+  setIfEmpty(state.theme, delta.theme, (v) => (state.theme = v));
+  setIfEmpty(state.world, delta.world, (v) => (state.world = v));
+  setIfEmpty(state.narrative, delta.narrative, (v) => (state.narrative = v));
+  setIfEmpty(state.playerIdentity, delta.playerIdentity, (v) => (state.playerIdentity = v));
+  setIfEmpty(state.aesthetic, delta.aesthetic, (v) => (state.aesthetic = v));
+  setIfEmpty(state.gameFeel, delta.gameFeel, (v) => (state.gameFeel = v));
+  setIfEmpty(state.reward, delta.reward, (v) => (state.reward = v));
+  setIfEmpty(state.failRule, delta.failRule, (v) => (state.failRule = v));
+  setIfEmpty(state.winRule, delta.winRule, (v) => (state.winRule = v));
+  setIfEmpty(state.difficultyCurve, delta.difficultyCurve, (v) => (state.difficultyCurve = v));
+  setIfEmpty(state.replayMotivation, delta.replayMotivation, (v) => (state.replayMotivation = v));
+  setIfEmpty(state.workingTitle, delta.workingTitle, (v) => (state.workingTitle = v));
+  setIfEmpty(state.pitch, delta.pitch, (v) => (state.pitch = v));
+  setIfEmpty(state.coreExperience, delta.coreExperience, (v) => (state.coreExperience = v));
+  setIfEmpty(state.differentiator, delta.differentiator, (v) => (state.differentiator = v));
+
+  state.references = uniqMerge(state.references, delta.references);
+  state.avoidReferences = uniqMerge(state.avoidReferences, delta.avoidReferences);
+  state.juice = uniqMerge(state.juice, delta.juice);
+  state.risks = uniqMerge(state.risks, delta.risks);
+  state.mechanics = uniqMerge(state.mechanics, delta.mechanics);
+
+  if (Array.isArray(delta.constitution)) {
+    state.constitution = uniqMerge(state.constitution, delta.constitution);
+  } else if (delta.constitution && typeof delta.constitution === "object") {
+    mergeConstitution(state, delta.constitution, true);
+  }
+  if (delta.constitutionFields) mergeConstitution(state, delta.constitutionFields, true);
+
+  if (delta.loop) {
+    for (const k of ["thirtySec", "fiveMin", "thirtyMin", "longTerm"] as const) {
+      setIfEmpty(state.loop[k], delta.loop[k], (v) => (state.loop[k] = v));
+    }
+  }
+
+  if (delta.keywordPools) {
+    for (const k of ["gameplay", "emotion", "world", "visual", "narrative", "motivation"] as const) {
+      state.keywordPools[k] = uniqMerge(state.keywordPools[k], delta.keywordPools[k]);
+    }
+  }
+
+  if (delta.mvpScope) {
+    state.mvpScope.must = uniqMerge(state.mvpScope.must, delta.mvpScope.must);
+    state.mvpScope.cut = uniqMerge(state.mvpScope.cut, delta.mvpScope.cut);
+  }
+
+  if (delta.presentation) {
+    const p = delta.presentation;
+    setIfEmpty(state.presentation.where, p.where, (v) => (state.presentation.where = v));
+    setIfEmpty(state.presentation.dimension, p.dimension, (v) => (state.presentation.dimension = v));
+    setIfEmpty(state.presentation.orientation, p.orientation, (v) => (state.presentation.orientation = v));
+    setIfEmpty(state.presentation.players, p.players, (v) => (state.presentation.players = v));
+    setIfEmpty(state.presentation.assets, p.assets, (v) => (state.presentation.assets = v));
+  }
+
+  if (delta.difficulty) {
+    const d = delta.difficulty;
+    setIfEmpty(state.difficulty.ramp, d.ramp, (v) => (state.difficulty.ramp = v));
+    setIfEmpty(state.difficulty.firstMinutes, d.firstMinutes, (v) => (state.difficulty.firstMinutes = v));
+    setIfEmpty(state.difficulty.fatigue, d.fatigue, (v) => (state.difficulty.fatigue = v));
+  }
+
+  if (delta.content) {
+    const c = delta.content;
+    setIfEmpty(state.content.overview, c.overview, (v) => (state.content.overview = v));
+    setIfEmpty(state.content.levels, c.levels, (v) => (state.content.levels = v));
+    setIfEmpty(state.content.boss, c.boss, (v) => (state.content.boss = v));
+    setIfEmpty(state.content.progression, c.progression, (v) => (state.content.progression = v));
+    setIfEmpty(state.content.multiplayer, c.multiplayer, (v) => (state.content.multiplayer = v));
+    if (c.flags) {
+      if (c.flags.levels === true) state.content.flags.levels = true;
+      if (c.flags.boss === true) state.content.flags.boss = true;
+      if (c.flags.progression === true) state.content.flags.progression = true;
+      if (c.flags.multiplayer === true) state.content.flags.multiplayer = true;
+    }
   }
 
   return state;

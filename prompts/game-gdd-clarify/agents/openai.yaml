@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game GDD Clarify"
+  short_description: "Clarify a game idea into a complete markdown GDD"
+  default_prompt: "Use $game-gdd-clarify. If my idea is not yet a complete GDD, first ask with your native question UI whether I want a ~10-round creative guidance flow. If yes, ask one question at a time until you can write {game-name}-gdd.md. Do not start implementing before the GDD is confirmed."

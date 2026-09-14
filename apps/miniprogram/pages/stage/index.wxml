@@ -29,7 +29,7 @@
       <nb-avatar src="{{poster}}" compact="{{compact || showGdd || options.length > 0}}"></nb-avatar>
     </view>
     <view wx:if="{{options.length > 0 || showGdd}}" class="stage-panel">
-      <view wx:if="{{!showGdd}}" class="options">
+      <view wx:if="{{options.length > 0 && !done}}" class="options">
         <nb-option-card
           wx:for="{{options}}"
           wx:key="id"
@@ -43,9 +43,9 @@
         />
       </view>
       <view wx:if="{{showGdd}}" class="gdd-entry" bindtap="onOpenGdd">
-        <view class="gdd-kicker">游戏文档已成形</view>
+        <view class="gdd-kicker">{{gddKicker}}</view>
         <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
-        <view class="gdd-go">打开预览</view>
+        <view class="gdd-go">{{gddGo}}</view>
       </view>
     </view>
   </view>

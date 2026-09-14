@@ -25,6 +25,8 @@ Page({
     keyboardHeight: 0,
     gddMarkdown: "",
     gddTitle: "",
+    gddKicker: "游戏文档已成形",
+    gddGo: "打开预览",
     showGdd: false,
     done: false,
     logoSrc: LOGO_SRC,
@@ -50,6 +52,8 @@ Page({
     this._warnTick = 0;
     this._typing = false;
     this._synthesisMd = "";
+    this._synthesisModel = null as unknown;
+    this._synthesisComplete = false;
     this._lastOptions = [] as TurnOption[];
     this._openGddTimer = 0 as number;
     this._driver = null;
@@ -121,6 +125,8 @@ Page({
     this._state = null;
     this._stage = null;
     this._synthesisMd = "";
+    this._synthesisModel = null;
+    this._synthesisComplete = false;
     this._lastOptions = [] as TurnOption[];
     this._warnTick = 0;
     this._typing = false;
@@ -134,6 +140,8 @@ Page({
       expandedId: "",
       gddMarkdown: "",
       gddTitle: "",
+      gddKicker: "游戏文档已成形",
+      gddGo: "打开预览",
       showGdd: false,
       done: false,
       composerSeed: "",
@@ -156,6 +164,9 @@ Page({
       : this.asOptions(local && local.lastOptions);
     const ready = state.readyForSynthesis === true
       || (!("readyForSynthesis" in state) && local && local.readyForSynthesis === true);
+    const gddComplete = state.gddComplete === true;
+    const md = typeof state.gddMarkdown === "string" ? state.gddMarkdown : "";
+    const model = state.gddModel && typeof state.gddModel === "object" ? state.gddModel : null;
     this._sessionId = id;
     this._state = state;
     this._lastOptions = options;
@@ -164,7 +175,9 @@ Page({
       label: "",
       readyForSynthesis: ready,
     };
-    this._synthesisMd = ready ? gddFromState(state) : "";
+    this._synthesisMd = ready ? (md || gddFromState(state)) : "";
+    this._synthesisModel = ready ? model : null;
+    this._synthesisComplete = gddComplete;
     this.setData({
       messages: messages.length ? messages : [{ role: "assistant", content: WAKING }],
       options,
@@ -279,7 +292,12 @@ Page({
     try {
       const { id, opening } = await createSession();
       this._sessionId = id;
-      this.setData({ messages: [{ role: "assistant", content: opening }] });
+      this._lastOptions = [];
+      this.setData({
+        messages: [{ role: "assistant", content: opening }],
+        options: [],
+        expandedId: "",
+      });
       this.syncAvatar();
       return true;
     } catch (e) {
@@ -391,7 +409,11 @@ Page({
         this.syncAvatar();
       },
       onSynthesis: (payload) => {
-        if (payload.gddMarkdown) this._synthesisMd = payload.gddMarkdown;
+        if (payload.gddMarkdown) {
+          this._synthesisMd = payload.gddMarkdown;
+          this._synthesisModel = payload.gddModel || null;
+          this._synthesisComplete = payload.complete === true;
+        }
       },
       onWarning: () => {
         this._warnTick += 1;
@@ -536,13 +558,23 @@ Page({
   refreshResult(readyFromDone?: boolean) {
     const ready = readyFromDone === true || this._stage?.readyForSynthesis === true;
     if (this._stage) this._stage.readyForSynthesis = ready;
+    const gddComplete = this._synthesisComplete === true
+      || Boolean(this._state && this._state.gddComplete === true);
     const hasUser = this.data.messages.some((m) => m.role === "user");
     const markdown = ready ? (this._synthesisMd || gddFromState(this._state)) : "";
-    const noOptions = (this.data.options?.length ?? 0) === 0;
-    const showGdd = hasUser && noOptions && ready && markdown.trim().length > 0;
-    const done = showGdd;
+    const hasDoc = Boolean(markdown && markdown.trim());
+    const showGdd = hasUser && ready && hasDoc;
+    const done = showGdd && gddComplete;
     const gddTitle = showGdd ? parseGddPreview(markdown).title : "";
-    this.setData({ gddMarkdown: markdown, gddTitle, showGdd, done });
+    this.setData({
+      gddMarkdown: markdown,
+      gddTitle,
+      showGdd,
+      done,
+      options: done ? [] : this.data.options,
+      gddKicker: gddComplete ? "游戏文档已成形" : "这是一份带缺口的草稿",
+      gddGo: gddComplete ? "打开预览" : "查看草稿",
+    });
   },
 
   clearOpenGdd() {
@@ -570,12 +602,22 @@ Page({
 
       wx.setStorage({
         key: GDD_DRAFT_KEY,
-        data: { markdown },
+        data: {
+          markdown,
+          model: this._synthesisModel || null,
+          complete: this._synthesisComplete === true,
+        },
         complete: () => {
           wx.navigateTo({
             url: "/pages/gdd/index",
             success: (res) => {
-              if (res.eventChannel) res.eventChannel.emit("gddDraft", { markdown });
+              if (res.eventChannel) {
+                res.eventChannel.emit("gddDraft", {
+                  markdown,
+                  model: this._synthesisModel || null,
+                  complete: this._synthesisComplete === true,
+                });
+              }
             },
             fail: () => {
               this.clearOpenGdd();

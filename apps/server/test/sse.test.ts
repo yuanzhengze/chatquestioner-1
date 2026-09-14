@@ -42,7 +42,7 @@ describe("SSE /api/session/:id/message", () => {
     const res = await fetch(`${base}/api/session/${created.id}/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "我想做个治愈小游戏" }),
+      body: JSON.stringify({ message: "是，开始创意引导" }),
     });
     const text = await readSse(res);
     expect(text).toContain("event: token");
@@ -59,7 +59,7 @@ describe("SSE /api/session/:id/message", () => {
     const res = await fetch(`${base}/api/session/${created.id}/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "hi" }),
+      body: JSON.stringify({ message: "是，开始创意引导" }),
     });
     const text = await readSse(res);
     expect(text).toContain("event: error");

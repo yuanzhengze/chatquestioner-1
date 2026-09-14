@@ -2,17 +2,24 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-/** 结果页分享快照。v1 只有文档；以后可加封面 URL、交互状态，path 仍用分享 id。 */
+/** 结果页分享快照。v1 只有 markdown；v2 可带结构化 model，供章节卡。旧文件仍能打开。 */
 export interface ResultShare {
-  v: 1;
+  v: 1 | 2;
   id: string;
   title: string;
   markdown: string;
   createdAt: number;
+  model?: unknown;
+  complete?: boolean;
 }
 
 export interface ShareStore {
-  create(input: { title: string; markdown: string }): Promise<ResultShare>;
+  create(input: {
+    title: string;
+    markdown: string;
+    model?: unknown;
+    complete?: boolean;
+  }): Promise<ResultShare>;
   load(id: string): Promise<ResultShare | null>;
 }
 
@@ -29,16 +36,26 @@ export class FileShareStore implements ShareStore {
     return join(this.dir, `${id}.json`);
   }
 
-  async create(input: { title: string; markdown: string }): Promise<ResultShare> {
+  async create(input: {
+    title: string;
+    markdown: string;
+    model?: unknown;
+    complete?: boolean;
+  }): Promise<ResultShare> {
     mkdirSync(this.dir, { recursive: true });
     const id = randomUUID();
+    const hasModel = input.model != null && typeof input.model === "object";
     const row: ResultShare = {
-      v: 1,
+      v: hasModel ? 2 : 1,
       id,
       title: input.title,
       markdown: input.markdown,
       createdAt: Date.now(),
     };
+    if (hasModel) {
+      row.model = input.model;
+      row.complete = input.complete === true;
+    }
     writeFileSync(this.path(id), JSON.stringify(row, null, 2) + "\n");
     return row;
   }
@@ -48,7 +65,9 @@ export class FileShareStore implements ShareStore {
     const p = this.path(id);
     if (!existsSync(p)) return null;
     try {
-      return JSON.parse(readFileSync(p, "utf8")) as ResultShare;
+      const raw = JSON.parse(readFileSync(p, "utf8")) as ResultShare;
+      if (!raw || typeof raw.markdown !== "string") return null;
+      return raw;
     } catch (err) {
       console.warn(`[shareStore] 分享文件损坏，无法解析 (id=${id}):`, err);
       return null;

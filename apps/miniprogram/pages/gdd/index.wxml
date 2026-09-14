@@ -7,7 +7,7 @@
 <view wx:if="{{ready && empty}}" class="empty">
   <image class="empty-logo" src="{{logoSrc}}" mode="aspectFit" />
   <view class="empty-title">{{fromShare ? '找不到这份分享' : '还没有文档'}}</view>
-  <view class="muted">{{fromShare ? '链接可能已失效。你可以自己开一轮共创。' : '回到聊天里再聊几轮，出现「打开预览」后再进来。'}}</view>
+  <view class="muted">{{fromShare ? '链接可能已失效。你可以自己开一轮共创。' : '回到聊天里再聊几句，出现文档入口后再进来。'}}</view>
   <button wx:if="{{fromShare}}" class="try-btn" hover-class="none" bindtap="onTryCoCreate">我也来共创</button>
 </view>
 
@@ -23,16 +23,24 @@
     <view class="cover-brand">NewBee × ForgeaX</view>
   </view>
 
+  <view wx:if="{{draft}}" class="draft-bar">这是草稿，还有没写全的部分。可以分享，也可以回去继续聊。</view>
+
   <button wx:if="{{!fromShare}}" class="share-btn" open-type="share" hover-class="none">分享给朋友</button>
 
-  <view class="block">
-    <view class="label">制作规划</view>
-    <view class="plan-h">本次会做</view>
-    <view wx:for="{{must}}" wx:key="index" class="plan-item">{{item}}</view>
-    <view wx:if="{{must.length === 0}}" class="muted">还没写下必须项，继续聊几轮就会出现。</view>
-    <view class="plan-h cut">先不做</view>
-    <view wx:for="{{cut}}" wx:key="index" class="plan-item">{{item}}</view>
-    <view wx:if="{{cut.length === 0}}" class="muted">裁剪项会在收敛范围时出现。</view>
+  <view
+    wx:for="{{sections}}"
+    wx:key="id"
+    class="card {{expandedId === item.id ? 'on' : ''}}"
+    data-id="{{item.id}}"
+    bindtap="onToggleSection"
+  >
+    <view class="card-h">
+      <view class="card-title">{{item.title}}</view>
+      <view class="card-chevron">{{expandedId === item.id ? '▾' : '▸'}}</view>
+    </view>
+    <view wx:if="{{expandedId === item.id}}" class="card-body">
+      <view wx:for="{{item.lines}}" wx:for-item="line" wx:key="index" class="card-line">{{line}}</view>
+    </view>
   </view>
 
   <view class="block">

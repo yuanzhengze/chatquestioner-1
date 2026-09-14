@@ -10,8 +10,10 @@ function memStore(initial: Record<string, ConversationState>): SessionStore {
   const map = new Map(Object.entries(initial));
   return {
     async create(s) { const id = "x"; map.set(id, s); return id; },
+    async createWithId(id, s) { map.set(id, s); },
     async load(id) { return map.get(id) ?? null; },
     async save(id, s) { map.set(id, s); },
+    async remove(id) { return map.delete(id); },
   };
 }
 

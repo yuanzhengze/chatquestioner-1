@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readNewbeeSystemPrompt } from "@cq/conversation";
 import { loadConfig } from "./config.js";
 import { OpenAiLlmClient } from "./llm/openaiClient.js";
 import { FileSessionStore, type SessionStore } from "./sessionStore.js";
@@ -18,7 +17,7 @@ dotenv.config({ path: resolve(repoRoot, ".env") });
 
 async function start(): Promise<void> {
   const cfg = loadConfig();
-  const systemPrompt = readNewbeeSystemPrompt(resolve(repoRoot, "prompts"));
+  const skillDir = resolve(repoRoot, "prompts", "game-gdd-clarify");
   const llm = new OpenAiLlmClient({ baseURL: cfg.LLM_BASE_URL, apiKey: cfg.LLM_API_KEY, model: cfg.LLM_MODEL });
 
   // 配了 DATABASE_URL 就走 Postgres（会话入库 + 启用后台/卡片 API），否则回退文件存储。
@@ -41,7 +40,7 @@ async function start(): Promise<void> {
   });
 
   const app = buildServer({
-    llm, store, systemPrompt, retrieve, repo,
+    llm, store, skillDir, retrieve, repo,
     shareDir: resolve(repoRoot, "data"),
     webDir: resolve(repoRoot, "apps/web/dist"),
     avatarDir: resolve(repoRoot, "apps/web/public/avatar"),

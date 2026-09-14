@@ -148,6 +148,54 @@ page { background: #0d0d0d; color: #ffffff; }
   border: 1px solid #404040;
 }
 
+.draft-bar {
+  margin-top: 20rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 16rpx;
+  background: rgba(212, 255, 72, 0.10);
+  border: 1px solid #d4ff48;
+  color: #d4ff48;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.card {
+  margin-top: 20rpx;
+  padding: 24rpx 28rpx;
+  background: #191919;
+  border: 1px solid #333333;
+  border-radius: 24rpx;
+}
+.card.on {
+  border-color: #404040;
+}
+.card-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+.card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+.card-chevron {
+  color: #d4ff48;
+  font-size: 28rpx;
+}
+.card-body {
+  margin-top: 16rpx;
+}
+.card-line {
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.86);
+  padding: 8rpx 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.card-line:last-child { border-bottom: none; }
+
 .block {
   margin-top: 36rpx;
   padding: 28rpx;

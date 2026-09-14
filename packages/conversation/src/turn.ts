@@ -25,10 +25,9 @@ function emptyControl(): TurnControl {
   return { stateDelta: {}, stageComplete: false, readyForSynthesis: false };
 }
 
-/** 从 sentinel 之后的尾段抽出 JSON 对象并解析；失败返回 null。 */
-function extractJson(tail: string): Record<string, unknown> | null {
+/** 从文本中抽出 JSON 对象并解析；失败返回 null。 */
+export function parseJsonObject(tail: string): Record<string, unknown> | null {
   let text = tail.trim();
-  // 去掉 ```json ... ``` 代码栅栏
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) text = fence[1].trim();
   const start = text.indexOf("{");
@@ -42,21 +41,35 @@ function extractJson(tail: string): Record<string, unknown> | null {
   }
 }
 
-function nonEmptyStr(v: unknown): v is string {
-  return typeof v === "string" && v.trim().length > 0;
+function textOf(...vals: unknown[]): string {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
 }
 
-/** 仅接受 2~4 项、每项含非空 id/label/detail 的数组；否则返回 undefined（静默忽略）。 */
+const OPTION_IDS = ["A", "B", "C", "D"] as const;
+
+/** 把「自己输入 / Other」类选项丢掉；输入框已经能打字。 */
+export function isOpenEndedOption(label: string, detail: string): boolean {
+  const t = `${label}\n${detail}`;
+  return /我有其他更好|我有别的想法|我有其他想法|我有其他更有趣|或者你有其他|或者其他更|自己输入|自己说吧|直接告诉我你的|直接告诉我|开放回答|开放口|选这项自己|Other/i.test(t);
+}
+
+/** 收下 2~4 项实质方向；缺 id/detail 时尽量补齐。开放口选项会被丢掉。 */
 function parseOptions(raw: unknown): TurnOption[] | undefined {
-  if (!Array.isArray(raw) || raw.length < 2 || raw.length > 4) return undefined;
+  if (!Array.isArray(raw)) return undefined;
   const out: TurnOption[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") return undefined;
+  for (const item of raw.slice(0, 4)) {
+    if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
-    if (!nonEmptyStr(o.id) || !nonEmptyStr(o.label) || !nonEmptyStr(o.detail)) return undefined;
-    out.push({ id: o.id, label: o.label, detail: o.detail });
+    const label = textOf(o.label, o.title, o.text, o.detail);
+    const detail = textOf(o.detail, o.description, o.body, label);
+    if (!label || !detail) continue;
+    if (isOpenEndedOption(label, detail)) continue;
+    out.push({ id: OPTION_IDS[out.length], label, detail });
   }
-  return out;
+  return out.length >= 2 ? out : undefined;
 }
 
 export function parseTurnOutput(raw: string): ParsedTurn {
@@ -65,7 +78,7 @@ export function parseTurnOutput(raw: string): ParsedTurn {
     return { reply: raw.trim(), control: emptyControl(), warnings: ["缺少 STATE 哨兵，本轮不推进阶段"] };
   }
   const reply = raw.slice(0, idx).trim();
-  const json = extractJson(raw.slice(idx + STATE_SENTINEL.length));
+  const json = parseJsonObject(raw.slice(idx + STATE_SENTINEL.length));
   if (!json) {
     return { reply, control: emptyControl(), warnings: ["STATE 块无法解析，本轮不推进阶段"] };
   }

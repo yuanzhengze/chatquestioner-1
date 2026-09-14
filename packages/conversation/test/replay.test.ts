@@ -4,12 +4,12 @@ import { advance } from "../src/advance.js";
 import { toGddModel } from "../src/compile.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 import { scriptedLlm } from "./fixtures/scriptedLlm.js";
-import { renderGdd } from "@cq/gdd";
+import { isComplete, renderGdd } from "@cq/gdd";
 
 const SYS = "（剧本回放系统提示词占位）";
 const t = (reply: string, control: object) => `${reply}\n${STATE_SENTINEL}\n${JSON.stringify(control)}`;
+const five = (p: string) => [`${p}一`, `${p}二`, `${p}三`, `${p}四`, `${p}五`];
 
-// 一条「治愈系猫咪连连看」的完整罐装剧本（每轮 reply + 状态增量）。
 const SCRIPT = [
   t("听起来你想要治愈与解压～", { state_delta: { spark: "治愈系猫咪连连看" }, stage_complete: true }),
   t("朋友玩完会说『太治愈了』。最常做的动作是把同色猫连起来，对吗？", {
@@ -32,17 +32,27 @@ const SCRIPT = [
     stage_complete: true,
   }),
   t("越往后猫越多、配色越接近；失败就想立刻再来一局。", {
-    state_delta: { difficultyCurve: "猫数增多+配色趋近", replayMotivation: "就差一点马上再来" },
+    state_delta: { difficultyCurve: "猫数增多+配色趋近", replayMotivation: "就差一点马上再来", difficulty: { ramp: "猫数增多+配色趋近" } },
     stage_complete: true,
   }),
   t("帮你收个尾：这是一个关于深夜猫咖治愈连连看的解压游戏。", {
     state_delta: {
       workingTitle: "深夜猫咖", pitch: "一个关于深夜猫咖治愈连连看的解压游戏",
       coreFantasy: "成为照顾走失猫的夜班店长", coreExperience: "治愈解压",
+      forbiddenEmotion: "肝氪焦虑",
       differentiator: "踩奶节奏 + 呼噜治愈音效", references: ["开心消消乐"], avoidReferences: ["重肝氪卡牌"],
-      risks: ["关卡产能", "音效版权"], mvpScope: { must: ["核心连接循环", "计分"], cut: ["关卡编辑器"] },
-      constitution: ["核心循环：连同色猫消除", "美术：水彩治愈"],
-      keywordPools: { gameplay: ["连接", "消除", "连击"], emotion: ["治愈", "解压"], visual: ["水彩"], world: ["猫咖"], narrative: ["夜班店长"], motivation: ["收集", "放松"] },
+      mechanics: ["划线连接同色猫", "连击奖励"],
+      winRule: "时间结束前达到目标分",
+      constitutionFields: { coreFantasy: "成为照顾走失猫的夜班店长", coreLoop: "划线连接同色猫消除" },
+      presentation: { where: "手机", dimension: "平面" },
+      keywordPools: {
+        gameplay: five("玩法"),
+        emotion: five("情绪"),
+        world: five("世界"),
+        visual: five("视觉"),
+        narrative: five("叙事"),
+        motivation: five("动机"),
+      },
     },
     stage_complete: true,
     ready_for_synthesis: true,
@@ -50,9 +60,10 @@ const SCRIPT = [
 ];
 
 describe("剧本回放：治愈系猫咪连连看", () => {
-  it("阶段推进到 7、可收敛、GDD 可渲染", async () => {
+  it("阶段推进到 8、完整度门通过、GDD 可渲染", async () => {
     let state = createInitialState();
-    state.stage = 1; // 破冰已过
+    state.guidance = "accepted";
+    state.stage = 1;
     const userInputs = ["我想做个治愈的小游戏", "连同色猫", "好", "要爽快的高光", "猫咖夜班", "越来越难", "总结一下吧"];
 
     let last;
@@ -61,11 +72,13 @@ describe("剧本回放：治愈系猫咪连连看", () => {
       state = last.state;
     }
 
-    expect(state.stage).toBe(7);
+    expect(state.stage).toBe(8);
+    expect(isComplete(toGddModel(state))).toBe(true);
     expect(last!.readyForSynthesis).toBe(true);
 
     const md = renderGdd(toGddModel(state));
     expect(md).toContain("深夜猫咖");
     expect(md).toContain("治愈");
+    expect(md).toContain("参考作品");
   });
 });

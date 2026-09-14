@@ -74,7 +74,7 @@ describe("parseTurnOutput · options", () => {
     expect(parseTurnOutput(raw).options).toBeUndefined();
   });
 
-  it("数量越界（0 / 1 / 5）被忽略为 undefined", () => {
+  it("数量 0 / 1 仍忽略；5 项收下前 4 项", () => {
     const zero = `回复\n${STATE_SENTINEL}\n{ "options": [] }`;
     expect(parseTurnOutput(zero).options).toBeUndefined();
     const one = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A","label":"x","detail":"y"}] }`;
@@ -82,11 +82,37 @@ describe("parseTurnOutput · options", () => {
     const five = `回复\n${STATE_SENTINEL}\n{ "options": [` +
       ["A","B","C","D","E"].map((id) => `{"id":"${id}","label":"l${id}","detail":"d${id}"}`).join(",") +
       `] }`;
-    expect(parseTurnOutput(five).options).toBeUndefined();
+    const r5 = parseTurnOutput(five);
+    expect(r5.options).toHaveLength(4);
+    expect(r5.options?.[3].id).toBe("D");
   });
 
-  it("缺字段的项使整组被忽略为 undefined", () => {
-    const bad = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A","label":"x"},{"id":"B","label":"y","detail":"z"}] }`;
+  it("缺 detail 时用 label 补上，id 统一成 A/B", () => {
+    const raw = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"1","label":"信号找同伴"},{"label":"回声拼真相","detail":"拼出真相"}] }`;
+    const r = parseTurnOutput(raw);
+    expect(r.options).toEqual([
+      { id: "A", label: "信号找同伴", detail: "信号找同伴" },
+      { id: "B", label: "回声拼真相", detail: "拼出真相" },
+    ]);
+  });
+
+  it("丢掉「自己输入 / 我有其他想法」类选项，只留实质方向", () => {
+    const raw =
+      `你更喜欢哪个？\n${STATE_SENTINEL}\n` +
+      `{ "options": [` +
+      `{"id":"A","label":"抢夺神圣资源与客观","detail":"帝国扩张。"},` +
+      `{"id":"B","label":"跨物种的史诗战争","detail":"猫族开战。"},` +
+      `{"id":"C","label":"猫族内部的霸权争夺","detail":"内部权斗。"},` +
+      `{"id":"D","label":"我有其他更好的想法","detail":"直接告诉我你的脑洞。"}` +
+      `] }`;
+    const r = parseTurnOutput(raw);
+    expect(r.options).toHaveLength(3);
+    expect(r.options?.map((o) => o.id)).toEqual(["A", "B", "C"]);
+    expect(r.options?.some((o) => /其他更好|脑洞/.test(`${o.label}${o.detail}`))).toBe(false);
+  });
+
+  it("两项都没有可读文案则整组忽略", () => {
+    const bad = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A"},{"id":"B"}] }`;
     expect(parseTurnOutput(bad).options).toBeUndefined();
   });
 });

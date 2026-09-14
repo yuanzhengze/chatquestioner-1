@@ -6,5 +6,8 @@ export * from "./stages.js";
 export * from "./turn.js";
 export * from "./advance.js";
 export * from "./compile.js";
+export * from "./harvest.js";
+export * from "./extract.js";
 export * from "./prompt.js";
+export * from "./clarifySkill.js";
 export * from "./retrieval.js";

@@ -4,20 +4,23 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
-  advance, createInitialState, toGddModel, OPENING_MESSAGE, STAGE_LABELS,
+  advance, createInitialState, toGddModel, normalizeConversationState,
+  harvestIntoState, OPENING_MESSAGE, STAGE_LABELS, historyWantsPreview,
   type ConversationState, type LlmClient, type Retriever,
 } from "@cq/conversation";
-import { renderGdd, isSubstantive } from "@cq/gdd";
+import { renderGdd, isSubstantive, isComplete, type GddModel } from "@cq/gdd";
 import type { Repository } from "@cq/store";
 import type { SessionStore } from "./sessionStore.js";
-import { FileShareStore, type ShareStore } from "./shareStore.js";
+import { FileShareStore, type ShareStore, type ResultShare } from "./shareStore.js";
 import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
 
 export interface ServerDeps {
   llm: LlmClient;
   store: SessionStore;
-  systemPrompt: string;
+  /** 测试占位。生产走 skillDir。 */
+  systemPrompt?: string;
+  skillDir?: string;
   /** 可选：对话期知识检索器（缺省则不注入知识）。 */
   retrieve?: Retriever;
   /** 导出 bundle 落盘根目录，默认 ./data/exports */
@@ -34,13 +37,17 @@ export interface ServerDeps {
 
 interface Synthesis {
   gddMarkdown: string;
+  gddModel: GddModel;
+  complete: boolean;
 }
 
-/** state → GDD 交接产物；创意维度尚无内容时返回 null（避免弹出空文档）。 */
-function buildSynthesis(state: ConversationState): Synthesis | null {
+/** 有实质内容即可渲染。定稿与否看 complete；中途草稿由调用方按 readyForSynthesis 决定是否推送。 */
+function buildSynthesis(state: ConversationState, opts?: { requireComplete?: boolean }): Synthesis | null {
   const model = toGddModel(state);
   if (!isSubstantive(model)) return null;
-  return { gddMarkdown: renderGdd(model) };
+  const complete = isComplete(model);
+  if (opts?.requireComplete && !complete) return null;
+  return { gddMarkdown: renderGdd(model), gddModel: model, complete };
 }
 
 /** 合法 session id：仅字母数字、下划线、连字符（randomUUID 输出可通过）。防路径穿越。 */
@@ -55,8 +62,24 @@ function titleFromMarkdown(md: string, fallback?: string): string {
   return t.slice(0, 40);
 }
 
-function publicShare(row: { v: 1; id: string; title: string; markdown: string }) {
-  return { v: row.v, id: row.id, title: row.title, markdown: row.markdown };
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return Boolean(v) && typeof v === "object" && !Array.isArray(v);
+}
+
+function publicShare(row: ResultShare) {
+  const out: {
+    v: 1 | 2;
+    id: string;
+    title: string;
+    markdown: string;
+    model?: unknown;
+    complete?: boolean;
+  } = { v: row.v === 2 ? 2 : 1, id: row.id, title: row.title, markdown: row.markdown };
+  if (out.v === 2 && row.model != null) {
+    out.model = row.model;
+    out.complete = row.complete === true;
+  }
+  return out;
 }
 
 export function buildServer(deps: ServerDeps): FastifyInstance {
@@ -95,17 +118,36 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     });
   }
 
-  // 不再立即落库：只生成 id + 开场白返回前端。空会话（用户从未发言）不入库。
+  // 不再立即落库：只生成 id + 开场白。空会话（用户从未发言）不入库。
   // 真正的持久化推迟到首句 /message（见下方 lazy 创建）。
+  // 同意门在用户说出想法之后由 advance 给出，不在开场白里问。
   app.post("/api/session", async () => {
     const id = randomUUID();
     return { id, opening: OPENING_MESSAGE };
   });
 
   app.get<{ Params: { id: string } }>("/api/session/:id", async (req, reply) => {
-    const state = await deps.store.load(req.params.id);
-    if (!state) return reply.code(404).send({ error: "session not found" });
-    return state;
+    const loaded = await deps.store.load(req.params.id);
+    if (!loaded) return reply.code(404).send({ error: "session not found" });
+    const state = normalizeConversationState(loaded);
+    // GET 只做确定性回收，不调抽取 LLM（微信 20s）。抽取只在用户要文档的那一轮 advance 里跑并落盘。
+    harvestIntoState(state);
+    const model = toGddModel(state);
+    const complete = isComplete(model);
+    state.gddComplete = complete;
+    state.readyForSynthesis = complete
+      || (isSubstantive(model) && historyWantsPreview(state.history));
+    const syn = (() => {
+      if (!state.readyForSynthesis) return null;
+      try {
+        return buildSynthesis(state);
+      } catch (err) {
+        console.error("[server] GET synthesis failed:", err);
+        return null;
+      }
+    })();
+    if (!syn) return state;
+    return { ...state, gddMarkdown: syn.gddMarkdown, gddModel: syn.gddModel };
   });
 
   app.delete<{ Params: { id: string } }>("/api/session/:id", async (req, reply) => {
@@ -114,14 +156,20 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     return reply.code(204).send();
   });
 
-  app.post<{ Body: { markdown?: string; title?: string; history?: unknown } }>(
+  app.post<{ Body: { markdown?: string; title?: string; history?: unknown; model?: unknown; complete?: boolean } }>(
     "/api/share",
     async (req, reply) => {
       const markdown = typeof req.body?.markdown === "string" ? req.body.markdown.trim() : "";
       if (!markdown) return reply.code(400).send({ error: "markdown required" });
       if (markdown.length > MAX_SHARE_MD) return reply.code(413).send({ error: "markdown too large" });
       const title = titleFromMarkdown(markdown, req.body?.title);
-      const row = await shareStore.create({ title, markdown });
+      const model = isPlainObject(req.body?.model) ? req.body.model : undefined;
+      const row = await shareStore.create({
+        title,
+        markdown,
+        model,
+        complete: req.body?.complete === true,
+      });
       return publicShare(row);
     },
   );
@@ -147,6 +195,8 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
         fresh.history.push({ role: "assistant", content: OPENING_MESSAGE });
         await deps.store.createWithId(req.params.id, fresh);
         state = fresh;
+      } else {
+        normalizeConversationState(state);
       }
 
       reply.hijack();
@@ -160,6 +210,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
         const res = await advance(state, message, {
           llm: deps.llm,
           systemPrompt: deps.systemPrompt,
+          skillDir: deps.skillDir,
           retrieve: deps.retrieve,
           onToken: (text) => sendEvent(reply, SSE_EVENTS.token, { text }),
         });
@@ -175,10 +226,17 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
         if (res.options?.length) sendEvent(reply, SSE_EVENTS.options, { options: res.options });
 
-        // 创意维度一有内容就推 GDD 草稿，随对话逐轮刷新。不等 LLM 置 ready_for_synthesis
-        // （那是主观判断，常漏置），也不再要求工程信号齐备——维度/引擎/平台属于下游
-        // ForgeaX 的职责，不该成为用户看到自己 GDD 的前置条件。
-        const synthesis = buildSynthesis(res.state);
+        let synthesis = null;
+        if (res.readyForSynthesis) {
+          try {
+            synthesis = buildSynthesis(res.state);
+          } catch (err) {
+            console.error("[server] synthesis failed:", err);
+            sendEvent(reply, SSE_EVENTS.warning, {
+              messages: ["文档这一轮没编出来，对话已保存。请再点一次生成或重新打开草稿。"],
+            });
+          }
+        }
         if (synthesis) sendEvent(reply, SSE_EVENTS.synthesis, synthesis);
         sendEvent(reply, SSE_EVENTS.done, { readyForSynthesis: res.readyForSynthesis });
       } catch (err) {
@@ -195,8 +253,10 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
   app.post<{ Params: { id: string } }>("/api/session/:id/export", async (req, reply) => {
     if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
-    const state: ConversationState | null = await deps.store.load(req.params.id);
-    if (!state) return reply.code(404).send({ error: "session not found" });
+    const loaded: ConversationState | null = await deps.store.load(req.params.id);
+    if (!loaded) return reply.code(404).send({ error: "session not found" });
+    const state = normalizeConversationState(loaded);
+    harvestIntoState(state);
 
     const synthesis = buildSynthesis(state);
     if (!synthesis) return reply.code(409).send({ error: "GDD 尚无实质内容，请先完成几轮对话" });

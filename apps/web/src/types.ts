@@ -39,4 +39,6 @@ export interface StageInfo { stage: number; label: string; readyForSynthesis: bo
 
 export interface SynthesisPayload {
   gddMarkdown: string;
+  gddModel?: unknown;
+  complete?: boolean;
 }

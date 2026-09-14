@@ -21,7 +21,7 @@ describe("server forwards retrieve to advance", () => {
     });
     const created = await app.inject({ method: "POST", url: "/api/session" });
     const { id } = created.json() as { id: string };
-    await app.inject({ method: "POST", url: `/api/session/${id}/message`, payload: { message: "hi" } });
+    await app.inject({ method: "POST", url: `/api/session/${id}/message`, payload: { message: "是，开始创意引导" } });
     expect(called).toBe(true);
     await app.close();
   });
