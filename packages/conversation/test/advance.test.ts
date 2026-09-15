@@ -3,7 +3,7 @@ import { createInitialState } from "../src/state.js";
 import { advance } from "../src/advance.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 import { scriptedLlm } from "./fixtures/scriptedLlm.js";
-import { CONSENT_OPTIONS, CONSENT_AFTER_IDEA, DECLINED_ACK } from "../src/llm.js";
+import { CONSENT_OPTIONS, CONSENT_AFTER_IDEA, DECLINED_ACK, CONVERGENCE_OPTIONS } from "../src/llm.js";
 import { isComplete, isSubstantive } from "@cq/gdd";
 import { toGddModel } from "../src/compile.js";
 
@@ -44,7 +44,14 @@ describe("advance", () => {
     const llm = {
       async *stream() {
         calls += 1;
-        yield turn("画面很酷，最想抓住哪一块？", { state_delta: { spark: "猫咪游戏" }, stage_complete: true });
+        yield turn("画面很酷，最想抓住哪一块？", {
+          state_delta: { spark: "猫咪游戏" },
+          stage_complete: true,
+          options: [
+            { id: "A", label: "治愈踩奶", detail: "呼噜和暖光慢慢铺满" },
+            { id: "B", label: "宣泄拆家", detail: "拍飞杯子碎得越响越爽" },
+          ],
+        });
       },
     };
     const afterIdea = await advance(createInitialState(), "我想做猫咪游戏", { llm, systemPrompt: SYS });
@@ -62,6 +69,10 @@ describe("advance", () => {
       turn("听起来很治愈！最想先抓住哪张画面？", {
         state_delta: { spark: "治愈系猫咪连连看" },
         stage_complete: true,
+        options: [
+          { id: "A", label: "暖光猫咖", detail: "夜里店里只剩呼噜声" },
+          { id: "B", label: "雨巷躲猫", detail: "撑伞穿过湿漉漉的巷子" },
+        ],
       }),
     ]);
     const res = await advance(createInitialState(), CONSENT_OPTIONS[0].label, {
@@ -197,7 +208,7 @@ describe("advance", () => {
     expect(res.state.spark).toBe("旧档续聊");
   });
 
-  it("用户中途要生成且已有实质内容时，出草稿并保留选项", async () => {
+  it("用户中途要生成且已有实质内容时，出草稿且当轮不弹选项", async () => {
     const llm = scriptedLlm([
       turn("先看一版带缺口的草稿。", {
         state_delta: {},
@@ -216,8 +227,137 @@ describe("advance", () => {
     expect(isComplete(toGddModel(res.state))).toBe(false);
     expect(res.state.gddComplete).toBe(false);
     expect(res.readyForSynthesis).toBe(true);
+    expect(res.options).toBeUndefined();
+    expect(res.state.lastOptions).toEqual([]);
+  });
+
+  it("出稿当轮不弹选项；用户再打字后卡片回来，气泡里不再重复 A/B", async () => {
+    const llm = scriptedLlm([
+      turn("先看草稿。", { state_delta: {} }),
+      turn(
+        "在这个大屏幕上，玩家们具体是怎么互相干扰的？\n\n" +
+          "A. **实时大乱斗**：大家同屏各自拔自己的鹅。\n" +
+          "B. **轮流坐庄受刑**：聚光灯一次只打在一个人身上。",
+        {
+          state_delta: {},
+          options: [
+            { id: "A", label: "实时大乱斗", detail: "大家同屏各自拔自己的鹅。" },
+            { id: "B", label: "轮流坐庄受刑", detail: "聚光灯一次只打在一个人身上。" },
+          ],
+        },
+      ),
+      turn("记下了这一块。", { state_delta: {} }),
+    ]);
+    const s = accepted();
+    s.spark = "猫咪帝国";
+    s.pitch = "猫RTS";
+    s.coreEmotion = "反差萌";
+    const draft = await advance(s, "确认定稿并生成设计文档", { llm, systemPrompt: SYS });
+    expect(draft.readyForSynthesis).toBe(true);
+    expect(draft.options).toBeUndefined();
+    const next = await advance(draft.state, "干扰怎么表现？", { llm, systemPrompt: SYS });
+    expect(next.readyForSynthesis).toBe(true);
+    expect(next.options).toHaveLength(2);
+    expect(next.options?.[0].label).toContain("实时大乱斗");
+    expect(next.reply).toContain("怎么互相干扰");
+    expect(next.reply).not.toMatch(/A\.\s*\*\*实时大乱斗/);
+    const fork = await advance(next.state, next.options![0].detail, { llm, systemPrompt: SYS });
+    expect(fork.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(fork.readyForSynthesis).toBe(true);
+  });
+
+  it("已有文档后再改设定，state_delta 覆盖旧值并重编文档门", async () => {
+    const llm = scriptedLlm([
+      turn("先看草稿。", { state_delta: {} }),
+      turn("记下了，名字换成新标题。", {
+        state_delta: { workingTitle: "新标题" },
+        options: [
+          { id: "A", label: "再加强干扰", detail: "干扰更狠一点" },
+          { id: "B", label: "再加强盲盒", detail: "隐藏款更多" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.spark = "猫咪帝国";
+    s.pitch = "猫RTS";
+    s.coreEmotion = "反差萌";
+    s.workingTitle = "旧名字";
+    const draft = await advance(s, "现在就生成", { llm, systemPrompt: SYS });
+    expect(draft.readyForSynthesis).toBe(true);
+    expect(draft.state.workingTitle).toBe("旧名字");
+    const next = await advance(draft.state, "名字改成新标题", { llm, systemPrompt: SYS });
+    expect(next.state.workingTitle).toBe("新标题");
+    expect(next.readyForSynthesis).toBe(true);
+    expect(next.options).toHaveLength(2);
+  });
+
+  it("引导模式 JSON 和人话都没有选项时，宿主重试一次直到有卡片", async () => {
+    let calls = 0;
+    const llm = {
+      async *stream(messages: { role?: string; content?: string }[]) {
+        if (messages[0]?.content?.includes("[GDD_EXTRACT_V1]")) {
+          yield "{}";
+          return;
+        }
+        calls += 1;
+        if (calls === 1) {
+          yield turn("你更喜欢哪个？", { state_delta: {} });
+          return;
+        }
+        yield turn("你更喜欢哪个？", {
+          state_delta: {},
+          options: [
+            { id: "A", label: "信号找同伴", detail: "找回失联的同伴" },
+            { id: "B", label: "回声拼真相", detail: "拼出真相" },
+          ],
+        });
+      },
+    };
+    const res = await advance(accepted(), "继续", { llm, systemPrompt: SYS });
+    expect(calls).toBe(2);
     expect(res.options).toHaveLength(2);
-    expect(res.state.lastOptions).toHaveLength(2);
+    expect(res.options?.[0].label).toContain("信号找同伴");
+    expect(res.reply).toContain("你更喜欢哪个");
+  });
+
+  it("采访轮缺方向时让模型按纪律重写，第二次仍缺则再写，不由宿主代写卡片", async () => {
+    const llm = scriptedLlm([
+      turn("> ❓ 你希望视听氛围偏向哪种感觉？", { state_delta: {} }),
+      turn("> ❓ 你希望视听氛围偏向哪种感觉？", { state_delta: {} }),
+      turn("> ❓ 你希望视听氛围偏向哪种感觉？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "粗豪美漫爆屏", detail: "火星和金币像美漫一样满屏炸开。" },
+          { id: "B", label: "市井烟火夜摊", detail: "铁锅滋啦、深夜摊的热气和收银叮叮。" },
+          { id: "C", label: "赛博霓虹后厨", detail: "机械臂颠勺，霓虹扫过热油。" },
+        ],
+      }),
+    ]);
+    const res = await advance(accepted(), "请给我选项", { llm, systemPrompt: SYS });
+    expect(res.options).toHaveLength(3);
+    expect(res.options?.[0].label).toContain("粗豪美漫");
+    expect(res.options).not.toEqual(CONVERGENCE_OPTIONS);
+    expect(res.options?.some((o) => /最过瘾|留一点呼吸|来个反差/.test(o.label))).toBe(false);
+    expect(res.state.optionPhase).toBe("interview");
+    expect(res.readyForSynthesis).toBe(false);
+  });
+
+  it("出文档前 JSON 没给 options 时，从人话 A/B 收回卡片并从气泡删掉", async () => {
+    const llm = scriptedLlm([
+      turn(
+        "你更想要哪种？\n\n" +
+          "A. **全程隐藏，最后开箱**：拔的时候只能看到鹅头。\n" +
+          "B. **实时拔出，当场眼红**：每踩中一次就往上窜。",
+        { state_delta: {} },
+      ),
+    ]);
+    const res = await advance(accepted(), "继续", { llm, systemPrompt: SYS });
+    expect(res.state.readyForSynthesis).toBe(false);
+    expect(res.options).toHaveLength(2);
+    expect(res.options?.[0].label).toContain("全程隐藏");
+    expect(res.options?.[1].label).toContain("实时拔出");
+    expect(res.reply).toContain("你更想要哪种");
+    expect(res.reply).not.toMatch(/A\.\s*\*\*全程隐藏/);
   });
 
   it("确认总结并要求生成最终文档时，未过完整度也出草稿", async () => {
@@ -238,24 +378,204 @@ describe("advance", () => {
     expect(res.readyForSynthesis).toBe(true);
   });
 
-  it("助手已出口头概念总结、用户还没点确认时，不出草稿", async () => {
+  it("第 8 节且本轮写出合格概念总结时，给出定稿三选", async () => {
     const llm = scriptedLlm([
       turn("> 📌 **暂定名**：《城寨：风水魇》\n> 📌 **一句话亮点**：开火即逃亡。", {
-        state_delta: {},
+        state_delta: { workingTitle: "城寨：风水魇" },
         options: [
           { id: "A", label: "确认总结，生成设计文档", detail: "就按这个定稿，写成设计文档。" },
           { id: "B", label: "我还要再加点新设定", detail: "核心对，但还想改一块。" },
+          { id: "C", label: "城寨风水更阴", detail: "巷战更潮湿、更听得见脚步。" },
+          { id: "D", label: "开火即逃亡更狠", detail: "枪响之后只剩跑。" },
         ],
       }),
     ]);
     const s = accepted();
+    s.stage = 8;
     s.spark = "九龙城寨开火焦虑";
     s.coreEmotion = "压抑";
     const res = await advance(s, "继续", { llm, systemPrompt: SYS });
     expect(res.state.workingTitle).toBe("城寨：风水魇");
     expect(isComplete(toGddModel(res.state))).toBe(false);
     expect(res.readyForSynthesis).toBe(false);
+    expect(res.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("convergence");
+  });
+
+  it("总结后若还问新内容，裁掉提问并给定稿三选，且未点定稿不出文档", async () => {
+    const llm = scriptedLlm([
+      turn(
+        "独自一人在电脑前，沉浸感拉满。\n\n" +
+          "> 📌 蓝图已经成型！让我来做个概念总结：\n" +
+          "> **暂定游戏名**：《破晓求生：机械遗迹》\n" +
+          "> **一句话亮点**：沙盘荒岛上白天解谜、夜晚逃跑。\n\n" +
+          "> ❓ 作为最后一个拼图，当玩家探明了所有神庙后，你希望这个等待救援的故事最终走向什么样的大结局？",
+        { state_delta: { workingTitle: "破晓求生：机械遗迹" } },
+      ),
+    ]);
+    const s = accepted();
+    s.stage = 8;
+    s.spark = "荒岛求生";
+    s.coreEmotion = "紧张";
+    s.pitch = "沙盘荒岛";
+    const res = await advance(s, "键鼠一个人玩", { llm, systemPrompt: SYS });
+    expect(res.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("convergence");
+    expect(res.reply).toContain("破晓求生：机械遗迹");
+    expect(res.reply).not.toContain("大结局");
+    expect(res.reply).not.toContain("❓");
+    expect(res.readyForSynthesis).toBe(false);
+    expect(res.state.history.at(-1)?.content).not.toContain("大结局");
+  });
+
+  it("未到第 8 节但历史已有合格总结时，强制进入收敛并给定稿三选", async () => {
+    const llm = scriptedLlm([
+      turn("界面要不要做？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "无UI", detail: "全靠场景提示。" },
+          { id: "B", label: "意识流", detail: "脑内独白当提示。" },
+          { id: "C", label: "伪纪录片", detail: "字幕和画外音。" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 7;
+    s.optionPhase = "interview";
+    s.spark = "三十夜荒野";
+    s.history = [
+      { role: "user", content: CONSENT_OPTIONS[0].label },
+      {
+        role: "assistant",
+        content: "我们已经把核心骨架拼全了。\n> 📌 **《木板与喘息》**（暂定）\n> **核心体验**：三十夜。\n❓ 蓝图已经基本成型！",
+      },
+    ];
+    const res = await advance(s, "先不定", { llm, systemPrompt: SYS });
+    expect(res.readyForSynthesis).toBe(false);
+    expect(res.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("convergence");
+    expect(res.state.stage).toBe(8);
+  });
+
+  it("第 7 节本轮才写出合格总结时，也强制进入收敛并给定稿三选，不保留新策划卡", async () => {
+    const llm = scriptedLlm([
+      turn(
+        "> 📌 **暂定名**：《极简超市：禅意收纳》\n> **一句话亮点**：严丝合缝收纳。\n\n> ❓ 礼盒订单更像俄罗斯方块还是盲盒？",
+        {
+          state_delta: { workingTitle: "极简超市：禅意收纳" },
+          options: [
+            { id: "A", label: "空间嵌合式", detail: "在礼盒里反复旋转嵌合。" },
+            { id: "B", label: "视觉强迫症式", detail: "按颜色渐变排列。" },
+            { id: "C", label: "盲盒打包式", detail: "按标签挑商品装箱。" },
+          ],
+        },
+      ),
+    ]);
+    const s = accepted();
+    s.stage = 7;
+    s.optionPhase = "interview";
+    s.spark = "超市收纳";
+    s.presentation.where = "电脑";
+    const res = await advance(s, "流水线平移视角", { llm, systemPrompt: SYS });
+    expect(res.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("convergence");
+    expect(res.state.stage).toBe(8);
+    expect(res.reply).toContain("极简超市：禅意收纳");
+    expect(res.reply).not.toContain("礼盒");
+    expect(res.readyForSynthesis).toBe(false);
+  });
+
+  it("第 7 节本轮写出合格总结但没有设计选项时，不因缺卡而整轮重试", async () => {
+    const llm = scriptedLlm([
+      turn("> 📌 **暂定名**：《城寨：风水魇》\n> 📌 **一句话亮点**：开火即逃亡。", {
+        state_delta: { workingTitle: "城寨：风水魇" },
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 7;
+    s.spark = "九龙城寨";
+    const res = await advance(s, "继续", { llm, systemPrompt: SYS });
+    expect(res.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("convergence");
+    expect(res.state.stage).toBe(8);
+    expect(res.readyForSynthesis).toBe(false);
+  });
+
+  it("已到第 8 节且历史里已有合格总结时，设计选项改成定稿三选", async () => {
+    const llm = scriptedLlm([
+      turn("界面要不要做？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "无UI", detail: "全靠场景提示。" },
+          { id: "B", label: "意识流", detail: "脑内独白当提示。" },
+          { id: "C", label: "伪纪录片", detail: "字幕和画外音。" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 8;
+    s.optionPhase = "interview";
+    s.spark = "三十夜荒野";
+    s.history = [
+      { role: "user", content: CONSENT_OPTIONS[0].label },
+      {
+        role: "assistant",
+        content: "我们已经把核心骨架拼全了。\n> 📌 **《木板与喘息》**（暂定）\n> **核心体验**：三十夜。",
+      },
+    ];
+    const res = await advance(s, "先不定", { llm, systemPrompt: SYS });
+    expect(res.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("convergence");
+  });
+
+  it("已到第 8 节但还没有合格总结时，JSON 定稿项也不换卡，仍出设计选项", async () => {
+    const llm = scriptedLlm([
+      turn("咱们的游戏骨架已经非常清晰了！你希望玩家主要在什么设备上玩？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "就按这个定稿，写成设计文档", detail: "就按这个定稿，写成设计文档。" },
+          { id: "B", label: "核心对，但要改某一块", detail: "核心对，但要改某一块。" },
+          { id: "C", label: "手机竖屏一个人玩", detail: "通勤时用触屏搜刮。" },
+          { id: "D", label: "电脑键鼠硬核操作", detail: "大屏看深海层次。" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 8;
+    s.optionPhase = "interview";
+    s.spark = "收集建造生存";
+    const res = await advance(s, "上强度就这样", { llm, systemPrompt: SYS });
     expect(res.options).toHaveLength(2);
+    expect(res.options?.[0].label).toContain("手机");
+    expect(res.options).not.toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("interview");
+    expect(res.readyForSynthesis).toBe(false);
+  });
+
+  it("引导答了很多轮但还没有概念总结、也没到第 8 节时，仍出设计选项", async () => {
+    const llm = scriptedLlm([
+      turn("再问一个界面？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "无UI", detail: "全靠场景。" },
+          { id: "B", label: "血条", detail: "传统 HUD。" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 7;
+    s.optionPhase = "interview";
+    s.history = [{ role: "user", content: CONSENT_OPTIONS[0].label }];
+    for (let i = 0; i < 9; i++) {
+      s.history.push({ role: "assistant", content: `问${i}？` });
+      s.history.push({ role: "user", content: `答${i}，就按这个感觉。` });
+    }
+    const res = await advance(s, "答九，就按这个感觉。", { llm, systemPrompt: SYS });
+    expect(res.options).toHaveLength(2);
+    expect(res.options?.[0].label).toContain("无UI");
+    expect(res.options).not.toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("interview");
+    expect(res.readyForSynthesis).toBe(false);
   });
 
   it("点方向 A 确认生成后才出草稿", async () => {
@@ -291,6 +611,10 @@ describe("advance", () => {
           difficulty: { ramp: "猫变多" },
           presentation: { where: "手机", dimension: "平面" },
         },
+        options: [
+          { id: "A", label: "紧张到手心出汗", detail: "刚玩完还在抖" },
+          { id: "B", label: "极度解压", detail: "像被踩奶" },
+        ],
       }),
     ]);
     const s = accepted();
@@ -299,5 +623,83 @@ describe("advance", () => {
     const res = await advance(s, "都给你了", { llm, systemPrompt: SYS });
     expect(res.state.askedStages).toContain(2);
     expect(res.state.stage).toBe(3);
+  });
+
+  it("进入收敛后由宿主给出定稿/改一块/再挖挖；改一块先出设计选项，选完再回到三选", async () => {
+    const llm = scriptedLlm([
+      turn("蓝图可以落盘了。", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "不该出现的方向", detail: "采访选项应被换成收敛三选" },
+          { id: "B", label: "另一个不该出现", detail: "宿主会覆盖" },
+        ],
+      }),
+      turn("想改哪一块？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "把互坑再写狠一点", detail: "干扰键随时打断心跳。" },
+          { id: "B", label: "把盲盒再写满一点", detail: "隐藏款发光霓虹灯管。" },
+        ],
+      }),
+      turn("互坑这一块记下了。", { state_delta: { mechanics: ["干扰键随时打断心跳"] } }),
+    ]);
+    const s = accepted();
+    s.stage = 8;
+    s.spark = "天鹅颈";
+    s.pitch = "潮玩拔鹅";
+    s.coreEmotion = "紧张";
+    s.presentation.where = "电视";
+    s.presentation.dimension = "立体";
+    s.askedStages = [2, 3, 4, 5, 6, 7];
+    s.history = [
+      {
+        role: "assistant",
+        content: "> 📌 **暂定名**：《天鹅颈刺客》\n> 📌 **一句话亮点**：潮玩拔鹅。",
+      },
+    ];
+    const conv = await advance(s, "呈现就这样", { llm, systemPrompt: SYS });
+    expect(conv.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(conv.state.optionPhase).toBe("convergence");
+    expect(conv.readyForSynthesis).toBe(false);
+
+    const sup = await advance(conv.state, CONVERGENCE_OPTIONS[1].detail, { llm, systemPrompt: SYS });
+    expect(sup.state.optionPhase).toBe("supplement");
+    expect(sup.options).toHaveLength(2);
+    expect(sup.options?.[0].label).toContain("互坑");
+    expect(sup.options?.some((o) => /定稿/.test(o.label))).toBe(false);
+
+    const back = await advance(sup.state, sup.options![0].detail, { llm, systemPrompt: SYS });
+    expect(back.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(back.state.optionPhase).toBe("convergence");
+  });
+
+  it("收敛点定稿当轮不弹卡；之后开口先给设计选项", async () => {
+    const llm = scriptedLlm([
+      turn("文档落盘了。", { state_delta: {} }),
+      turn("标题怎么定？", {
+        state_delta: { workingTitle: "新标题" },
+        options: [
+          { id: "A", label: "就叫新标题", detail: "短、好记。" },
+          { id: "B", label: "加个副标题", detail: "新标题：在逃顶流。" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 8;
+    s.spark = "天鹅颈";
+    s.pitch = "潮玩拔鹅";
+    s.coreEmotion = "紧张";
+    s.optionPhase = "convergence";
+    s.lastOptions = CONVERGENCE_OPTIONS.map((o) => ({ ...o }));
+    const gen = await advance(s, CONVERGENCE_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(gen.readyForSynthesis).toBe(true);
+    expect(gen.options).toBeUndefined();
+    expect(gen.state.optionPhase).toBe("awaitingEdit");
+
+    const edit = await advance(gen.state, "名字改成新标题", { llm, systemPrompt: SYS });
+    expect(edit.state.workingTitle).toBe("新标题");
+    expect(edit.readyForSynthesis).toBe(true);
+    expect(edit.options).toHaveLength(2);
+    expect(edit.state.optionPhase).toBe("supplement");
   });
 });

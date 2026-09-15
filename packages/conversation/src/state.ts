@@ -8,6 +8,9 @@ import type { TurnOption } from "./turn.js";
 
 export type Guidance = "pending" | "accepted" | "declined";
 
+/** 引导轮选项由宿主推进：采访 → 收敛三选 → 补一块 → 再回到三选。 */
+export type OptionPhase = "interview" | "convergence" | "supplement" | "awaitingEdit";
+
 /** 四级核心循环（30s / 5min / 30min / 长线） */
 export interface LoopState {
   thirtySec?: string;
@@ -102,6 +105,8 @@ export interface ConversationState {
   gddComplete?: boolean;
   /** 已经在该阶段上问过至少一轮，避免字段被顺带填上就跳节 */
   askedStages: number[];
+  /** 当前该弹采访选项、收敛三选，还是补一块的设计选项 */
+  optionPhase?: OptionPhase;
 }
 
 export function createInitialState(): ConversationState {
@@ -150,6 +155,15 @@ export function normalizeConversationState(state: ConversationState): Conversati
   if (!state.loop) state.loop = {};
   if (!state.keywordPools) state.keywordPools = emptyKeywordPools();
   if (!Array.isArray(state.askedStages)) state.askedStages = [];
+  if (
+    state.optionPhase
+    && state.optionPhase !== "interview"
+    && state.optionPhase !== "convergence"
+    && state.optionPhase !== "supplement"
+    && state.optionPhase !== "awaitingEdit"
+  ) {
+    delete state.optionPhase;
+  }
   if (!state.engineering) {
     state.engineering = {
       platform: [], modalities: [], mechanics: [], intentTerms: [], signatureTerms: [],

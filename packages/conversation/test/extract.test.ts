@@ -59,6 +59,24 @@ describe("extractDiscussedIntoState", () => {
     expect(s.winRule).toContain("星星");
     expect(s.forbiddenEmotion).toBeFalsy();
   });
+
+  it("overwrite 时用抽取结果覆盖已有字段", async () => {
+    const s = createInitialState();
+    s.workingTitle = "旧名字";
+    s.history = [
+      { role: "assistant", content: "暂定名叫旧名字。" },
+      { role: "user", content: "改名叫新标题。" },
+    ];
+    const llm: LlmClient = {
+      async *stream(messages: ChatMessage[]) {
+        expect(messages[0]?.content).toContain(EXTRACT_PROMPT_TAG);
+        expect(messages[1]?.content).toContain("最后一次");
+        yield JSON.stringify({ workingTitle: "新标题" });
+      },
+    };
+    await extractDiscussedIntoState(s, llm, { overwrite: true });
+    expect(s.workingTitle).toBe("新标题");
+  });
 });
 
 describe("advance 出文档时走抽取", () => {

@@ -135,8 +135,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     const model = toGddModel(state);
     const complete = isComplete(model);
     state.gddComplete = complete;
-    state.readyForSynthesis = complete
-      || (isSubstantive(model) && historyWantsPreview(state.history));
+    state.readyForSynthesis = isSubstantive(model) && historyWantsPreview(state.history);
     const syn = (() => {
       if (!state.readyForSynthesis) return null;
       try {

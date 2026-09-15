@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseTurnOutput, STATE_SENTINEL } from "../src/turn.js";
+import { parseTurnOutput, recoverOptionsFromProse, stripOptionProse, designOptionsOnly, STATE_SENTINEL } from "../src/turn.js";
 
 describe("parseTurnOutput", () => {
   it("拆出 reply 与控制块", () => {
@@ -114,5 +114,75 @@ describe("parseTurnOutput · options", () => {
   it("两项都没有可读文案则整组忽略", () => {
     const bad = `回复\n${STATE_SENTINEL}\n{ "options": [{"id":"A"},{"id":"B"}] }`;
     expect(parseTurnOutput(bad).options).toBeUndefined();
+  });
+});
+
+describe("recoverOptionsFromProse / stripOptionProse", () => {
+  const swan = [
+    "在这个大屏幕上，玩家们具体是怎么互相干扰的？",
+    "",
+    "A. **实时大乱斗**：大家同屏各自拔自己的鹅，手里有独立的“干扰键”。",
+    "B. **轮流坐庄受刑**：聚光灯一次只打在一个人身上。",
+    "C. **暗改盲盒池**：拔鹅之前有个“暗箱操作”环节。",
+  ].join("\n");
+
+  it("从人话 A/B/C 收回卡片，并用人话冒号后的说明当 detail", () => {
+    const opts = recoverOptionsFromProse(swan);
+    expect(opts).toHaveLength(3);
+    expect(opts?.[0]).toEqual({
+      id: "A",
+      label: "实时大乱斗",
+      detail: "大家同屏各自拔自己的鹅，手里有独立的“干扰键”。",
+    });
+    expect(opts?.[1].label).toBe("轮流坐庄受刑");
+    expect(opts?.[2].id).toBe("C");
+  });
+
+  it("把 A/B 列表从气泡里删掉，只留提问", () => {
+    const stripped = stripOptionProse(swan);
+    expect(stripped).toBe("在这个大屏幕上，玩家们具体是怎么互相干扰的？");
+    expect(stripped).not.toMatch(/实时大乱斗/);
+  });
+
+  it("JSON 没有 options 时 parseTurnOutput 仍能收回卡片并清洗 reply", () => {
+    const raw =
+      `${swan}\n${STATE_SENTINEL}\n` +
+      `{ "state_delta": {}, "stage_complete": false }`;
+    const r = parseTurnOutput(raw);
+    expect(r.options).toHaveLength(3);
+    expect(r.options?.[0].label).toBe("实时大乱斗");
+    expect(r.reply).toBe("在这个大屏幕上，玩家们具体是怎么互相干扰的？");
+    expect(r.reply.includes("A.")).toBe(false);
+  });
+
+  it("JSON 已有 options 时仍清掉人话里的 A/B，避免气泡里再写一遍", () => {
+    const raw =
+      `你更喜欢哪个？\nA. **信号找同伴**：你是一束信号。\nB. **回声拼真相**：拼出真相。\n` +
+      `${STATE_SENTINEL}\n` +
+      `{ "options": [` +
+      `{"id":"A","label":"信号找同伴","detail":"你是一束信号，找回失联的同伴。"},` +
+      `{"id":"B","label":"回声拼真相","detail":"你是最后清醒的人，拼出真相。"}` +
+      `] }`;
+    const r = parseTurnOutput(raw);
+    expect(r.options?.[0].detail).toContain("失联的同伴");
+    expect(r.reply).toBe("你更喜欢哪个？");
+    expect(r.reply).not.toMatch(/A\./);
+  });
+
+  it("只有一项 A. 不当选项，也不裁气泡", () => {
+    const text = "先记下了。\nA. 这只是举例，不是选项。";
+    expect(recoverOptionsFromProse(text)).toBeUndefined();
+    expect(stripOptionProse(text)).toBe(text);
+  });
+
+  it("designOptionsOnly 丢掉定稿/再挖挖，只留实质方向", () => {
+    const kept = designOptionsOnly([
+      { id: "A", label: "就按这个定稿，写成设计文档", detail: "就按这个定稿，写成设计文档。" },
+      { id: "B", label: "城寨风水更阴", detail: "巷战更潮湿。" },
+      { id: "C", label: "开火即逃亡更狠", detail: "枪响之后只剩跑。" },
+    ]);
+    expect(kept).toHaveLength(2);
+    expect(kept?.[0].id).toBe("A");
+    expect(kept?.[0].label).toContain("城寨风水");
   });
 });

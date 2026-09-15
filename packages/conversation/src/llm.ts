@@ -37,6 +37,59 @@ export const CONSENT_AFTER_IDEA = `先记下了你的想法。\n\n${CONSENT_PROM
 export const DECLINED_ACK =
   "好。你直接说你的想法就行，我记下能确定的部分。";
 
+/** 收敛节宿主写死的三选。采访轮禁止模型提前给出。 */
+export const CONVERGENCE_OPTIONS: TurnOption[] = [
+  {
+    id: "A",
+    label: "就按这个定稿，写成设计文档",
+    detail: "就按这个定稿，写成设计文档。",
+  },
+  {
+    id: "B",
+    label: "核心对，但要改某一块",
+    detail: "核心对，但要改某一块。指出想改的那一块。",
+  },
+  {
+    id: "C",
+    label: "还想再挖挖感觉 / 玩法",
+    detail: "还想再挖挖感觉 / 玩法。",
+  },
+];
+
+export function lastOptionsAreConvergence(last?: TurnOption[]): boolean {
+  if (!last?.length) return false;
+  const blob = last.map((o) => `${o.label}\n${o.detail}`).join("\n");
+  return /定稿|写成设计文档|生成设计文档/.test(blob) && /改一|再挖/.test(blob);
+}
+
+export type ConvergenceChoice = "finalize" | "revise" | "explore";
+
+export function interpretConvergenceChoice(
+  text: string,
+  lastOptions?: TurnOption[],
+): ConvergenceChoice | null {
+  if (!lastOptionsAreConvergence(lastOptions)) return null;
+  const t = (text || "").trim();
+  if (!t) return null;
+  const list = lastOptions!.length >= 3 ? lastOptions! : CONVERGENCE_OPTIONS;
+  const hit = list.find((o) => o.detail === t || o.label === t);
+  if (hit) {
+    if (hit.id === "A" || hit === list[0]) return "finalize";
+    if (hit.id === "B" || hit === list[1]) return "revise";
+    if (hit.id === "C" || hit === list[2]) return "explore";
+  }
+  if (t === CONVERGENCE_OPTIONS[0].label || t === CONVERGENCE_OPTIONS[0].detail) return "finalize";
+  if (t === CONVERGENCE_OPTIONS[1].label || t === CONVERGENCE_OPTIONS[1].detail) return "revise";
+  if (t === CONVERGENCE_OPTIONS[2].label || t === CONVERGENCE_OPTIONS[2].detail) return "explore";
+  if (/^[Aa]$/.test(t)) return "finalize";
+  if (/^[Bb]$/.test(t)) return "revise";
+  if (/^[Cc]$/.test(t)) return "explore";
+  if (wantsPreview(t)) return "finalize";
+  if (/改一|改某一块|改一块/.test(t)) return "revise";
+  if (/再挖|再补充|再加点/.test(t)) return "explore";
+  return null;
+}
+
 export function interpretGuidance(text: string): "accepted" | "declined" | null {
   const t = (text || "").trim();
   if (!t) return null;
@@ -89,6 +142,45 @@ export function historyWantsPreview(
   return history.some((m) => m.role === "user" && wantsPreview(m.content));
 }
 
+/** 合格概念总结：要有游戏名，且是总结块，不是共情里的「成型 / 骨架清晰」。 */
+export function looksLikeConceptSummary(text: string): boolean {
+  const t = text || "";
+  if (!t.trim()) return false;
+  if (t.includes(CONSENT_PROMPT) || /接下来可以用大约/.test(t)) return false;
+  const hasName = /暂定(?:游戏)?名/.test(t) || /《[^》]+》/.test(t);
+  const hasBlock = /概念总结|一句话亮点|一句话 Pitch|📌/.test(t);
+  return hasName && hasBlock;
+}
+
+function firstSummaryIndex(text: string): number {
+  const hits = [
+    text.search(/📌/),
+    text.search(/概念总结/),
+    text.search(/暂定(?:游戏)?名/),
+    text.search(/一句话亮点/),
+  ].filter((i) => i >= 0);
+  return hits.length ? Math.min(...hits) : -1;
+}
+
+/** 概念总结后若还跟着新的内容提问，裁掉，避免和定稿三选叠在一起。 */
+export function stripFollowUpAsksAfterSummary(text: string): string {
+  const t = String(text || "");
+  if (!t.trim()) return t;
+  const cutAskTail = (s: string) => s
+    .replace(/(?:\r?\n[ \t]*>[ \t]*❓[\s\S]*)$/u, "")
+    .replace(/(?:\r?\n[^\n？?]*[？?]\s*)+$/u, "")
+    .replace(/\s+$/u, "");
+  if (looksLikeConceptSummary(t)) {
+    const at = firstSummaryIndex(t);
+    const head = at > 0 ? t.slice(0, at) : "";
+    const body = at >= 0 ? t.slice(at) : t;
+    const out = (head + cutAskTail(body)).replace(/\s+$/u, "");
+    return out.trim().length >= 8 ? out : t;
+  }
+  const out = cutAskTail(t);
+  return out.trim().length >= 8 ? out : t;
+}
+
 export const TURN_DIRECTIVE = `
 [机器输出协议 —— 严格遵守，用户永远看不到本段约束]
 
@@ -120,9 +212,10 @@ state_delta 允许的键（全部可选，只填有把握的）：
 - 自由输入模式（用户不走引导）不要 options。
 - 当本轮给了 options 时，人话里不要再展开两个方向的描述，只保留共情与那一个收敛提问。
 - 本轮只写当前节相关字段。怎么知道自己做得好 → reward；失误麻烦 → failRule；怎样算赢 → winRule；在哪玩 → presentation.where；平面还是立体 → presentation.dimension。
-- 进入收敛节之前：禁止在人话里给暂定游戏名、一句话亮点/Pitch、概念总结、「可以定稿了」「蓝图已经成型」「去开发吧」。阶段小结最多两句复述，然后问本节那一个问题。完整度缺口还在就继续问，不要总结。
-- 人话一旦出现「暂定游戏名 / 概念总结 / 一句话亮点」，同一轮 state_delta 必须写入 workingTitle、pitch、coreExperience、loop.fiveMin、differentiator、mechanics（≥2）、winRule。不要只写在人话里。口头总结这一轮宿主还不出文档，等用户点「确认总结 / 生成设计文档」。
-- 用户点「确认总结，生成设计文档」或说「现在就生成 / 出一份草稿 / 直接生成最终的设计文档」：宿主会出带缺口的草稿。把人话总结里已有的暂定名、Pitch、循环、差异化写入 state_delta。你仍要继续问缺口，不要宣布结束、不要说去开发。
-- 用户选定稿后：对照完整度缺口写入 pitch / workingTitle / forbiddenEmotion / differentiator / references / avoidReferences / mechanics（≥2）/ winRule / keywordPools（六类各 ≥5，从已确认意象拆，禁止生造同义词凑数）/ constitutionFields / presentation。缺哪项就先问哪项，不要假装已经定稿。
+- 进入收敛节后本轮必须出口头概念总结（暂定名《标题》+ 一句话亮点），写完立刻停，禁止再问大结局 / 最后一个拼图 / 新的设计缺口。定稿三选由宿主在「收敛节且已有合格总结」后弹出；不要自己给。JSON 里出现定稿项也不会当收口。大约 10 轮只是给用户的范围，不是收口条件。
+- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」之前，不要宣布已经写成文档。
+- 人话一旦出现「暂定游戏名 / 概念总结 / 一句话亮点 / 蓝图已经成型」，同一轮 state_delta 必须写入 workingTitle、pitch、coreExperience、loop.fiveMin、differentiator、mechanics（≥2）、winRule。不要只写在人话里。口头总结这一轮宿主还不出文档。
+- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」：宿主出文档，本轮不要 options、不要再问缺口。
+- 用户点「改一块 / 再挖挖」或出文档后再开口：本轮只给 2–3 个针对他这句的实质方向。下一轮宿主会再弹出定稿/改一块/再挖挖。
 - 禁止对用户说「系统马上弹卡片 / 请稍等几秒会弹出结果页」。结果入口由宿主根据完整度显示，你承诺也不会出现。
 `.trim();

@@ -74,7 +74,7 @@ describe("剧本回放：治愈系猫咪连连看", () => {
 
     expect(state.stage).toBe(8);
     expect(isComplete(toGddModel(state))).toBe(true);
-    expect(last!.readyForSynthesis).toBe(true);
+    expect(last!.readyForSynthesis).toBe(false);
 
     const md = renderGdd(toGddModel(state));
     expect(md).toContain("深夜猫咖");

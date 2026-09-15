@@ -29,7 +29,7 @@
       <nb-avatar src="{{poster}}" compact="{{compact || showGdd || options.length > 0}}"></nb-avatar>
     </view>
     <view wx:if="{{options.length > 0 || showGdd}}" class="stage-panel">
-      <view wx:if="{{options.length > 0 && !done}}" class="options">
+      <view wx:if="{{options.length > 0}}" class="options">
         <nb-option-card
           wx:for="{{options}}"
           wx:key="id"
@@ -51,7 +51,6 @@
   </view>
 
   <nb-composer
-    wx:if="{{!done}}"
     busy="{{busy}}"
     disabled="{{busy}}"
     safe-bottom="{{0}}"
@@ -61,7 +60,6 @@
     bind:send="onSend"
     bind:typing="onTyping"
   />
-  <view wx:if="{{done}}" class="done-bar">对话已完成，游戏概念已成型。</view>
 
   <view wx:if="{{showHistory}}" class="hist-mask" catchtap="onCloseHistory">
     <view class="hist-panel" catchtap="noop">

@@ -139,7 +139,7 @@ function stageGaps(state: ConversationState, stage: number): string {
 }
 
 /** 给模型看的内部进度。禁止对用户说出本段。 */
-export function buildGuideStageHint(state: ConversationState): string {
+export function buildGuideStageHint(state: ConversationState, converging = false): string {
   const stage = askStageOf(state);
   const leftover = remainingAsks(stage, state).join(" → ");
   const completeMiss = missingCompleteFieldLabels(toGddModel(state));
@@ -148,12 +148,16 @@ export function buildGuideStageHint(state: ConversationState): string {
     `当前只问 asks.md「${STAGE_ASKS_TITLE[stage] || STAGE_LABELS[stage]}」。`,
     `后面还要走：${leftover || "收敛"}。`,
     stageGaps(state, stage),
-    stage < 8
-      ? "禁止给出暂定游戏名、一句话亮点/Pitch、「可以定稿了」「蓝图已经成型」「去开发吧」。阶段小结最多两句复述，然后问本节那一个问题。"
-      : "现在才到收敛。先对照完整度缺口补问或写入字段，再给人话总结和定稿选项。",
   ];
-  if (completeMiss.length) {
-    lines.push(`completeness 还缺：${completeMiss.join("、")}。未齐时不要宣布定稿；用户要现在就生成则由宿主出草稿，你继续问下一节。`);
+  if (converging) {
+    lines.push("本轮已经收口。不要再问新的设计缺口。定稿/改一块/再挖挖由宿主弹出。");
+    } else if (stage < 8) {
+    lines.push("只问本节那一个问题。不要提前抄暂定名模板。人话一旦出现合格概念总结（暂定名+一句话亮点），宿主会进入收敛并弹出定稿三选，不要再问新缺口。");
+  } else {
+    lines.push("现在到收敛节。先出口头概念总结（暂定名《标题》+ 一句话亮点）。还没有合格总结时不要给定稿三选；总结出现后由宿主弹出。");
+  }
+  if (completeMiss.length && !converging && stage < 8) {
+    lines.push(`completeness 还缺：${completeMiss.join("、")}。缺口可写入字段。不要为凑齐或凑轮次而继续发明新问题。`);
   }
   return lines.join("\n");
 }

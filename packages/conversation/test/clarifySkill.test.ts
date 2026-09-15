@@ -60,4 +60,11 @@ describe("clarify skill adapter", () => {
     expect(late).toContain("先口头给一份人话版概念总结");
     expect(late).toContain("## 7. 收敛与落盘");
   });
+
+  it("已收口时附收敛节，不再塞完整度补问清单", () => {
+    const prompt = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 7, converging: true });
+    expect(prompt).toContain("先口头给一份人话版概念总结");
+    expect(prompt).toContain("## 收敛确认");
+    expect(prompt).not.toContain("不得带病写盘");
+  });
 });

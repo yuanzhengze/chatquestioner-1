@@ -1,7 +1,7 @@
 import type { ChatMessage, LlmClient } from "./llm.js";
 import type { ConversationState } from "./state.js";
 import type { StateDelta } from "./merge.js";
-import { mergeFillEmpty } from "./merge.js";
+import { mergeFillEmpty, mergeStateDelta } from "./merge.js";
 import { parseJsonObject } from "./turn.js";
 import { asGddText } from "@cq/gdd";
 
@@ -146,27 +146,33 @@ async function collect(llm: LlmClient, messages: ChatMessage[]): Promise<string>
 }
 
 /**
- * 用户要文档时调用。只把对话里出现过的事实填进空字段。
+ * 用户要文档时调用。默认只填空；文档已出、用户继续改时 overwrite 覆盖旧值。
  * GET 不要走这里（微信 20s）；结果会随 advance 落盘。
  */
 export async function extractDiscussedIntoState(
   state: ConversationState,
   llm: LlmClient,
+  opts?: { overwrite?: boolean },
 ): Promise<void> {
   const history = state.history || [];
   if (history.length < 2) return;
   const transcript = transcriptOf(history);
   const clipped = transcript.length > 24000 ? transcript.slice(-24000) : transcript;
+  const hint = opts?.overwrite
+    ? "若同一字段前后说法不同，以用户最后一次明确说法为准。\n\n"
+    : "";
   let raw = "";
   try {
     raw = await collect(llm, [
       { role: "system", content: EXTRACT_SYSTEM },
-      { role: "user", content: `从下面共创对话抽取已确认的设计事实。没出现的键不要写。\n\n${clipped}` },
+      { role: "user", content: `${hint}从下面共创对话抽取已确认的设计事实。没出现的键不要写。\n\n${clipped}` },
     ]);
   } catch {
     return;
   }
   const json = parseJsonObject(raw);
   if (!json) return;
-  mergeFillEmpty(state, groundedDelta(json, history));
+  const delta = groundedDelta(json, history);
+  if (opts?.overwrite) mergeStateDelta(state, delta);
+  else mergeFillEmpty(state, delta);
 }

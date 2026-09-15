@@ -1,4 +1,5 @@
 import type { ConversationState } from "./state.js";
+import { looksLikeConceptSummary } from "./llm.js";
 
 const empty = (v?: string): boolean => !v || !String(v).trim();
 const clean = (s: string): string => s.replace(/^\*+|\*+$/g, "").replace(/^["「]|["」]$/g, "").trim();
@@ -18,10 +19,7 @@ function isWeakAnswer(ans: string): boolean {
 
 /** 人话里已经出现概念总结 / 暂定名。 */
 export function hasConceptSummary(history: { role: string; content: string }[]): boolean {
-  return history.some((m) =>
-    m.role === "assistant"
-    && /暂定(?:游戏)?名|概念总结|一句话亮点|一句话 Pitch/i.test(m.content || ""),
-  );
+  return history.some((m) => m.role === "assistant" && looksLikeConceptSummary(m.content || ""));
 }
 
 /** 助手消息里真正在问的句子（❓ 或问号句）。不含共情段，避免「不仅是通关」这类话误伤。 */
@@ -80,7 +78,7 @@ const LABEL_FIELD: Array<{ labels: string[]; apply: (state: ConversationState, v
 ];
 
 function normalizeWhere(ans: string): string {
-  if (/键鼠|电脑|PC/i.test(ans)) return "电脑";
+  if (/键鼠|电脑|PC|主机|手柄/i.test(ans)) return "电脑";
   if (/手机|触屏/.test(ans)) return "手机";
   if (/网页/.test(ans)) return "网页";
   return ans.trim();
@@ -212,9 +210,9 @@ const INTENTS: Intent[] = [
   },
   {
     id: "where",
-    test: /哪个平台|哪种设备|在哪玩|电脑玩|手机玩/,
+    test: /哪个平台|哪种设备|在哪玩|电脑玩|手机玩|什么设备|用什么玩/,
     apply: (s, a) => {
-      if (empty(s.presentation.where) && /键鼠|电脑|PC|手机|网页|触屏/i.test(a)) {
+      if (empty(s.presentation.where) && /键鼠|电脑|PC|主机|手柄|手机|网页|触屏/i.test(a)) {
         s.presentation.where = normalizeWhere(a);
       }
     },

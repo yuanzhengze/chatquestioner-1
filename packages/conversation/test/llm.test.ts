@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { OPENING_MESSAGE, TURN_DIRECTIVE, interpretGuidance, wantsDocument, wantsFinalize, CONSENT_OPTIONS } from "../src/llm.js";
+import { OPENING_MESSAGE, TURN_DIRECTIVE, interpretGuidance, interpretConvergenceChoice, wantsDocument, wantsFinalize, looksLikeConceptSummary, stripFollowUpAsksAfterSummary, CONSENT_OPTIONS, CONSENT_AFTER_IDEA, CONVERGENCE_OPTIONS } from "../src/llm.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 
 describe("提示词常量", () => {
@@ -54,5 +54,33 @@ describe("提示词常量", () => {
     expect(wantsFinalize("确认当前的总结完美契合心中构想")).toBe(true);
     expect(wantsFinalize("核心概念很完美，直接输出完整的 GDD")).toBe(true);
     expect(wantsFinalize("现在就生成")).toBe(false);
+  });
+
+  it("interpretConvergenceChoice 只在上一轮是收敛三选时认 A/B/C", () => {
+    expect(interpretConvergenceChoice("A", CONVERGENCE_OPTIONS)).toBe("finalize");
+    expect(interpretConvergenceChoice(CONVERGENCE_OPTIONS[1].detail, CONVERGENCE_OPTIONS)).toBe("revise");
+    expect(interpretConvergenceChoice("C", CONVERGENCE_OPTIONS)).toBe("explore");
+    expect(interpretConvergenceChoice("A", [
+      { id: "A", label: "信号找同伴", detail: "找回失联的同伴" },
+      { id: "B", label: "回声拼真相", detail: "拼出真相" },
+    ])).toBeNull();
+  });
+
+  it("looksLikeConceptSummary 认 📌 标题总结块，不认同意门和共情里的成型", () => {
+    expect(looksLikeConceptSummary(CONSENT_AFTER_IDEA)).toBe(false);
+    expect(looksLikeConceptSummary("蓝图已经基本成型！")).toBe(false);
+    expect(looksLikeConceptSummary("咱们的游戏骨架已经非常清晰了！你希望玩家主要在什么设备上玩？")).toBe(false);
+    expect(looksLikeConceptSummary("要不要生成设计文档吗")).toBe(false);
+    expect(looksLikeConceptSummary("> 📌 **《木板与喘息》**（暂定）")).toBe(true);
+    expect(looksLikeConceptSummary("> 📌 **暂定名**：《城寨：风水魇》\n> 📌 **一句话亮点**：开火即逃亡。")).toBe(true);
+  });
+
+  it("stripFollowUpAsksAfterSummary 裁掉总结后的新提问", () => {
+    const raw = "> 📌 **暂定游戏名**：《破晓求生：机械遗迹》\n> **一句话亮点**：沙盘荒岛求生。\n\n> ❓ 作为最后一个拼图，你希望大结局是什么？";
+    const out = stripFollowUpAsksAfterSummary(raw);
+    expect(out).toContain("破晓求生：机械遗迹");
+    expect(out).toContain("一句话亮点");
+    expect(out).not.toContain("大结局");
+    expect(out).not.toContain("❓");
   });
 });

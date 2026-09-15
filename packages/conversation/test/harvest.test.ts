@@ -136,4 +136,14 @@ describe("harvestIntoState", () => {
     expect(s.forbiddenEmotion).toBeFalsy();
     expect(s.difficulty.fatigue).toBeFalsy();
   });
+
+  it("问什么设备时，键鼠或手柄记成电脑", () => {
+    const s = createInitialState();
+    s.history = [
+      { role: "assistant", content: "你更想在什么设备上玩？" },
+      { role: "user", content: "键鼠或手柄都可以。" },
+    ];
+    harvestIntoState(s);
+    expect(s.presentation.where).toBe("电脑");
+  });
 });

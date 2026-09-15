@@ -18,13 +18,17 @@ const HOST_GUIDE = `
 同意门已由系统处理。禁止再问要不要走这个流程。下一句必须已经在聊他的创意。
 
 每一轮澄清把 2–3 个实质设计方向放进 JSON options（id 为 A/B/C）。第四项如果要给，也必须是可玩方向。
+方向必须彼此真正不同，label 自带画面，不写「方向 A」。
 禁止把「我有其他想法 / 自己输入 / 直接告诉我你的脑洞 / Other」做成选项。用户打字框就是开放口。
 禁止只在人话里写方向却不放进 options。人话只保留共情和一个收敛提问。
+缺 JSON.options 时系统会让你按上述纪律整轮重写，不会代写方向。
 
 必须把本轮新确认的信息写入 state_delta 指定键，不要只放在心里。
-本轮只问系统附上的那一节 asks，禁止提前使用「收敛确认」里的暂定名 / Pitch 模板。
-完整度缺口还在时禁止输出「暂定游戏名 / 概念总结 / 一句话亮点」，继续问当前节。一旦人话里出现概念总结，同一轮必须把 workingTitle、pitch、循环、差异化、mechanics、winRule 写入 state_delta。口头总结这一轮宿主还不出文档。
-用户点「确认总结，生成设计文档」或说「现在就生成 / 确认总结、生成最终文档」时：宿主会出带缺口的草稿；你仍要继续问缺口，不要宣布结束、不要说去开发。
+本轮只问系统附上的那一节 asks。进入收敛节之前不要提前抄「收敛确认」里的暂定名 / Pitch 模板。
+进入收敛节后：本轮必须出口头概念总结（暂定名《标题》+ 一句话亮点），写完立刻停，禁止再问大结局或新缺口。人话一旦出现合格概念总结，宿主会进入收敛并弹出定稿三选，不要再给新的策划方向；不要自己给。用户点定稿之前不要出文档。大约 10 轮只是给用户的范围，不是收口条件。
+不要自己给「定稿写成文档 / 改一块 / 再挖挖」；那三项由宿主弹出。
+用户点定稿或说「现在就生成」时：宿主出文档；本轮不要 options，不要再问缺口。
+用户点「改一块 / 再挖挖」或出文档后再开口：只给针对他这句的实质方向。下一轮宿主会再弹出定稿/改一块/再挖挖。
 `.trim();
 
 const FREEFORM_PROMPT = `
@@ -97,11 +101,13 @@ export interface ClarifyPromptOpts {
   mode: "guide" | "freeform";
   stage: number;
   stageHint?: string;
+  /** 已收口：给收敛节，不再塞完整度补问清单。 */
+  converging?: boolean;
 }
 
 /** 从仓内 prompts/game-gdd-clarify 组装系统提示词。 */
 export function buildClarifySystemPrompt(opts: ClarifyPromptOpts): string {
-  const { skillDir, mode, stage, stageHint } = opts;
+  const { skillDir, mode, stage, stageHint, converging } = opts;
   if (mode === "freeform") {
     return [FREEFORM_PROMPT, HOST_COMMON].join("\n\n");
   }
@@ -110,13 +116,13 @@ export function buildClarifySystemPrompt(opts: ClarifyPromptOpts): string {
   if (!rawSkill.trim()) {
     throw new Error(`clarify skill missing SKILL.md in ${skillDir}`);
   }
-  const skill = dropSkillConvergence(rawSkill, stage);
+  const skill = dropSkillConvergence(rawSkill, converging ? 8 : stage);
 
   const parts = [skill, HOST_COMMON, HOST_GUIDE];
   const asks = readIfExists(skillDir, "asks.md");
-  const slice = asksSliceForStage(asks, stage);
+  const slice = asksSliceForStage(asks, converging ? 8 : stage);
   if (slice.trim()) parts.push(slice);
-  if (stage >= 6) {
+  if (stage >= 6 && stage < 8 && !converging) {
     const completeness = readIfExists(skillDir, "completeness.md");
     if (completeness.trim()) parts.push(completeness);
   }

@@ -25,7 +25,7 @@ Page({
     keyboardHeight: 0,
     gddMarkdown: "",
     gddTitle: "",
-    gddKicker: "游戏文档已成形",
+    gddKicker: "游戏文档已成型",
     gddGo: "打开预览",
     showGdd: false,
     done: false,
@@ -140,7 +140,7 @@ Page({
       expandedId: "",
       gddMarkdown: "",
       gddTitle: "",
-      gddKicker: "游戏文档已成形",
+      gddKicker: "游戏文档已成型",
       gddGo: "打开预览",
       showGdd: false,
       done: false,
@@ -393,7 +393,20 @@ Page({
       },
       onState: (s) => {
         this._state = s;
-        if (Array.isArray(s.lastOptions)) this._lastOptions = this.asOptions(s.lastOptions);
+        if (Array.isArray(s.lastOptions)) {
+          const opts = this.asOptions(s.lastOptions);
+          this._lastOptions = opts;
+          this.setData({ options: opts, expandedId: "" });
+        }
+        const hist = Array.isArray(s.history) ? s.history : [];
+        for (let i = hist.length - 1; i >= 0; i--) {
+          const m = hist[i] as { role?: string; content?: string };
+          if (m && m.role === "assistant" && typeof m.content === "string") {
+            this._stream = m.content;
+            break;
+          }
+        }
+        this.flushNow();
         this.rememberSession();
         this.syncAvatar();
       },
@@ -558,22 +571,18 @@ Page({
   refreshResult(readyFromDone?: boolean) {
     const ready = readyFromDone === true || this._stage?.readyForSynthesis === true;
     if (this._stage) this._stage.readyForSynthesis = ready;
-    const gddComplete = this._synthesisComplete === true
-      || Boolean(this._state && this._state.gddComplete === true);
     const hasUser = this.data.messages.some((m) => m.role === "user");
     const markdown = ready ? (this._synthesisMd || gddFromState(this._state)) : "";
     const hasDoc = Boolean(markdown && markdown.trim());
     const showGdd = hasUser && ready && hasDoc;
-    const done = showGdd && gddComplete;
     const gddTitle = showGdd ? parseGddPreview(markdown).title : "";
     this.setData({
       gddMarkdown: markdown,
       gddTitle,
       showGdd,
-      done,
-      options: done ? [] : this.data.options,
-      gddKicker: gddComplete ? "游戏文档已成形" : "这是一份带缺口的草稿",
-      gddGo: gddComplete ? "打开预览" : "查看草稿",
+      done: false,
+      gddKicker: "游戏文档已成型",
+      gddGo: "打开预览",
     });
   },
 
