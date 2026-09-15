@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { OPENING_MESSAGE, TURN_DIRECTIVE, interpretGuidance, interpretConvergenceChoice, wantsDocument, wantsFinalize, looksLikeConceptSummary, stripFollowUpAsksAfterSummary, CONSENT_OPTIONS, CONSENT_AFTER_IDEA, CONVERGENCE_OPTIONS } from "../src/llm.js";
+import { OPENING_MESSAGE, TURN_DIRECTIVE, buildTurnDirective, interpretGuidance, interpretConvergenceChoice, wantsDocument, wantsFinalize, looksLikeConceptSummary, stripFollowUpAsksAfterSummary, CONSENT_OPTIONS, CONSENT_AFTER_IDEA, CONVERGENCE_OPTIONS } from "../src/llm.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 
 describe("提示词常量", () => {
@@ -21,6 +21,12 @@ describe("提示词常量", () => {
     expect(TURN_DIRECTIVE).not.toContain("options 都必填");
     expect(TURN_DIRECTIVE).toContain("系统马上弹卡片");
     expect(TURN_DIRECTIVE).toContain("不要只写在人话里");
+  });
+
+  it("没资格时 TURN 指令禁止抄暂定名，有资格时才要求出口头总结", () => {
+    expect(buildTurnDirective(false)).toContain("禁止写暂定名");
+    expect(buildTurnDirective(false)).not.toContain("本轮必须出口头概念总结");
+    expect(buildTurnDirective(true)).toContain("本轮必须出口头概念总结");
   });
 
   it("interpretGuidance 认 label、detail 和 A/B", () => {

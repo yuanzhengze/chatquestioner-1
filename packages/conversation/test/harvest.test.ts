@@ -146,4 +146,33 @@ describe("harvestIntoState", () => {
     harvestIntoState(s);
     expect(s.presentation.where).toBe("电脑");
   });
+
+  it("根据采访补出内容边界和呈现边界，不要求用户说出这两个词", () => {
+    const s = createInitialState();
+    s.spark = "在南极冰山钓长短不一的腾讯长鹅，拔出来才能看到完整长度";
+    s.history = [
+      { role: "user", content: "我想做一个游戏，就是很多小洞，洞里有长短不一的腾讯长鹅。场景是南极冰山。" },
+      { role: "assistant", content: "当玩家把一只长鹅完全拉出冰面那一刻，你最希望他们内心涌现出哪种感觉？" },
+      { role: "user", content: "主打盲盒抽卡的爽感。" },
+      { role: "assistant", content: "玩家具体是怎么操作下钩的呢？" },
+      { role: "user", content: "不需要复杂操作，看到洞口就点，伴随着啵的一声脆响顺滑拉出。" },
+      { role: "assistant", content: "你希望玩家平常是怎样拿着手机来享受这个虚拟潮玩店的？" },
+      { role: "user", content: "像手里握着一个真实的透明盲盒柱，单手大拇指就能轻松一路狂点拔鹅，镜头聚焦在精致的近景。" },
+      { role: "assistant", content: "你希望玩家之间有互动吗？" },
+      { role: "user", content: "完全单机，没有任何社交压力，把所有精力放在自己安安静静收集上。" },
+    ];
+    harvestIntoState(s);
+    expect(s.world).toContain("南极冰山");
+    expect(s.coreEmotion).toContain("盲盒");
+    expect(s.coreAction).toContain("洞口");
+    expect(s.presentation.where).toBe("手机");
+    expect(s.presentation.orientation).toBe("竖屏");
+    expect(s.presentation.players).toBe("自己玩");
+    expect(s.presentation.dimension).toContain("立体");
+    expect(s.constitutionFields.contentBoundary).toMatch(/单机|极简/);
+    expect(s.constitutionFields.presentationBoundary).toMatch(/手机/);
+    const md = renderGdd(toGddModel(s));
+    expect(md).not.toMatch(/内容边界：（未写）/);
+    expect(md).not.toMatch(/呈现边界：（未写）/);
+  });
 });

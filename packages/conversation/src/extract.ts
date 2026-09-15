@@ -9,12 +9,11 @@ import { asGddText } from "@cq/gdd";
 export const EXTRACT_PROMPT_TAG = "[GDD_EXTRACT_V1]";
 
 const EXTRACT_SYSTEM = `${EXTRACT_PROMPT_TAG}
-你是抽取器，不是设计师。根据共创对话填写一个 JSON 对象。
+你是文档撰写助手。根据共创采访填写一个 JSON 对象，写成能进设计文档的条目。
 
 规则：
-- 只填对话里已经明确说过的设计事实。
-- 没说过的键一律省略。禁止猜测、禁止补全、禁止润色成新设定。
-- 字符串尽量用对话原句，不要改题材。
+- 可以润色、归纳，并按采访合理延申（宪法、循环、内容边界、呈现边界必须尽量写出）。
+- 不要改题材，不要编造采访里没出现过的作品名。
 - 只输出 JSON，不要解释，不要 markdown。
 - 键名必须用 camelCase，与下面一致。
 
@@ -32,8 +31,12 @@ where 只能是「电脑」「手机」「网页」之一（键鼠/PC→电脑�
 dimension 只能是「平面」或「能转视角的立体」。
 orientation 只能是「横屏」或「竖屏」。
 players 只能是「自己玩」或「要和别人一起」。
-未问过的 where/dimension/orientation/players/forbiddenEmotion/fatigue 不要填。
+constitutionFields.contentBoundary：这款游戏明确不做的内容（如不做多人社交、不叠复杂操作系统）。
+constitutionFields.presentationBoundary：在哪玩、横竖屏、平面或立体、单人还是一起，写成一句。
+对话里没出现过的作品名不要写进 references / avoidReferences。
 `.trim();
+
+const POOL_KEYS = ["gameplay", "emotion", "world", "visual", "narrative", "motivation"] as const;
 
 function transcriptOf(history: ChatMessage[]): string {
   return (history || [])
@@ -68,12 +71,21 @@ function grounded(blob: string, value: string): boolean {
   return false;
 }
 
-function keepStr(blob: string, v: unknown): string | undefined {
+function keepStr(v: unknown): string | undefined {
   const t = asGddText(v);
-  return t && grounded(blob, t) ? t : undefined;
+  return t || undefined;
 }
 
-function keepList(blob: string, v: unknown): string[] | undefined {
+function keepList(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return out.length ? out : undefined;
+}
+
+function keepNamedList(blob: string, v: unknown): string[] | undefined {
   if (!Array.isArray(v)) return undefined;
   const out = v
     .filter((x): x is string => typeof x === "string")
@@ -85,19 +97,23 @@ function keepList(blob: string, v: unknown): string[] | undefined {
 function pickObj<T extends Record<string, unknown>>(
   raw: unknown,
   keys: (keyof T)[],
-  blob: string,
 ): Partial<T> | undefined {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const src = raw as Record<string, unknown>;
   const out: Record<string, string> = {};
   for (const k of keys) {
-    const kept = keepStr(blob, src[k as string]);
+    const kept = keepStr(src[k as string]);
     if (kept) out[k as string] = kept;
   }
   return Object.keys(out).length ? (out as Partial<T>) : undefined;
 }
 
-/** 丢掉对话里找不到出处的值，防止抽取模型编造。 */
+function asRecord(v: unknown): Record<string, unknown> | undefined {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  return v as Record<string, unknown>;
+}
+
+/** 采访可以润色进文档；只有没出现过的作品名会被丢掉。 */
 export function groundedDelta(raw: Record<string, unknown>, history: ChatMessage[]): StateDelta {
   const blob = compact(transcriptOf(history));
   const delta: StateDelta = {};
@@ -108,35 +124,116 @@ export function groundedDelta(raw: Record<string, unknown>, history: ChatMessage
     "workingTitle", "pitch", "coreExperience", "differentiator",
   ] as const;
   for (const k of strKeys) {
-    const kept = keepStr(blob, raw[k]);
-    if (kept) (delta as Record<string, string>)[k] = kept;
+    const t = keepStr(raw[k]);
+    if (!t) continue;
+    if ((k === "spark" || k === "forbiddenEmotion") && !grounded(blob, t)) continue;
+    (delta as Record<string, string>)[k] = t;
   }
-  const refs = keepList(blob, raw.references);
+  const refs = keepNamedList(blob, raw.references);
   if (refs) delta.references = refs;
-  const avoid = keepList(blob, raw.avoidReferences);
+  const avoid = keepNamedList(blob, raw.avoidReferences);
   if (avoid) delta.avoidReferences = avoid;
-  const juice = keepList(blob, raw.juice);
+  const juice = keepList(raw.juice);
   if (juice) delta.juice = juice;
-  const mechanics = keepList(blob, raw.mechanics);
+  const mechanics = keepList(raw.mechanics);
   if (mechanics) delta.mechanics = mechanics;
+  const risks = keepList(raw.risks);
+  if (risks) delta.risks = risks;
+  const constitution = keepList(raw.constitution);
+  if (constitution) delta.constitution = constitution;
 
-  const loop = pickObj(raw.loop, ["thirtySec", "fiveMin", "thirtyMin", "longTerm"], blob);
+  const loop = pickObj(raw.loop, ["thirtySec", "fiveMin", "thirtyMin", "longTerm"]);
   if (loop) delta.loop = loop;
   const presentation = pickObj(
     raw.presentation,
     ["where", "dimension", "orientation", "players", "assets"],
-    blob,
   );
   if (presentation) delta.presentation = presentation;
-  const difficulty = pickObj(raw.difficulty, ["ramp", "firstMinutes", "fatigue"], blob);
+  const difficulty = pickObj(raw.difficulty, ["ramp", "firstMinutes", "fatigue"]);
   if (difficulty) delta.difficulty = difficulty;
   const constitutionFields = pickObj(
     raw.constitutionFields,
     ["coreFantasy", "coreLoop", "artRule", "contentBoundary", "presentationBoundary"],
-    blob,
   );
-  if (constitutionFields) delta.constitutionFields = constitutionFields;
+  const cfRaw = asRecord(raw.constitutionFields);
+  const extras = cfRaw ? keepList(cfRaw.extras) : undefined;
+  if (constitutionFields || extras) {
+    delta.constitutionFields = { ...(constitutionFields || {}) };
+    if (extras) delta.constitutionFields.extras = extras;
+  }
+
+  const poolsRaw = asRecord(raw.keywordPools);
+  if (poolsRaw) {
+    const pools: StateDelta["keywordPools"] = {};
+    for (const k of POOL_KEYS) {
+      const list = keepList(poolsRaw[k]);
+      if (list) pools[k] = list;
+    }
+    if (Object.keys(pools).length) delta.keywordPools = pools;
+  }
+
+  const contentRaw = asRecord(raw.content);
+  if (contentRaw) {
+    const content: NonNullable<StateDelta["content"]> = {};
+    for (const k of ["overview", "levels", "boss", "progression", "multiplayer"] as const) {
+      const kept = keepStr(contentRaw[k]);
+      if (kept) content[k] = kept;
+    }
+    const flagsRaw = asRecord(contentRaw.flags);
+    if (flagsRaw) {
+      content.flags = {
+        levels: flagsRaw.levels === true && Boolean(content.levels),
+        boss: flagsRaw.boss === true && Boolean(content.boss),
+        progression: flagsRaw.progression === true && Boolean(content.progression),
+        multiplayer: flagsRaw.multiplayer === true && Boolean(content.multiplayer),
+      };
+    }
+    if (Object.keys(content).length) delta.content = content;
+  }
+
+  const engRaw = asRecord(raw.engineering);
+  if (engRaw) {
+    const artStyle = keepStr(engRaw.artStyle);
+    const genre = keepStr(engRaw.genre);
+    const engMechs = keepList(engRaw.mechanics);
+    const intentTerms = keepList(engRaw.intentTerms);
+    const signatureTerms = keepList(engRaw.signatureTerms);
+    if (artStyle || genre || engMechs || intentTerms || signatureTerms) {
+      delta.engineering = {};
+      if (artStyle) delta.engineering.artStyle = artStyle;
+      if (genre) delta.engineering.genre = genre;
+      if (engMechs) delta.engineering.mechanics = engMechs;
+      if (intentTerms) delta.engineering.intentTerms = intentTerms;
+      if (signatureTerms) delta.engineering.signatureTerms = signatureTerms;
+    }
+  }
+
+  const mvpRaw = asRecord(raw.mvpScope);
+  if (mvpRaw) {
+    const must = keepList(mvpRaw.must);
+    const cut = keepList(mvpRaw.cut);
+    if (must || cut) delta.mvpScope = { ...(must ? { must } : {}), ...(cut ? { cut } : {}) };
+  }
+
   return delta;
+}
+
+/** 本轮人话也算出处：JSON 里的暂定名只要写在气泡里就能留下。 */
+export function groundedDeltaWithReply(
+  raw: Record<string, unknown>,
+  history: ChatMessage[],
+  reply: string,
+): StateDelta {
+  return groundedDelta(raw, [...history, { role: "assistant", content: reply || "" }]);
+}
+
+/**
+ * 只拿掉对话里完全没出现过的作品名。其余字段允许按采访润色，不再整表清空。
+ */
+export function scrubUngroundedState(state: ConversationState): void {
+  const blob = compact(transcriptOf(state.history || []));
+  state.references = (state.references || []).filter((r) => grounded(blob, r));
+  state.avoidReferences = (state.avoidReferences || []).filter((r) => grounded(blob, r));
 }
 
 async function collect(llm: LlmClient, messages: ChatMessage[]): Promise<string> {
@@ -165,7 +262,7 @@ export async function extractDiscussedIntoState(
   try {
     raw = await collect(llm, [
       { role: "system", content: EXTRACT_SYSTEM },
-      { role: "user", content: `${hint}从下面共创对话抽取已确认的设计事实。没出现的键不要写。\n\n${clipped}` },
+      { role: "user", content: `${hint}根据下面共创采访填写设计事实。可以润色和合理延申。必须尽量写出 constitutionFields.contentBoundary 与 constitutionFields.presentationBoundary。没出现过的作品名不要写。\n\n${clipped}` },
     ]);
   } catch {
     return;

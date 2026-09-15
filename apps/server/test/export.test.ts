@@ -25,6 +25,9 @@ function creativeState(): ConversationState {
   s.workingTitle = "猫咪消消乐";
   s.pitch = "撸猫治愈的三消小品";
   s.coreFantasy = "在猫咖里边消除边收集猫咪";
+  s.history = [
+    { role: "user", content: "猫咪消消乐。撸猫治愈的三消小品。在猫咖里边消除边收集猫咪。" },
+  ];
   return s;
 }
 

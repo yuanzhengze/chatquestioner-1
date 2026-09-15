@@ -181,7 +181,7 @@ export function stripFollowUpAsksAfterSummary(text: string): string {
   return out.trim().length >= 8 ? out : t;
 }
 
-export const TURN_DIRECTIVE = `
+const TURN_DIRECTIVE_HEAD = `
 [机器输出协议 —— 严格遵守，用户永远看不到本段约束]
 
 每一轮，你必须依次输出两部分：
@@ -207,15 +207,34 @@ state_delta 允许的键（全部可选，只填有把握的）：
 规则：
 - ready_for_synthesis 由系统根据完整度计算，你可以给建议值，但不要为了凑 true 去编造字段。
 - 信息不全时 stage_complete 为 false，引导模式下按缺口补问，绝不编造。能确定的字段必须写入 state_delta。
+- state_delta 只写对话里已经说过的事实。没出现过的作品名、禁止情感、关键词不要编；没聊过就省略。
 - 引导模式：每轮 JSON options 给 2–3 个实质设计方向（需要第四个时也可以，但必须也是可玩方向），id 依次 "A"/"B"/"C"（/"D"），各含非空 label 与 detail。禁止只在人话里写方向。
 - 禁止把「我有其他更好的想法 / 我有别的想法 / 或者你有其他更有趣的 / 自己输入 / 直接告诉我你的脑洞 / Other」做成选项。用户打字框就是开放口。
 - 自由输入模式（用户不走引导）不要 options。
 - 当本轮给了 options 时，人话里不要再展开两个方向的描述，只保留共情与那一个收敛提问。
 - 本轮只写当前节相关字段。怎么知道自己做得好 → reward；失误麻烦 → failRule；怎样算赢 → winRule；在哪玩 → presentation.where；平面还是立体 → presentation.dimension。
-- 进入收敛节后本轮必须出口头概念总结（暂定名《标题》+ 一句话亮点），写完立刻停，禁止再问大结局 / 最后一个拼图 / 新的设计缺口。定稿三选由宿主在「收敛节且已有合格总结」后弹出；不要自己给。JSON 里出现定稿项也不会当收口。大约 10 轮只是给用户的范围，不是收口条件。
-- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」之前，不要宣布已经写成文档。
-- 人话一旦出现「暂定游戏名 / 概念总结 / 一句话亮点 / 蓝图已经成型」，同一轮 state_delta 必须写入 workingTitle、pitch、coreExperience、loop.fiveMin、differentiator、mechanics（≥2）、winRule。不要只写在人话里。口头总结这一轮宿主还不出文档。
-- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」：宿主出文档，本轮不要 options、不要再问缺口。
-- 用户点「改一块 / 再挖挖」或出文档后再开口：本轮只给 2–3 个针对他这句的实质方向。下一轮宿主会再弹出定稿/改一块/再挖挖。
-- 禁止对用户说「系统马上弹卡片 / 请稍等几秒会弹出结果页」。结果入口由宿主根据完整度显示，你承诺也不会出现。
 `.trim();
+
+const TURN_DIRECTIVE_INTERVIEW = `
+- may_write_summary 为 false。禁止写暂定名、一句话亮点、📌 概念总结。不要抄收敛模板。定稿三选由宿主弹出，不要自己给。JSON 里出现定稿项也不会当收口。大约 10 轮只是给用户的范围，不是收口条件。
+- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」之前，不要宣布已经写成文档。
+- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」：若宿主这轮出文档，不要 options、不要再问缺口。采访中途要文档时，下一轮继续当前节，不要跳到定稿。
+- 用户点「改一块 / 再挖挖」或出文档后再开口：本轮只给 2–3 个针对他这句的实质方向。下一轮宿主会再弹出定稿/改一块/再挖挖。
+- 禁止对用户说「系统马上弹卡片 / 请稍等几秒会弹出结果页」。结果入口由宿主显示，你承诺也不会出现。
+`.trim();
+
+const TURN_DIRECTIVE_SUMMARY = `
+- may_write_summary 为 true。本轮必须出口头概念总结（暂定名《标题》+ 一句话亮点），写完立刻停，禁止再问大结局 / 最后一个拼图 / 新的设计缺口。completeness 未齐也要写。定稿三选由宿主弹出；不要自己给。JSON 里出现定稿项也不会当收口。大约 10 轮只是给用户的范围，不是收口条件。
+- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」之前，不要宣布已经写成文档。
+- 人话一旦出现「暂定游戏名 / 概念总结 / 一句话亮点」，同一轮 state_delta 必须写入 workingTitle、pitch、coreExperience、loop.fiveMin、differentiator、mechanics（≥2）、winRule。不要只写在人话里。口头总结这一轮宿主还不出文档。
+- 用户点「就按这个定稿，写成设计文档」或说「现在就生成」：宿主出文档，本轮不要 options、不要再问缺口。采访中途要文档时，下一轮继续当前节。
+- 用户点「改一块 / 再挖挖」或出文档后再开口：本轮只给 2–3 个针对他这句的实质方向。下一轮宿主会再弹出定稿/改一块/再挖挖。
+- 禁止对用户说「系统马上弹卡片 / 请稍等几秒会弹出结果页」。结果入口由宿主显示，你承诺也不会出现。
+`.trim();
+
+export function buildTurnDirective(allowSummary: boolean): string {
+  return `${TURN_DIRECTIVE_HEAD}\n${allowSummary ? TURN_DIRECTIVE_SUMMARY : TURN_DIRECTIVE_INTERVIEW}`;
+}
+
+/** 兼容旧测试：默认按「允许总结」拼一份。运行时用 buildTurnDirective。 */
+export const TURN_DIRECTIVE = buildTurnDirective(true);

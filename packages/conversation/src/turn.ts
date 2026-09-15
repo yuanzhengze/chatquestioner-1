@@ -193,10 +193,10 @@ function withHostOptions(
 ): ParsedTurn {
   const fromJson = parseOptions(jsonOptions);
   const recovered = recoverOptionsFromProse(reply);
-  const options = fromJson ?? recovered;
-  const stripped = collectOptionBlocks(reply).length >= 2 ? stripOptionProse(reply) : reply;
+  /** 人话里已经写出的 A/B 优先：卡片必须对得上已流出的字。 */
+  const options = recovered ?? fromJson;
   return {
-    reply: stripped || reply,
+    reply,
     control,
     warnings,
     options,

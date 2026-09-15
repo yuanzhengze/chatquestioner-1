@@ -144,18 +144,19 @@ describe("recoverOptionsFromProse / stripOptionProse", () => {
     expect(stripped).not.toMatch(/实时大乱斗/);
   });
 
-  it("JSON 没有 options 时 parseTurnOutput 仍能收回卡片并清洗 reply", () => {
+  it("JSON 没有 options 时 parseTurnOutput 仍能收回卡片，人话保留 A/B", () => {
     const raw =
       `${swan}\n${STATE_SENTINEL}\n` +
       `{ "state_delta": {}, "stage_complete": false }`;
     const r = parseTurnOutput(raw);
     expect(r.options).toHaveLength(3);
     expect(r.options?.[0].label).toBe("实时大乱斗");
-    expect(r.reply).toBe("在这个大屏幕上，玩家们具体是怎么互相干扰的？");
-    expect(r.reply.includes("A.")).toBe(false);
+    expect(r.reply).toContain("在这个大屏幕上，玩家们具体是怎么互相干扰的？");
+    expect(r.reply).toContain("A.");
+    expect(r.reply).toContain("实时大乱斗");
   });
 
-  it("JSON 已有 options 时仍清掉人话里的 A/B，避免气泡里再写一遍", () => {
+  it("JSON 已有 options 时仍保留人话 A/B，卡片用人话里的方向", () => {
     const raw =
       `你更喜欢哪个？\nA. **信号找同伴**：你是一束信号。\nB. **回声拼真相**：拼出真相。\n` +
       `${STATE_SENTINEL}\n` +
@@ -164,9 +165,9 @@ describe("recoverOptionsFromProse / stripOptionProse", () => {
       `{"id":"B","label":"回声拼真相","detail":"你是最后清醒的人，拼出真相。"}` +
       `] }`;
     const r = parseTurnOutput(raw);
-    expect(r.options?.[0].detail).toContain("失联的同伴");
-    expect(r.reply).toBe("你更喜欢哪个？");
-    expect(r.reply).not.toMatch(/A\./);
+    expect(r.options?.[0].label).toBe("信号找同伴");
+    expect(r.reply).toContain("你更喜欢哪个");
+    expect(r.reply).toMatch(/A\./);
   });
 
   it("只有一项 A. 不当选项，也不裁气泡", () => {

@@ -109,6 +109,7 @@ describe("routes", () => {
     s.workingTitle = "三消糖果";
     s.pitch = "三消糖果消除小游戏";
     s.mvpScope = { must: ["核心循环"], cut: [] };
+    s.history = [{ role: "user", content: "三消糖果消除小游戏，核心循环。" }];
     await store.save(created.id, s);
 
     const ok = await app.inject({ method: "POST", url: `/api/session/${created.id}/export` });
@@ -165,6 +166,7 @@ describe("routes", () => {
     expect(body.gddComplete).toBe(false);
     expect(body.workingTitle).toBe("城寨幽鸣");
     expect(body.gddMarkdown).toContain("城寨幽鸣");
+    expect(body.gddMarkdown).toContain("搜刮");
     expect(body.gddMarkdown).toContain("冰室");
     expect(body.gddModel.title).toBe("城寨幽鸣");
     await app.close();

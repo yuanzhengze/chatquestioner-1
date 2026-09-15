@@ -107,6 +107,8 @@ export interface ConversationState {
   askedStages: number[];
   /** 当前该弹采访选项、收敛三选，还是补一块的设计选项 */
   optionPhase?: OptionPhase;
+  /** 第一次到达第 8 节时的历史下标；此前的 📌 不算合格总结 */
+  summaryEligibleFrom?: number;
 }
 
 export function createInitialState(): ConversationState {

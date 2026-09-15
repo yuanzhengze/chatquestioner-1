@@ -152,12 +152,12 @@ export function buildGuideStageHint(state: ConversationState, converging = false
   if (converging) {
     lines.push("本轮已经收口。不要再问新的设计缺口。定稿/改一块/再挖挖由宿主弹出。");
     } else if (stage < 8) {
-    lines.push("只问本节那一个问题。不要提前抄暂定名模板。人话一旦出现合格概念总结（暂定名+一句话亮点），宿主会进入收敛并弹出定稿三选，不要再问新缺口。");
+    lines.push("只问本节那一个问题。禁止写暂定名、一句话亮点、📌 概念总结。completeness 缺口可顺带写入字段，不要单开一轮问关键词池或禁止情感。");
   } else {
-    lines.push("现在到收敛节。先出口头概念总结（暂定名《标题》+ 一句话亮点）。还没有合格总结时不要给定稿三选；总结出现后由宿主弹出。");
+    lines.push("现在到第 8 节。先出口头概念总结（暂定名《标题》+ 一句话亮点）。completeness 未齐也要写。还没有合格总结时不要给定稿三选；总结出现后由宿主弹出。");
   }
   if (completeMiss.length && !converging && stage < 8) {
-    lines.push(`completeness 还缺：${completeMiss.join("、")}。缺口可写入字段。不要为凑齐或凑轮次而继续发明新问题。`);
+    lines.push(`completeness 还缺：${completeMiss.join("、")}。可写入字段，但本轮仍只问当前节，不要为凑齐而发明新问题，也不要提前总结。`);
   }
   return lines.join("\n");
 }

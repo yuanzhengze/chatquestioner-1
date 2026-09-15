@@ -402,7 +402,8 @@ Page({
         for (let i = hist.length - 1; i >= 0; i--) {
           const m = hist[i] as { role?: string; content?: string };
           if (m && m.role === "assistant" && typeof m.content === "string") {
-            this._stream = m.content;
+            /** 已经流到屏幕上的字不能被 history 换掉；只在本轮还没流出时用 history 兜底。 */
+            if (!(this._stream || "").trim()) this._stream = m.content;
             break;
           }
         }

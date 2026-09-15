@@ -12,20 +12,41 @@ function turn(reply: string, control: object): string {
 }
 
 describe("groundedDelta", () => {
-  it("丢掉对话里没有出处的键，保留原话", () => {
+  it("允许把采访润色成文档用语，没出现过的作品名仍丢掉", () => {
     const history: ChatMessage[] = [
       { role: "assistant", content: "这局怎么才算到头了呢？" },
       { role: "user", content: "把所有星星收集齐就结束。" },
     ];
     const delta = groundedDelta({
-      winRule: "把所有星星收集齐就结束。",
+      winRule: "收集齐全部星星即可通关。",
       forbiddenEmotion: "肝氪焦虑",
-      presentation: { orientation: "横屏", players: "自己玩" },
+      references: ["旅行青蛙"],
+      presentation: { orientation: "横屏" },
+      constitutionFields: {
+        contentBoundary: "围绕摘星收集，不扩展未讨论的系统",
+        presentationBoundary: "按已确认的游玩方式呈现",
+      },
     }, history);
     expect(delta.winRule).toContain("星星");
     expect(delta.forbiddenEmotion).toBeUndefined();
-    expect(delta.presentation?.orientation).toBeUndefined();
-    expect(delta.presentation?.players).toBeUndefined();
+    expect(delta.presentation?.orientation).toBe("横屏");
+    expect(delta.constitutionFields?.contentBoundary).toContain("摘星");
+    expect(delta.references).toBeUndefined();
+  });
+
+  it("丢掉对话里没出现过的参考作品", () => {
+    const history: ChatMessage[] = [
+      { role: "user", content: "想做手账里种种田的解压游戏。" },
+      { role: "assistant", content: "种田时最想抓住哪一种安静？" },
+    ];
+    const delta = groundedDelta({
+      spark: "手账里种种田的解压游戏",
+      references: ["旅行青蛙", "动物森友会"],
+      avoidReferences: ["星露谷硬核打工"],
+    }, history);
+    expect(delta.spark).toContain("手账");
+    expect(delta.references).toBeUndefined();
+    expect(delta.avoidReferences).toBeUndefined();
   });
 });
 
@@ -40,7 +61,7 @@ describe("mergeFillEmpty", () => {
 });
 
 describe("extractDiscussedIntoState", () => {
-  it("只把抽取 JSON 里、且对话中出现过的事实填进空位", async () => {
+  it("抽取可以把采访润色进字段，仍丢掉没出现的作品名", async () => {
     const s = createInitialState();
     s.history = [
       { role: "assistant", content: "这局怎么才算到头了呢？" },
@@ -50,14 +71,19 @@ describe("extractDiscussedIntoState", () => {
       async *stream(messages: ChatMessage[]) {
         expect(messages[0]?.content).toContain(EXTRACT_PROMPT_TAG);
         yield JSON.stringify({
-          winRule: "把所有星星收集齐就结束。",
-          forbiddenEmotion: "谁也没说过的禁止情感",
+          winRule: "收集齐全部星星即可通关。",
+          references: ["旅行青蛙"],
+          constitutionFields: {
+            contentBoundary: "围绕摘星，不扩展未讨论的系统",
+            presentationBoundary: "按已确认的方式呈现",
+          },
         });
       },
     };
     await extractDiscussedIntoState(s, llm);
     expect(s.winRule).toContain("星星");
-    expect(s.forbiddenEmotion).toBeFalsy();
+    expect(s.references).toEqual([]);
+    expect(s.constitutionFields.contentBoundary).toContain("摘星");
   });
 
   it("overwrite 时用抽取结果覆盖已有字段", async () => {
@@ -95,7 +121,9 @@ describe("advance 出文档时走抽取", () => {
     s.spark = "收集星星的休闲游戏";
     s.pitch = "夜间收集星星";
     s.coreEmotion = "解压";
+    s.stage = 8;
     s.history = [
+      { role: "user", content: "收集星星的休闲游戏，夜间收集星星，解压。" },
       { role: "assistant", content: "这局怎么才算到头了呢？" },
       { role: "user", content: "把所有星星收集齐就结束。" },
     ];

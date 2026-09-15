@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
   advance, createInitialState, toGddModel, normalizeConversationState,
-  harvestIntoState, OPENING_MESSAGE, STAGE_LABELS, historyWantsPreview,
+  harvestIntoState, scrubUngroundedState, OPENING_MESSAGE, STAGE_ASKS_TITLE, STAGE_LABELS, historyWantsPreview,
   type ConversationState, type LlmClient, type Retriever,
 } from "@cq/conversation";
 import { renderGdd, isSubstantive, isComplete, type GddModel } from "@cq/gdd";
@@ -132,6 +132,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     const state = normalizeConversationState(loaded);
     // GET 只做确定性回收，不调抽取 LLM（微信 20s）。抽取只在用户要文档的那一轮 advance 里跑并落盘。
     harvestIntoState(state);
+    scrubUngroundedState(state);
     const model = toGddModel(state);
     const complete = isComplete(model);
     state.gddComplete = complete;
@@ -219,7 +220,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
         sendEvent(reply, SSE_EVENTS.state, res.state);
         sendEvent(reply, SSE_EVENTS.stage, {
           stage: res.state.stage,
-          label: STAGE_LABELS[res.state.stage] ?? String(res.state.stage),
+          label: STAGE_ASKS_TITLE[res.state.stage] ?? STAGE_LABELS[res.state.stage] ?? String(res.state.stage),
           readyForSynthesis: res.readyForSynthesis,
         });
 
@@ -256,6 +257,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!loaded) return reply.code(404).send({ error: "session not found" });
     const state = normalizeConversationState(loaded);
     harvestIntoState(state);
+    scrubUngroundedState(state);
 
     const synthesis = buildSynthesis(state);
     if (!synthesis) return reply.code(409).send({ error: "GDD 尚无实质内容，请先完成几轮对话" });

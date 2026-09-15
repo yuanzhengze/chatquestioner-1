@@ -2,6 +2,8 @@
 
 第一版是底部 Tab：首页 / 共创 / 我的。对话仍走本机 Fastify（`pnpm dev:server`）。
 
+产品何时出卡、何时出文档，见仓库 [docs/PRODUCT.md](../../docs/PRODUCT.md)。
+
 ## 打开项目
 
 1. 在仓库根安装依赖并打包小程序共享逻辑：

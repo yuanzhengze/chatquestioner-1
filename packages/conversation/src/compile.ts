@@ -133,8 +133,16 @@ export function toGddModel(state: ConversationState): GddModel {
     coreLoop: pick(cf?.coreLoop, state.loop?.fiveMin, state.loop?.thirtySec),
     artRule: pick(cf?.artRule, state.aesthetic),
     contentBoundary: pick(cf?.contentBoundary)
-      || (asList(state.avoidReferences).length ? `避开${asList(state.avoidReferences).join("、")}` : ""),
-    presentationBoundary: pick(cf?.presentationBoundary, state.presentation?.dimension),
+      || (asList(state.avoidReferences).length ? `避开${asList(state.avoidReferences).join("、")}` : "")
+      || (state.presentation?.players === "自己玩" ? "单机体验，不做人与人的强制社交" : ""),
+    presentationBoundary: pick(
+      cf?.presentationBoundary,
+      [state.presentation?.where, state.presentation?.orientation, state.presentation?.dimension, state.presentation?.players]
+        .map((x) => asGddText(x))
+        .filter(Boolean)
+        .join("，"),
+      state.presentation?.dimension,
+    ),
     extras: [...asList(cf?.extras), ...asList(state.constitution)],
   };
   m.presentation = {

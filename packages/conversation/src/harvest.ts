@@ -140,7 +140,7 @@ const INTENTS: Intent[] = [
   },
   {
     id: "fail",
-    test: /失误|麻烦或代价|失败了会/,
+    test: /失误|麻烦或代价|失败了会|特殊情况|打断一下|起伏/,
     apply: (s, a) => { if (empty(s.failRule)) s.failRule = a; },
   },
   {
@@ -180,12 +180,12 @@ const INTENTS: Intent[] = [
   },
   {
     id: "action",
-    test: /最常做的一件事|最频繁|最重要|核心动作/,
+    test: /最常做的一件事|最频繁|最重要|核心动作|怎么操作|具体是怎么/,
     apply: (s, a) => { if (empty(s.coreAction)) s.coreAction = a; },
   },
   {
     id: "emotion",
-    test: /三个词形容|朋友刚玩完|心里是一种什么感觉|哪种[“「]?恐怖感|哪种感受/,
+    test: /三个词形容|朋友刚玩完|心里是一种什么感觉|内心涌现|涌现出哪种|哪种[“「]?恐怖感|哪种感受/,
     apply: (s, a) => { if (empty(s.coreEmotion)) s.coreEmotion = a; },
   },
   {
@@ -210,7 +210,7 @@ const INTENTS: Intent[] = [
   },
   {
     id: "where",
-    test: /哪个平台|哪种设备|在哪玩|电脑玩|手机玩|什么设备|用什么玩/,
+    test: /哪个平台|哪种设备|在哪玩|电脑玩|手机玩|什么设备|用什么玩|拿着手机|手里握/,
     apply: (s, a) => {
       if (empty(s.presentation.where) && /键鼠|电脑|PC|主机|手柄|手机|网页|触屏/i.test(a)) {
         s.presentation.where = normalizeWhere(a);
@@ -238,11 +238,11 @@ const INTENTS: Intent[] = [
   },
   {
     id: "players",
-    test: /一个人玩|联网|跟别人一起/,
+    test: /一个人玩|联网|跟别人一起|有互动吗|玩家之间|社交压力/,
     apply: (s, a) => {
       if (empty(s.presentation.players)) {
         if (/别人|联网|一起/.test(a) && !/自己|一个人/.test(a)) s.presentation.players = "要和别人一起";
-        else if (/自己|一个人|单人/.test(a)) s.presentation.players = "自己玩";
+        else if (/自己|一个人|单人|单机/.test(a)) s.presentation.players = "自己玩";
       }
     },
   },
@@ -258,6 +258,80 @@ const INTENTS: Intent[] = [
     },
   },
 ];
+
+function transcriptBlob(state: ConversationState): string {
+  const hist = (state.history || []).map((m) => m.content || "").join("\n");
+  return `${state.spark || ""}\n${hist}`;
+}
+
+function deriveContentBoundary(state: ConversationState, blob: string): string {
+  const bits: string[] = [];
+  if (/完全单机|没有社交|不.*社交|社交压力|自己安安静静|一个人静静/.test(blob)
+    || state.presentation.players === "自己玩") {
+    bits.push("单机收集，不做人与人的强制社交");
+  }
+  if (/不需要复杂|操作极简|看到洞口就点|极简顺滑/.test(blob)) {
+    bits.push("操作保持极简，不叠复杂操作系统");
+  }
+  if (state.avoidReferences.length) {
+    bits.push(`避开${state.avoidReferences.join("、")}`);
+  }
+  if (!bits.length && (state.coreAction || state.spark || state.pitch)) {
+    bits.push("内容围绕已确认的核心循环，不扩展未讨论的系统");
+  }
+  return bits.join("；");
+}
+
+function derivePresentationBoundary(state: ConversationState): string {
+  const parts = [
+    state.presentation.where,
+    state.presentation.orientation,
+    state.presentation.dimension,
+    state.presentation.players,
+  ].map((x) => (x || "").trim()).filter(Boolean);
+  return parts.join("，");
+}
+
+function inferMissing(state: ConversationState): void {
+  const blob = transcriptBlob(state);
+  if (empty(state.world)) {
+    const scene = blob.match(/场景是([^。！?\n]+)/);
+    if (scene) state.world = scene[1].trim();
+  }
+  if (empty(state.presentation.where)) {
+    if (/手机|触屏/.test(blob)) state.presentation.where = "手机";
+    else if (/键鼠|电脑|PC/i.test(blob)) state.presentation.where = "电脑";
+    else if (/网页/.test(blob)) state.presentation.where = "网页";
+  }
+  if (empty(state.presentation.orientation)) {
+    if (/竖屏|竖着|单手大拇指/.test(blob)) state.presentation.orientation = "竖屏";
+    else if (/横屏|横着/.test(blob)) state.presentation.orientation = "横屏";
+  }
+  if (empty(state.presentation.dimension)) {
+    if (/第一人称|第三人称|立体|3D|能转|微缩|手办级|近景/.test(blob)) {
+      state.presentation.dimension = "能转视角的立体";
+    } else if (/平面|2D/.test(blob)) {
+      state.presentation.dimension = "平面";
+    }
+  }
+  if (empty(state.presentation.players)) {
+    if (/要和别人|联机|多人/.test(blob) && !/完全单机|没有社交|不.*社交/.test(blob)) {
+      state.presentation.players = "要和别人一起";
+    } else if (/完全单机|没有社交|不.*社交|自己安安静静|一个人静静|自己玩/.test(blob)) {
+      state.presentation.players = "自己玩";
+    }
+  }
+  if (empty(state.loop.thirtySec) && state.coreAction) state.loop.thirtySec = state.coreAction;
+  if (empty(state.constitutionFields.artRule)) {
+    state.constitutionFields.artRule = state.aesthetic || "";
+  }
+  if (empty(state.constitutionFields.contentBoundary)) {
+    state.constitutionFields.contentBoundary = deriveContentBoundary(state, blob);
+  }
+  if (empty(state.constitutionFields.presentationBoundary)) {
+    state.constitutionFields.presentationBoundary = derivePresentationBoundary(state);
+  }
+}
 
 function fillFromQa(state: ConversationState): void {
   const hist = state.history || [];
@@ -278,7 +352,7 @@ function fillFromQa(state: ConversationState): void {
 }
 
 /**
- * 把对话里已经说出口的内容写进空字段。只填空，不编造。
+ * 把对话里已经说出口的内容写进空字段，并按采访补全宪法边界。
  * 两层都跟题材无关：1）总结标签 2）问法意图 ← 用户回答。
  */
 export function harvestIntoState(state: ConversationState): void {
@@ -287,6 +361,7 @@ export function harvestIntoState(state: ConversationState): void {
   }
   maybeIdentityFromPitch(state);
   fillFromQa(state);
+  inferMissing(state);
   if (empty(state.pitch) && state.coreExperience) state.pitch = state.coreExperience;
   if (empty(state.pitch) && state.spark) state.pitch = state.spark;
   if (empty(state.coreExperience) && state.pitch) state.coreExperience = state.pitch;

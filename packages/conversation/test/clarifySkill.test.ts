@@ -20,12 +20,15 @@ describe("clarify skill adapter", () => {
     expect(prompt).not.toMatch(/^---/);
   });
 
-  it("引导模式从一开始就附问法参考；stage>=6 才附完整度清单", () => {
+  it("引导模式从一开始就附问法参考；完整度清单只在允许总结时附", () => {
     const early = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 0 });
-    const late = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 6 });
+    const mid = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 6 });
+    const late = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 8 });
     expect(early).toContain("问法内核");
     expect(early).not.toContain("不得带病写盘");
+    expect(mid).not.toContain("不得带病写盘");
     expect(late).toContain("不得带病写盘");
+    expect(late).toContain("没在人话里出现过的作品名");
   });
 
   it("stageHint 追加在 prompt 末尾", () => {
@@ -52,7 +55,7 @@ describe("clarify skill adapter", () => {
     expect(core).not.toContain("## 收敛确认");
   });
 
-  it("stage<8 不附 SKILL 收敛落盘模板；stage 8 才附", () => {
+  it("stage<8 不附 SKILL 收敛落盘模板；允许总结时才附", () => {
     const early = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 6 });
     const late = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 8 });
     expect(early).not.toContain("先口头给一份人话版概念总结");
@@ -61,10 +64,10 @@ describe("clarify skill adapter", () => {
     expect(late).toContain("## 7. 收敛与落盘");
   });
 
-  it("已收口时附收敛节，不再塞完整度补问清单", () => {
+  it("已收口时附收敛节，不再塞完整度补问清单，也不再要求口头总结配方", () => {
     const prompt = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 7, converging: true });
-    expect(prompt).toContain("先口头给一份人话版概念总结");
     expect(prompt).toContain("## 收敛确认");
     expect(prompt).not.toContain("不得带病写盘");
+    expect(prompt).not.toContain("先口头给一份人话版概念总结");
   });
 });

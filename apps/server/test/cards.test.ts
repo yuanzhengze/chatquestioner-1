@@ -34,6 +34,7 @@ function readyState() {
   const s = createInitialState();
   s.workingTitle = "三消糖果";
   s.pitch = "三消糖果消除小游戏";
+  s.history = [{ role: "user", content: "三消糖果消除小游戏" }];
   return s;
 }
 
