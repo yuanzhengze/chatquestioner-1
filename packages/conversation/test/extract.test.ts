@@ -105,6 +105,55 @@ describe("extractDiscussedIntoState", () => {
   });
 });
 
+describe("advance 首次定稿覆盖 spark 占位", () => {
+  it("第一次生成也覆盖首句占住的 pitch / 幻想 / 内容边界", async () => {
+    const spark = "我想做一个类似于沙威玛的模拟经营小游戏";
+    const llm: LlmClient = {
+      async *stream(messages: ChatMessage[]) {
+        if (messages[0]?.content?.includes(EXTRACT_PROMPT_TAG)) {
+          expect(messages[1]?.content).toContain("最后一次");
+          yield JSON.stringify({
+            pitch: "深夜食堂画风的日料微操模拟器，备菜治愈、开店满头大汗。",
+            coreExperience: "进货备菜治愈，营业时双手微操打连击。",
+            coreFantasy: "在暖黄吧台当寿司主厨，用丝滑微操喂饱大胃王。",
+            playerIdentity: "日料店老板兼主厨",
+            constitutionFields: {
+              coreFantasy: "在暖黄吧台当寿司主厨，用丝滑微操喂饱大胃王。",
+              contentBoundary: "单机微操经营，不做联机社交，不叠养成数值。",
+              presentationBoundary: "手机横屏，能转视角的立体。",
+            },
+          });
+          return;
+        }
+        yield turn("记下了，先出一版草稿。", { state_delta: {} });
+      },
+    };
+    const s = createInitialState();
+    s.guidance = "accepted";
+    s.spark = spark;
+    s.pitch = spark;
+    s.coreExperience = spark;
+    s.coreFantasy = spark;
+    s.constitutionFields.coreFantasy = spark;
+    s.constitutionFields.contentBoundary = "内容围绕已确认的核心循环，不扩展未讨论的系统";
+    s.stage = 8;
+    s.history = [
+      { role: "user", content: spark },
+      { role: "assistant", content: "店里最常做的一件事是什么？" },
+      { role: "user", content: "滑拉生鱼片、拖拽到饭团上，画圈倒酱油。" },
+    ];
+    const res = await advance(s, "现在就生成", { llm, systemPrompt: "SYS" });
+    expect(res.readyForSynthesis).toBe(true);
+    expect(res.state.pitch).toContain("日料微操");
+    expect(res.state.pitch).not.toBe(spark);
+    expect(res.state.coreExperience).toContain("连击");
+    expect(res.state.coreFantasy).toContain("寿司主厨");
+    expect(res.state.constitutionFields.coreFantasy).toContain("寿司主厨");
+    expect(res.state.constitutionFields.contentBoundary).toMatch(/单机|联机|养成/);
+    expect(res.state.constitutionFields.contentBoundary).not.toContain("不扩展未讨论的系统");
+  });
+});
+
 describe("advance 出文档时走抽取", () => {
   it("问法不像题库原句时，抽取仍能把聊过的通关写进状态", async () => {
     const llm: LlmClient = {

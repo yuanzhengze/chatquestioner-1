@@ -243,7 +243,8 @@ async function collect(llm: LlmClient, messages: ChatMessage[]): Promise<string>
 }
 
 /**
- * 用户要文档时调用。默认只填空；文档已出、用户继续改时 overwrite 覆盖旧值。
+ * 用户要文档时调用。advance 出稿（首次定稿和之后刷新）一律 overwrite，
+ * 避免 spark / 罐头占位挡住撰写。直接调用默认仍只填空。
  * GET 不要走这里（微信 20s）；结果会随 advance 落盘。
  */
 export async function extractDiscussedIntoState(

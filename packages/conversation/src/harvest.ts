@@ -91,7 +91,7 @@ function normalizeDimension(ans: string): string {
 }
 
 function applyLabeledBlocks(state: ConversationState, text: string): void {
-  const re = /(?:📌\s*)?\*\*([^*]+)\*\*[ \t]*[：:][ \t]*([^\n]+)/g;
+  const re = /(?:📌\s*)?\*\*([^*]+?)(?:\*\*[ \t]*[：:]|[：:]\*\*)[ \t]*([^\n]+)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     const label = clean(m[1]).toLowerCase();

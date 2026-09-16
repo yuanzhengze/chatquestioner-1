@@ -251,7 +251,7 @@ async function finish(
   harvestIntoState(state);
   const wantsDoc = historyWantsPreview(state.history, userInput, state.lastOptions);
   if (llm && wantsDoc && (generating || alreadyHadDoc)) {
-    await extractDiscussedIntoState(state, llm, { overwrite: alreadyHadDoc });
+    await extractDiscussedIntoState(state, llm, { overwrite: true });
     harvestIntoState(state);
   }
   scrubUngroundedState(state);

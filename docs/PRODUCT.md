@@ -4,7 +4,7 @@
 > 对照实现：`packages/conversation/`、`prompts/game-gdd-clarify/`、`apps/miniprogram/`。  
 > 任务书（范围与待定项）：仓库外 `D:\Newbee\Newbee小程序开发任务书.md`。  
 > 开发过程流水：仓库外 `D:\Newbee\docs\DEVELOPMENT_LOG.md`（不替代本文件）。  
-> 最后与代码对齐：`47ac900` + 未提交（流出人话稳住；文档可按采访延申；内容/呈现边界必写；2026-09-15）。
+> 最后与代码对齐：`74a2fe1` + 未提交（首次定稿与刷新同一条抽取覆盖；2026-09-16）。
 
 ---
 
@@ -174,7 +174,7 @@
 
 **不要求**已经到达第 8 节，**不要求**完整度清单全绿。主动要文档就给半成品，缺项标草稿。
 
-文档按采访来写，**可以润色和合理延申**，不必每个字都在对话里出现过。内容边界、呈现边界必须有一句，不能空着。没聊过的参考作品名不要写进去。刷新会话也不能凭空再弹文档。
+文档按采访来写，**可以润色和合理延申**，不必每个字都在对话里出现过。内容边界、呈现边界必须有一句，不能空着。没聊过的参考作品名不要写进去。刷新会话也不能凭空再弹文档。**第一次定稿和之后刷新走同一条抽取覆盖**，不用首句 spark 或固定内容边界把 Pitch、核心幻想、「这是什么游戏」占住。
 
 ### 5.4 文档算不算「定稿完整」
 
@@ -219,6 +219,7 @@
 | 采访有没有卡、卡从哪来 | 本文件 §3.3、§4 | `advance.ts` 的 `cardsForReply` 与纠偏（只补 JSON，不换人话）；`turn.ts` 的 `designOptionsOnly` |
 | 何时出文档 | 本文件 §3.5、§5.3 | `advance.ts` 的 `historyWantsPreview`；`apps/server/src/server.ts` GET 会话 |
 | 文档只收录聊过的内容 | 本文件 §5.3 | `extract.ts` 只拦截没出现过的作品名；宪法边界由 harvest/compile 按采访补全 |
+| 首次定稿撰写质量 | 本文件 §5.3 | `advance.ts` 出稿抽取一律 `overwrite`；harvest 认 `**标签：**` 与 `**标签**：` |
 | 问哪一节、问法内核 | 本文件 §3.3 | `prompts/game-gdd-clarify/asks.md`、`stages.ts` |
 | 完整度清单 | 本文件 §5.4 | `completeness.md` 与 `packages/gdd/src/model.ts` 必须一起改 |
 | 同意门文案 | 本文件 §3.2 | `llm.ts` 的 `CONSENT_*` |

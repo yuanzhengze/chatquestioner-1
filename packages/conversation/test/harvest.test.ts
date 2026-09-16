@@ -96,6 +96,17 @@ describe("harvestIntoState", () => {
     expect(renderGdd(m)).not.toMatch(/### 奖励节奏\n（未写）/);
   });
 
+  it("认冒号写在粗体内的一句话亮点", () => {
+    const s = createInitialState();
+    s.history = [{
+      role: "assistant",
+      content: "> **暂定游戏名：**《深夜连击寿司店》\n> **一句话亮点：**一款有着深夜食堂治愈画风，玩起来却让人满头大汗的魔性日料微操模拟器。",
+    }];
+    harvestIntoState(s);
+    expect(s.workingTitle).toBe("深夜连击寿司店");
+    expect(s.pitch).toContain("日料微操模拟器");
+  });
+
   it("已有 workingTitle 不被总结覆盖", () => {
     const s = createInitialState();
     s.workingTitle = "用户自己起的名";
