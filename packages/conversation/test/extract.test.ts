@@ -159,7 +159,7 @@ describe("advance 首次定稿覆盖 spark 占位", () => {
     s.coreFantasy = spark;
     s.constitutionFields.coreFantasy = spark;
     s.constitutionFields.contentBoundary = "内容围绕已确认的核心循环，不扩展未讨论的系统";
-    s.stage = 8;
+    s.stage = 10;
     s.history = [
       { role: "user", content: spark },
       { role: "assistant", content: "店里最常做的一件事是什么？" },
@@ -193,7 +193,7 @@ describe("advance 出文档时走抽取", () => {
     s.spark = "收集星星的休闲游戏";
     s.pitch = "夜间收集星星";
     s.coreEmotion = "解压";
-    s.stage = 8;
+    s.stage = 10;
     s.history = [
       { role: "user", content: "收集星星的休闲游戏，夜间收集星星，解压。" },
       { role: "assistant", content: "这局怎么才算到头了呢？" },

@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { STAGE_ASKS_TITLE } from "./stages.js";
+import { CONVERGENCE_STAGE, STAGE_ASKS_TITLE } from "./stages.js";
 
 const HOST_COMMON = `
 [小程序宿主适配 —— 用户永远看不到本段]
@@ -31,7 +31,7 @@ const HOST_GUIDE_COMMON = `
 `.trim();
 
 const HOST_GUIDE_INTERVIEW = `
-may_write_summary 为 false。进入第 8 节之前不要抄「收敛确认」里的暂定名 / Pitch 模板。禁止写暂定名、一句话亮点、📌 概念总结。
+may_write_summary 为 false。进入收敛之前不要抄「收敛确认」里的暂定名 / Pitch 模板。禁止写暂定名、一句话亮点、📌 概念总结。
 `.trim();
 
 const HOST_GUIDE_SUMMARY = `
@@ -121,7 +121,7 @@ export function buildClarifySystemPrompt(opts: ClarifyPromptOpts): string {
     return [FREEFORM_PROMPT, HOST_COMMON].join("\n\n");
   }
 
-  const allowSummary = opts.allowSummary ?? (stage >= 8 && !converging);
+  const allowSummary = opts.allowSummary ?? (stage >= CONVERGENCE_STAGE && !converging);
   const rawSkill = stripFrontmatter(readIfExists(skillDir, "SKILL.md"));
   if (!rawSkill.trim()) {
     throw new Error(`clarify skill missing SKILL.md in ${skillDir}`);
@@ -131,7 +131,7 @@ export function buildClarifySystemPrompt(opts: ClarifyPromptOpts): string {
   const hostGuide = `${HOST_GUIDE_COMMON}\n\n${allowSummary ? HOST_GUIDE_SUMMARY : HOST_GUIDE_INTERVIEW}`;
   const parts = [skill, HOST_COMMON, hostGuide];
   const asks = readIfExists(skillDir, "asks.md");
-  const slice = asksSliceForStage(asks, converging ? 8 : stage);
+  const slice = asksSliceForStage(asks, converging ? CONVERGENCE_STAGE : stage);
   if (slice.trim()) parts.push(slice);
   if (allowSummary) {
     const completeness = readIfExists(skillDir, "completeness.md");

@@ -1,5 +1,7 @@
 import type { ConversationState } from "./state.js";
 import { looksLikeConceptSummary } from "./llm.js";
+import { absorbLabeledConstitution, composeInteractionChain, isConcreteInteractionChain } from "@cq/gdd";
+import { hasGrowthSkipEvidence } from "./growthSkip.js";
 
 const empty = (v?: string): boolean => !v || !String(v).trim();
 const clean = (s: string): string => s.replace(/^\*+|\*+$/g, "").replace(/^["「]|["」]$/g, "").trim();
@@ -78,6 +80,16 @@ const LABEL_FIELD: Array<{ labels: string[]; apply: (state: ConversationState, v
   { labels: ["核心幻想"], apply: (s, v) => { s.coreFantasy = setStr(s.coreFantasy, v); } },
   { labels: ["玩家身份", "扮演"], apply: (s, v) => { s.playerIdentity = setStr(s.playerIdentity, v.replace(/^了/, "")); } },
   { labels: ["核心动作"], apply: (s, v) => { s.coreAction = setStr(s.coreAction, v); } },
+  { labels: ["交互链路", "核心交互"], apply: (s, v) => {
+    if (isConcreteInteractionChain(v)) s.interaction.chain = setStr(s.interaction.chain, v);
+  } },
+  { labels: ["主要操作"], apply: (s, v) => { s.interaction.verb = setStr(s.interaction.verb, v); } },
+  { labels: ["操作对象"], apply: (s, v) => { s.interaction.target = setStr(s.interaction.target, v); } },
+  { labels: ["即时反馈"], apply: (s, v) => { s.interaction.feedback = setStr(s.interaction.feedback, v); } },
+  { labels: ["核心爽点", "最舍不得删"], apply: (s, v) => { s.coreDelight = setStr(s.coreDelight, v); } },
+  { labels: ["越玩越多"], apply: (s, v) => { s.growth.unlocks = setStr(s.growth.unlocks, v); } },
+  { labels: ["眼前目标"], apply: (s, v) => { s.growth.nearGoal = setStr(s.growth.nearGoal, v); } },
+  { labels: ["玩一阵之后", "玩一阵"], apply: (s, v) => { s.growth.afterTenMin = setStr(s.growth.afterTenMin, v); } },
   { labels: ["奖励", "奖励节奏"], apply: (s, v) => { s.reward = setStr(s.reward, v); } },
   { labels: ["失败", "失败规则"], apply: (s, v) => { s.failRule = setStr(s.failRule, v); } },
   { labels: ["胜利", "通关", "怎样算赢"], apply: (s, v) => { s.winRule = setStr(s.winRule, v); } },
@@ -192,8 +204,29 @@ const INTENTS: Intent[] = [
   },
   {
     id: "action",
-    test: /最常做的一件事|最频繁|最重要|核心动作|怎么操作|具体是怎么/,
+    test: /最常做的一件事|最频繁|最重要|核心动作/,
     apply: (s, a) => { if (empty(s.coreAction)) s.coreAction = a; },
+  },
+  {
+    id: "interact",
+    test: /点下去之后|拨弄谁|屏幕立刻|交互链路|操作方式|操作对象|即时反馈|怎么操作|具体是怎么/,
+    apply: (s, a) => {
+      if (isConcreteInteractionChain(a) && empty(s.interaction.chain)) s.interaction.chain = a;
+      if (empty(s.coreAction) && !/^(探索世界|经营农场|策略战斗)$/.test(a.trim())) s.coreAction = a;
+    },
+  },
+  {
+    id: "delight",
+    test: /最舍不得删|只能留下一个|核心爽点/,
+    apply: (s, a) => { if (empty(s.coreDelight)) s.coreDelight = a; },
+  },
+  {
+    id: "growth",
+    test: /越玩越多|眼前目标|玩\s*10\s*分钟|玩一阵以后|能做什么新/,
+    apply: (s, a) => {
+      if (/无独立成长|短单局|一次性|纯叙事|没有解锁/.test(a)) s.growth.none = true;
+      else if (empty(s.growth.unlocks)) s.growth.unlocks = a;
+    },
   },
   {
     id: "emotion",
@@ -334,6 +367,20 @@ function inferMissing(state: ConversationState): void {
     }
   }
   if (empty(state.loop.thirtySec) && state.coreAction) state.loop.thirtySec = state.coreAction;
+  if (!isConcreteInteractionChain(state.interaction.chain)) {
+    const composed = composeInteractionChain(
+      state.interaction.verb,
+      state.interaction.target,
+      state.interaction.feedback,
+    );
+    if (composed) state.interaction.chain = composed;
+  }
+  if (empty(state.coreAction) && isConcreteInteractionChain(state.interaction.chain)) {
+    state.coreAction = state.interaction.chain;
+  }
+  if (!state.growth.none && hasGrowthSkipEvidence(state)) {
+    state.growth.none = true;
+  }
   if (empty(state.constitutionFields.artRule)) {
     state.constitutionFields.artRule = state.aesthetic || "";
   }
@@ -343,6 +390,10 @@ function inferMissing(state: ConversationState): void {
   if (empty(state.constitutionFields.presentationBoundary)) {
     state.constitutionFields.presentationBoundary = derivePresentationBoundary(state);
   }
+  absorbLabeledConstitution(state.constitutionFields, [
+    ...(state.constitutionFields.extras || []),
+    ...(state.constitution || []),
+  ]);
 }
 
 function fillFromQa(state: ConversationState): void {
@@ -368,6 +419,8 @@ function fillFromQa(state: ConversationState): void {
  * 两层都跟题材无关：1）总结标签 2）问法意图 ← 用户回答。
  */
 export function harvestIntoState(state: ConversationState): void {
+  if (!state.interaction || typeof state.interaction !== "object") state.interaction = {};
+  if (!state.growth || typeof state.growth !== "object") state.growth = {};
   for (const m of state.history || []) {
     if (m.role === "assistant") applyLabeledBlocks(state, m.content || "");
   }

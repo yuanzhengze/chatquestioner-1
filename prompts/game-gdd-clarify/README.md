@@ -17,7 +17,7 @@
 
 ## 蒸馏来源
 
-- `chatquestioner-1/prompts/newbee.system.md`：身份、每轮三步、八阶段、透镜、宪法、排版
+- `chatquestioner-1/prompts/newbee.system.md`：身份、每轮三步、透镜、宪法、排版
 - `chatquestioner-1/docs/00-NewBee提问策略参考集.md`：五份策略的共性（先体验后玩法、单问、动态投喂、规模克制、防漂移）
 - `chatquestioner-1/docs/08-通信GDD规范.md` §2：必填章节 + 创新性自检
 - `chatquestioner-1/docs/01-设计方案.md` §6.1–§6.2：对话状态里的创意字段、Game Brief 深挖项

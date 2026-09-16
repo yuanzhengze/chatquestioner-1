@@ -19,13 +19,15 @@ const EXTRACT_SYSTEM = `${EXTRACT_PROMPT_TAG}
 
 允许的键（全部可选）：
 workingTitle, pitch, coreExperience, coreEmotion, forbiddenEmotion, coreFantasy,
-coreAction, theme, world, narrative, playerIdentity, aesthetic, gameFeel,
+coreAction, coreDelight, theme, world, narrative, playerIdentity, aesthetic, gameFeel,
 reward, failRule, winRule, replayMotivation, differentiator, spark,
 mechanics[], juice[], references[], avoidReferences[],
 loop{thirtySec,fiveMin,thirtyMin,longTerm},
+interaction{verb,target,feedback,chain},
+growth{none,unlocks,nearGoal,afterTenMin},
 presentation{where,dimension,orientation,players,assets},
 difficulty{ramp,firstMinutes,fatigue},
-constitutionFields{coreFantasy,coreLoop,artRule,contentBoundary,presentationBoundary}
+constitutionFields{coreFantasy,coreLoop,artRule,contentBoundary,presentationBoundary,growthRule,worldRule,uiRule}
 
 mechanics 只写 3–6 条按优先级、互不相同的机制，不要把物件名和同一玩法各写一遍。
 juice 只写 3–5 个互不重复的高光瞬间，不要把同一画面拆成多句。
@@ -35,6 +37,8 @@ orientation 只能是「横屏」或「竖屏」。
 players 只能是「自己玩」或「要和别人一起」。
 constitutionFields.contentBoundary：这款游戏明确不做的内容（如不做多人社交、不叠复杂操作系统）。
 constitutionFields.presentationBoundary：在哪玩、横竖屏、平面或立体、单人还是一起，写成一句。
+constitutionFields 只写这八项。没确认的项省略。失败规则、爽点、难度不要写进宪法。
+growth.none 仅当用户明确说短局、一次性、纯叙事或没有解锁时才为 true。
 对话里没出现过的作品名不要写进 references / avoidReferences。
 `.trim();
 
@@ -120,7 +124,7 @@ export function groundedDelta(raw: Record<string, unknown>, history: ChatMessage
   const blob = compact(transcriptOf(history));
   const delta: StateDelta = {};
   const strKeys = [
-    "spark", "coreEmotion", "forbiddenEmotion", "coreFantasy", "coreAction",
+    "spark", "coreEmotion", "forbiddenEmotion", "coreFantasy", "coreAction", "coreDelight",
     "theme", "world", "narrative", "playerIdentity", "aesthetic", "gameFeel",
     "reward", "failRule", "winRule", "difficultyCurve", "replayMotivation",
     "workingTitle", "pitch", "coreExperience", "differentiator",
@@ -146,6 +150,18 @@ export function groundedDelta(raw: Record<string, unknown>, history: ChatMessage
 
   const loop = pickObj(raw.loop, ["thirtySec", "fiveMin", "thirtyMin", "longTerm"]);
   if (loop) delta.loop = loop;
+  const interaction = pickObj(raw.interaction, ["verb", "target", "feedback", "chain"]);
+  if (interaction) delta.interaction = interaction;
+  const growthRaw = asRecord(raw.growth);
+  if (growthRaw) {
+    const growth: NonNullable<StateDelta["growth"]> = {};
+    for (const k of ["unlocks", "nearGoal", "afterTenMin"] as const) {
+      const kept = keepStr(growthRaw[k]);
+      if (kept) growth[k] = kept;
+    }
+    if (growthRaw.none === true) growth.none = true;
+    if (Object.keys(growth).length) delta.growth = growth;
+  }
   const presentation = pickObj(
     raw.presentation,
     ["where", "dimension", "orientation", "players", "assets"],
@@ -155,7 +171,7 @@ export function groundedDelta(raw: Record<string, unknown>, history: ChatMessage
   if (difficulty) delta.difficulty = difficulty;
   const constitutionFields = pickObj(
     raw.constitutionFields,
-    ["coreFantasy", "coreLoop", "artRule", "contentBoundary", "presentationBoundary"],
+    ["coreFantasy", "coreLoop", "artRule", "contentBoundary", "presentationBoundary", "growthRule", "worldRule", "uiRule"],
   );
   const cfRaw = asRecord(raw.constitutionFields);
   const extras = cfRaw ? keepList(cfRaw.extras) : undefined;

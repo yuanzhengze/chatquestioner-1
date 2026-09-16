@@ -9,6 +9,8 @@ describe("createInitialState", () => {
     expect(s.references).toEqual([]);
     expect(s.juice).toEqual([]);
     expect(s.loop).toEqual({});
+    expect(s.interaction).toEqual({});
+    expect(s.growth).toEqual({});
     expect(s.mechanics).toEqual([]);
     expect(s.risks).toEqual([]);
     expect(s.mvpScope).toEqual({ must: [], cut: [] });
@@ -41,5 +43,7 @@ describe("createInitialState", () => {
     expect(n.mechanics).toEqual([]);
     expect(n.presentation).toEqual({});
     expect(n.content.flags.levels).toBe(false);
+    expect(n.interaction).toEqual({});
+    expect(n.growth).toEqual({});
   });
 });

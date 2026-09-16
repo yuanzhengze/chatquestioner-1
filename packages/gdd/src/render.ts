@@ -52,6 +52,34 @@ function optionalLabeled(label: string, value: unknown): string {
   return t ? `- ${label}：${t}` : "";
 }
 
+function growthBlock(m: GddModel, complete: boolean, gap: string): string {
+  const g = m.growth || { none: false, unlocks: "", nearGoal: "", afterTenMin: "" };
+  const unlocks = asGddText(g.unlocks);
+  const near = asGddText(g.nearGoal);
+  const after = asGddText(g.afterTenMin);
+  if (g.none && !unlocks && !near && !after) {
+    return `### 成长与变化
+本游戏无独立成长`;
+  }
+  if (!unlocks && !near && !after) return "";
+  const lines = [
+    `- 越玩越多：${unlocks || (complete ? "本游戏无独立成长" : gap)}`,
+    near ? `- 眼前目标：${near}` : (complete ? "" : `- 眼前目标：${gap}`),
+    after ? `- 玩一阵之后：${after}` : (complete ? "" : `- 玩一阵之后：${gap}`),
+  ].filter(Boolean);
+  return `### 成长与变化
+${lines.join("\n")}`;
+}
+
+function interactionBlock(m: GddModel, gap: string): string {
+  const i = m.interaction || { verb: "", target: "", chain: "", feedback: "" };
+  return `### 核心交互
+- 主要操作：${line(i.verb, gap)}
+- 操作对象：${line(i.target, gap)}
+- 交互链路：${line(i.chain, gap)}
+- 即时反馈：${line(i.feedback, gap)}`;
+}
+
 function poolSection(m: GddModel): string {
   const lines = (Object.keys(POOL_LABELS) as (keyof KeywordPools)[])
     .map((k) => {
@@ -68,14 +96,15 @@ export function renderGdd(m: GddModel): string {
   const complete = isComplete(m);
   const gap = complete ? "本游戏无此项，不单列。" : "（未写）";
 
-  const extraConst = (m.constitution.extras || []).map(asGddText).filter(Boolean).map((x) => `- ${x}`).join("\n");
   const constitution = [
-    `- 核心幻想：${line(m.constitution.coreFantasy || m.coreFantasy, gap)}`,
-    `- 核心循环：${line(m.constitution.coreLoop || m.loop.micro, gap)}`,
-    `- 美术规则：${line(m.constitution.artRule || m.aesthetic, gap)}`,
-    `- 内容边界：${line(m.constitution.contentBoundary, gap)}`,
-    `- 呈现边界：${line(m.constitution.presentationBoundary || m.presentation.dimension, gap)}`,
-    extraConst,
+    optionalLabeled("核心幻想", m.constitution.coreFantasy || m.coreFantasy),
+    optionalLabeled("核心循环", m.constitution.coreLoop || m.loop.micro),
+    optionalLabeled("美术规则", m.constitution.artRule || m.aesthetic),
+    optionalLabeled("内容边界", m.constitution.contentBoundary),
+    optionalLabeled("呈现边界", m.constitution.presentationBoundary || m.presentation.dimension),
+    optionalLabeled("成长规则", m.constitution.growthRule),
+    optionalLabeled("世界观规则", m.constitution.worldRule),
+    optionalLabeled("UI 规则", m.constitution.uiRule),
   ].filter(Boolean).join("\n");
 
   let contentBody = line(m.content, "");
@@ -143,6 +172,8 @@ ${refBlock ? `\n${refBlock}\n` : ""}
 ### 核心动作
 ${line(m.coreAction, gap)}
 
+${interactionBlock(m, gap)}
+
 ### 核心游戏循环
 - 微循环（约 30 秒 / 头几秒）：${line(m.loop.micro, gap)}
 - 中循环（约 5 分钟）：${mid}
@@ -154,9 +185,15 @@ ${(() => {
     return items.length ? items.map((item, i) => `${i + 1}. ${item}`).join("\n") : `1. ${gap}`;
   })()}
 
+### 核心爽点
+${line(m.coreDelight, gap)}
+
 ### 奖励节奏
 ${line(m.reward, gap)}
-
+${(() => {
+    const g = growthBlock(m, complete, gap);
+    return g ? `\n${g}\n` : "";
+  })()}
 ## 3. Win · Lose
 
 - 胜利：${line(m.winRule, gap)}

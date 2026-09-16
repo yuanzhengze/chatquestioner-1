@@ -1,9 +1,14 @@
 import {
   type GddModel,
   emptyGddModel,
+  emptyConstitution,
   asGddText,
+  absorbLabeledConstitution,
+  composeInteractionChain,
+  isConcreteInteractionChain,
 } from "@cq/gdd";
 import type { ConversationState } from "./state.js";
+import { hasGrowthSkipEvidence } from "./growthSkip.js";
 
 const PLATFORM_ZH: Record<string, string> = { PC: "电脑", mobile: "手机", web: "网页" };
 const DIM_ZH: Record<string, string> = { "2D": "平面", "3D": "能转视角的立体" };
@@ -40,6 +45,20 @@ function asList(v: unknown): string[] {
 
 function joinZh(values: unknown, map: Record<string, string>): string {
   return asList(values).map((v) => map[v] || v).filter(Boolean).join(" / ");
+}
+
+function derivedGrowthRule(state: ConversationState, existing: string): string {
+  const explicit = asGddText(existing);
+  if (explicit) return explicit;
+  const g = state.growth || {};
+  const parts = [
+    asGddText(g.unlocks) ? `越玩越多：${asGddText(g.unlocks)}` : "",
+    asGddText(g.nearGoal) ? `眼前目标：${asGddText(g.nearGoal)}` : "",
+    asGddText(g.afterTenMin) ? `玩一阵之后：${asGddText(g.afterTenMin)}` : "",
+  ].filter(Boolean);
+  if (parts.length) return parts.join("；");
+  if (g.none && hasGrowthSkipEvidence(state)) return "本游戏无独立成长";
+  return "";
 }
 
 function compactDup(s: string): string {
@@ -168,7 +187,27 @@ export function toGddModel(state: ConversationState): GddModel {
   m.playerIdentity = fantasy.secondary.replace(/。{2,}/g, "。");
   m.differentiator = pick(state.differentiator);
   m.references = { borrow: asList(state.references), avoid: asList(state.avoidReferences) };
-  m.coreAction = pick(state.coreAction);
+  m.coreAction = pick(state.coreAction, state.interaction?.chain);
+  const composedChain = composeInteractionChain(
+    state.interaction?.verb,
+    state.interaction?.target,
+    state.interaction?.feedback,
+  );
+  const chain = pick(state.interaction?.chain, composedChain);
+  m.interaction = {
+    verb: pick(state.interaction?.verb),
+    target: pick(state.interaction?.target),
+    chain: isConcreteInteractionChain(chain) ? chain : "",
+    feedback: pick(state.interaction?.feedback),
+  };
+  if (!m.coreAction) m.coreAction = m.interaction.chain;
+  m.coreDelight = pick(state.coreDelight);
+  m.growth = {
+    none: Boolean(state.growth?.none),
+    unlocks: pick(state.growth?.unlocks),
+    nearGoal: pick(state.growth?.nearGoal),
+    afterTenMin: pick(state.growth?.afterTenMin),
+  };
   const longTerm = pick(state.loop?.longTerm);
   m.loop = {
     micro: pick(state.loop?.thirtySec),
@@ -210,23 +249,41 @@ export function toGddModel(state: ConversationState): GddModel {
     motivation: shortKeywords(state.keywordPools?.motivation),
   };
   const cf = state.constitutionFields;
-  m.constitution = {
-    coreFantasy: pick(cf?.coreFantasy, state.coreFantasy, state.coreExperience),
-    coreLoop: pick(cf?.coreLoop, state.loop?.fiveMin, state.loop?.thirtySec),
-    artRule: pick(cf?.artRule, state.aesthetic),
-    contentBoundary: pick(cf?.contentBoundary)
-      || (asList(state.avoidReferences).length ? `避开${asList(state.avoidReferences).join("、")}` : "")
-      || (state.presentation?.players === "自己玩" ? "单机体验，不做人与人的强制社交" : ""),
-    presentationBoundary: pick(
-      cf?.presentationBoundary,
+  const constitution = emptyConstitution();
+  constitution.coreFantasy = pick(cf?.coreFantasy);
+  constitution.coreLoop = pick(cf?.coreLoop);
+  constitution.artRule = pick(cf?.artRule);
+  constitution.contentBoundary = pick(cf?.contentBoundary);
+  constitution.presentationBoundary = pick(cf?.presentationBoundary);
+  constitution.growthRule = pick(cf?.growthRule);
+  constitution.worldRule = pick(cf?.worldRule);
+  constitution.uiRule = pick(cf?.uiRule);
+  absorbLabeledConstitution(constitution, [...asList(cf?.extras), ...asList(state.constitution)]);
+  if (!asGddText(constitution.coreFantasy)) {
+    constitution.coreFantasy = pick(state.coreFantasy, state.coreExperience);
+  }
+  if (!asGddText(constitution.coreLoop)) {
+    constitution.coreLoop = pick(state.loop?.fiveMin, state.loop?.thirtySec);
+  }
+  if (!asGddText(constitution.artRule)) {
+    constitution.artRule = pick(state.aesthetic);
+  }
+  if (!asGddText(constitution.contentBoundary)) {
+    constitution.contentBoundary = (asList(state.avoidReferences).length ? `避开${asList(state.avoidReferences).join("、")}` : "")
+      || (state.presentation?.players === "自己玩" ? "单机体验，不做人与人的强制社交" : "");
+  }
+  if (!asGddText(constitution.presentationBoundary)) {
+    constitution.presentationBoundary = pick(
       [state.presentation?.where, state.presentation?.orientation, state.presentation?.dimension, state.presentation?.players]
         .map((x) => asGddText(x))
         .filter(Boolean)
         .join("，"),
       state.presentation?.dimension,
-    ),
-    extras: [...asList(cf?.extras), ...asList(state.constitution)],
-  };
+    );
+  }
+  constitution.growthRule = derivedGrowthRule(state, constitution.growthRule);
+  constitution.extras = [];
+  m.constitution = constitution;
   m.presentation = {
     where: normalizeWhere(pick(state.presentation?.where)) || joinZh(state.engineering?.platform, PLATFORM_ZH),
     dimension: pick(state.presentation?.dimension)

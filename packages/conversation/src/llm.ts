@@ -194,14 +194,15 @@ const TURN_DIRECTIVE_HEAD = `
 
 state_delta 允许的键（全部可选，只填有把握的）：
 - 体验：spark, references[], avoidReferences[], coreEmotion, forbiddenEmotion, coreFantasy, coreAction,
-  theme, world, narrative, playerIdentity, aesthetic, gameFeel, juice[]
+  theme, world, narrative, playerIdentity, aesthetic, gameFeel, juice[],
+  interaction{verb,target,feedback,chain}, coreDelight, growth{none,unlocks,nearGoal,afterTenMin}
 - 循环：loop{thirtySec,fiveMin,thirtyMin,longTerm}, reward, failRule, winRule, mechanics[],
   difficultyCurve, replayMotivation, difficulty{ramp,firstMinutes,fatigue}
 - 呈现：presentation{where,dimension,orientation,players,assets}
 - 内容：content{overview,levels,boss,progression,multiplayer,flags{levels,boss,progression,multiplayer}}
 - 收敛：workingTitle, pitch, coreExperience, differentiator,
   keywordPools{gameplay[],emotion[],world[],visual[],narrative[],motivation[]},
-  constitutionFields{coreFantasy,coreLoop,artRule,contentBoundary,presentationBoundary,extras[]}
+  constitutionFields{coreFantasy,coreLoop,artRule,contentBoundary,presentationBoundary,growthRule,worldRule,uiRule}
 - 工程线索（能确定才填，不做出稿门槛）：engineering{dimension,platform[],orientation,networking,modalities[],genre,mechanics[],artStyle}
 
 规则：

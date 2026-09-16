@@ -1,3 +1,5 @@
+import { isConcreteInteractionChain } from "./interaction.js";
+
 export interface KeywordPools {
   gameplay: string[];
   emotion: string[];
@@ -13,8 +15,33 @@ export interface Constitution {
   artRule: string;
   contentBoundary: string;
   presentationBoundary: string;
+  growthRule: string;
+  worldRule: string;
+  uiRule: string;
+  /** 旧会话兼容；渲染宪法时不打印。 */
   extras: string[];
 }
+
+export type ConstitutionScalarKey =
+  | "coreFantasy"
+  | "coreLoop"
+  | "artRule"
+  | "contentBoundary"
+  | "presentationBoundary"
+  | "growthRule"
+  | "worldRule"
+  | "uiRule";
+
+const CONSTITUTION_LABEL_KEYS: Array<{ names: string[]; key: ConstitutionScalarKey }> = [
+  { names: ["核心幻想"], key: "coreFantasy" },
+  { names: ["核心循环"], key: "coreLoop" },
+  { names: ["美术规则"], key: "artRule" },
+  { names: ["内容边界"], key: "contentBoundary" },
+  { names: ["呈现边界", "技术/呈现边界", "技术边界"], key: "presentationBoundary" },
+  { names: ["数值/成长规则", "数值成长规则", "成长规则"], key: "growthRule" },
+  { names: ["世界观规则"], key: "worldRule" },
+  { names: ["UI 规则", "UI规则"], key: "uiRule" },
+];
 
 export interface ContentFlags {
   levels: boolean;
@@ -35,6 +62,9 @@ export interface GddModel {
   differentiator: string;
   references: { borrow: string[]; avoid: string[] };
   coreAction: string;
+  interaction: { verb: string; target: string; chain: string; feedback: string };
+  coreDelight: string;
+  growth: { none: boolean; unlocks: string; nearGoal: string; afterTenMin: string };
   loop: { micro: string; mid: string; macro: string; longTerm: string };
   mechanics: string[];
   reward: string;
@@ -82,6 +112,9 @@ export function emptyConstitution(): Constitution {
     artRule: "",
     contentBoundary: "",
     presentationBoundary: "",
+    growthRule: "",
+    worldRule: "",
+    uiRule: "",
     extras: [],
   };
 }
@@ -99,6 +132,9 @@ export function emptyGddModel(): GddModel {
     differentiator: "",
     references: { borrow: [], avoid: [] },
     coreAction: "",
+    interaction: { verb: "", target: "", chain: "", feedback: "" },
+    coreDelight: "",
+    growth: { none: false, unlocks: "", nearGoal: "", afterTenMin: "" },
     loop: { micro: "", mid: "", macro: "", longTerm: "" },
     mechanics: [],
     reward: "",
@@ -129,6 +165,27 @@ export function asGddText(v: unknown): string {
   return "";
 }
 
+/** 把「核心幻想：…」这类已确认行写入对应宪法栏；对不上的（失败/爽点/难度）返回 false。 */
+export function applyLabeledConstitutionLine(cf: Constitution, line: string): boolean {
+  const t = asGddText(line);
+  if (!t) return false;
+  for (const row of CONSTITUTION_LABEL_KEYS) {
+    for (const name of row.names) {
+      if (t.startsWith(`${name}：`) || t.startsWith(`${name}:`)) {
+        const val = t.slice(name.length + 1).trim();
+        if (val && !asGddText(cf[row.key])) cf[row.key] = val;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function absorbLabeledConstitution(cf: Constitution, lines: unknown): void {
+  if (!Array.isArray(lines)) return;
+  for (const item of lines) applyLabeledConstitutionLine(cf, asGddText(item));
+}
+
 function filled(s: unknown): boolean {
   return Boolean(asGddText(s));
 }
@@ -144,6 +201,9 @@ export function isSubstantive(m: GddModel): boolean {
     || m.mechanics.length > 0
     || m.constitution.extras.length > 0
     || filled(m.constitution.coreFantasy)
+    || filled(m.constitution.growthRule)
+    || filled(m.constitution.worldRule)
+    || filled(m.constitution.uiRule)
     || Object.values(m.keywordPools).some((pool) => pool.length > 0);
 }
 
@@ -154,6 +214,9 @@ export const COMPLETE_FIELD_ZH: Record<string, string> = {
   coreEmotion: "主情感",
   forbiddenEmotion: "禁止情感",
   coreFantasy: "核心幻想或玩家身份",
+  interaction: "核心交互",
+  coreDelight: "核心爽点",
+  growth: "成长与变化",
   "loop.micro": "头几秒玩家在做什么",
   mechanics: "至少两件反复做的事",
   winLose: "怎样算赢、失误有什么麻烦",
@@ -185,6 +248,8 @@ export function missingCompleteFields(m: GddModel): string[] {
   if (!filled(m.coreEmotion)) miss.push("coreEmotion");
   if (!filled(m.forbiddenEmotion)) miss.push("forbiddenEmotion");
   if (!filled(m.coreFantasy) && !filled(m.playerIdentity)) miss.push("coreFantasy");
+  if (!isConcreteInteractionChain(m.interaction?.chain)) miss.push("interaction");
+  if (!filled(m.coreDelight)) miss.push("coreDelight");
   if (!filled(m.loop.micro)) miss.push("loop.micro");
   const mechs = m.mechanics.map(asGddText).filter(Boolean);
   const action = asGddText(m.coreAction);
@@ -202,7 +267,22 @@ export function missingCompleteFields(m: GddModel): string[] {
   if (!filled(m.presentation.where) || !filled(m.presentation.dimension)) miss.push("presentation");
   if (m.contentFlags.levels && !filled(m.contentDetail.levels)) miss.push("content.levels");
   if (m.contentFlags.boss && !filled(m.contentDetail.boss)) miss.push("content.boss");
-  if (m.contentFlags.progression && !filled(m.contentDetail.progression)) miss.push("content.progression");
+  if (m.contentFlags.progression && !m.growth?.none && !filled(m.contentDetail.progression)) {
+    miss.push("content.progression");
+  }
+  const talkedGrowth = Boolean(
+    m.contentFlags.progression
+    || filled(m.growth?.unlocks)
+    || filled(m.growth?.nearGoal)
+    || filled(m.growth?.afterTenMin),
+  );
+  if (talkedGrowth && !m.growth?.none) {
+    const hasGrowth = filled(m.growth?.unlocks)
+      || filled(m.growth?.nearGoal)
+      || filled(m.growth?.afterTenMin)
+      || filled(m.contentDetail.progression);
+    if (!hasGrowth) miss.push("growth");
+  }
   if (m.contentFlags.multiplayer && !filled(m.contentDetail.multiplayer)) miss.push("content.multiplayer");
   return miss;
 }

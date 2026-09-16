@@ -23,7 +23,7 @@ describe("clarify skill adapter", () => {
   it("引导模式从一开始就附问法参考；完整度清单只在允许总结时附", () => {
     const early = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 0 });
     const mid = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 6 });
-    const late = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 8 });
+    const late = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 10 });
     expect(early).toContain("问法内核");
     expect(early).not.toContain("不得带病写盘");
     expect(mid).not.toContain("不得带病写盘");
@@ -55,9 +55,9 @@ describe("clarify skill adapter", () => {
     expect(core).not.toContain("## 收敛确认");
   });
 
-  it("stage<8 不附 SKILL 收敛落盘模板；允许总结时才附", () => {
+  it("stage<10 不附 SKILL 收敛落盘模板；允许总结时才附", () => {
     const early = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 6 });
-    const late = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 8 });
+    const late = buildClarifySystemPrompt({ skillDir, mode: "guide", stage: 10 });
     expect(early).not.toContain("先口头给一份人话版概念总结");
     expect(early).not.toContain("## 7. 收敛与落盘");
     expect(late).toContain("先口头给一份人话版概念总结");

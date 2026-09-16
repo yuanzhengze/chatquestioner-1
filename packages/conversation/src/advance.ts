@@ -12,7 +12,7 @@ import {
 } from "./llm.js";
 import { parseTurnOutput, STATE_SENTINEL, designOptionsOnly, recoverOptionsFromProse, type ParsedTurn, type TurnOption } from "./turn.js";
 import { mergeStateDelta } from "./merge.js";
-import { nextStage, buildGuideStageHint, askStageOf, markStageAsked } from "./stages.js";
+import { nextStage, buildGuideStageHint, askStageOf, markStageAsked, CONVERGENCE_STAGE } from "./stages.js";
 import { normalizeConversationState, type ConversationState, type OptionPhase } from "./state.js";
 import { buildKnowledgeContext, type Retriever } from "./retrieval.js";
 import { buildClarifySystemPrompt } from "./clarifySkill.js";
@@ -320,7 +320,7 @@ export async function advance(
   const alreadyHadDoc = Boolean(prev.readyForSynthesis);
   const convChoice = interpretConvergenceChoice(userInput, prev.lastOptions);
   const wantsDocNow = historyWantsPreview(state.history, userInput, prev.lastOptions);
-  if (canWriteSummary(state) && typeof state.summaryEligibleFrom !== "number" && prev.stage >= 8) {
+  if (canWriteSummary(state) && typeof state.summaryEligibleFrom !== "number" && prev.stage >= CONVERGENCE_STAGE) {
     state.summaryEligibleFrom = 0;
   }
   const generating = convChoice === "finalize" || Boolean(wantsDocNow && !alreadyHadDoc);

@@ -318,7 +318,7 @@ describe("advance", () => {
       turn("记下了这一块。", { state_delta: {} }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "猫咪帝国";
     s.pitch = "猫RTS";
     s.coreEmotion = "反差萌";
@@ -354,7 +354,7 @@ describe("advance", () => {
       }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "猫咪帝国";
     s.pitch = "猫RTS";
     s.coreEmotion = "反差萌";
@@ -465,7 +465,7 @@ describe("advance", () => {
       turn("蓝图已经记下了。", { state_delta: {} }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "九龙城寨开火焦虑";
     s.coreEmotion = "压抑";
     s.pitch = "城寨幽鸣";
@@ -487,7 +487,7 @@ describe("advance", () => {
     expect(res.state.gddDraftBar).toBe(false);
   });
 
-  it("第 8 节且本轮写出合格概念总结时，给出定稿三选", async () => {
+  it("第 10 节且本轮写出合格概念总结时，给出定稿三选", async () => {
     const llm = scriptedLlm([
       turn("> 📌 **暂定名**：《城寨：风水魇》\n> 📌 **一句话亮点**：开火即逃亡。", {
         state_delta: { workingTitle: "城寨：风水魇" },
@@ -500,7 +500,7 @@ describe("advance", () => {
       }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "九龙城寨开火焦虑";
     s.coreEmotion = "压抑";
     const res = await advance(s, "继续", { llm, systemPrompt: SYS });
@@ -523,7 +523,7 @@ describe("advance", () => {
       ),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "荒岛求生";
     s.coreEmotion = "紧张";
     s.pitch = "沙盘荒岛";
@@ -536,7 +536,7 @@ describe("advance", () => {
     expect(res.state.history.at(-1)?.content).toContain("破晓求生：机械遗迹");
   });
 
-  it("未到第 8 节时历史里的合格总结也不换三选、不跳节", async () => {
+  it("未到第 10 节时历史里的合格总结也不换三选、不跳节", async () => {
     const llm = scriptedLlm([
       turn("界面要不要做？", {
         state_delta: {},
@@ -566,7 +566,7 @@ describe("advance", () => {
     expect(res.state.stage).toBe(7);
   });
 
-  it("第 7 节本轮写出合格总结时出定稿三选，人话保留，不跳到第 8 节", async () => {
+  it("第 7 节本轮写出合格总结时出定稿三选，人话保留，不跳到第 10 节", async () => {
     const llm = scriptedLlm([
       turn(
         "> 📌 **暂定名**：《极简超市：禅意收纳》\n> **一句话亮点**：严丝合缝收纳。\n\n> ❓ 礼盒订单更像俄罗斯方块还是盲盒？",
@@ -634,7 +634,7 @@ describe("advance", () => {
       }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.optionPhase = "interview";
     s.spark = "三十夜荒野";
     s.summaryEligibleFrom = 0;
@@ -665,7 +665,7 @@ describe("advance", () => {
       }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.optionPhase = "interview";
     s.spark = "三十夜荒野";
     s.summaryEligibleFrom = 0;
@@ -687,7 +687,7 @@ describe("advance", () => {
     expect(res.state.optionPhase).toBe("interview");
   });
 
-  it("已到第 8 节但还没有合格总结时，JSON 定稿项也不换卡，仍出设计选项", async () => {
+  it("已到第 10 节但还没有合格总结时，JSON 定稿项也不换卡，仍出设计选项", async () => {
     const llm = scriptedLlm([
       turn("咱们的游戏骨架已经非常清晰了！你希望玩家主要在什么设备上玩？", {
         state_delta: {},
@@ -700,7 +700,7 @@ describe("advance", () => {
       }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.optionPhase = "interview";
     s.spark = "收集建造生存";
     const res = await advance(s, "上强度就这样", { llm, systemPrompt: SYS });
@@ -711,7 +711,7 @@ describe("advance", () => {
     expect(res.readyForSynthesis).toBe(false);
   });
 
-  it("引导答了很多轮但还没有概念总结、也没到第 8 节时，仍出设计选项", async () => {
+  it("引导答了很多轮但还没有概念总结、也没到第 10 节时，仍出设计选项", async () => {
     const llm = scriptedLlm([
       turn("再问一个界面？", {
         state_delta: {},
@@ -742,7 +742,7 @@ describe("advance", () => {
       turn("记下了，按这份蓝图出草稿。", { state_delta: {} }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "九龙城寨";
     s.coreEmotion = "压抑";
     s.pitch = "风水魇";
@@ -813,13 +813,13 @@ describe("advance", () => {
       turn("互坑这一块记下了。", { state_delta: { mechanics: ["干扰键随时打断心跳"] } }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "天鹅颈";
     s.pitch = "潮玩拔鹅";
     s.coreEmotion = "紧张";
     s.presentation.where = "电视";
     s.presentation.dimension = "立体";
-    s.askedStages = [2, 3, 4, 5, 6, 7];
+    s.askedStages = [2, 3, 4, 5, 6, 7, 8, 9];
     s.summaryEligibleFrom = 0;
     s.history = [
       {
@@ -855,7 +855,7 @@ describe("advance", () => {
       }),
     ]);
     const s = accepted();
-    s.stage = 8;
+    s.stage = 10;
     s.spark = "天鹅颈";
     s.pitch = "潮玩拔鹅";
     s.coreEmotion = "紧张";

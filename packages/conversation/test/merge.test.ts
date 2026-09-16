@@ -83,4 +83,23 @@ describe("mergeStateDelta", () => {
     expect(s.mechanics).toEqual(["香火显形", "护香救人封门"]);
     expect(s.juice).toEqual(["鸡鸣天亮"]);
   });
+
+  it("拒绝空泛玩法类型词，收下带箭头的具体链路", () => {
+    const s = createInitialState();
+    mergeStateDelta(s, { interaction: { chain: "经营农场" } });
+    expect(s.interaction.chain).toBeUndefined();
+    mergeStateDelta(s, {
+      interaction: {
+        verb: "点击",
+        target: "空田",
+        feedback: "作物破土",
+        chain: "点击空田 → 选择种子 → 播种 → 作物破土",
+      },
+      coreDelight: "破土那一下",
+      growth: { none: true },
+    });
+    expect(s.interaction.chain).toContain("→");
+    expect(s.coreDelight).toContain("破土");
+    expect(s.growth.none).toBe(true);
+  });
 });

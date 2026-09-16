@@ -10,7 +10,7 @@ const { sectionsFromModel } = createRequire(import.meta.url)("../../../apps/mini
 
 function readyState() {
   const s = createInitialState();
-  s.stage = 8;
+  s.stage = 10;
   s.workingTitle = "猫咪连连看";
   s.pitch = "一个关于治愈系猫咪连连看的解压小游戏";
   s.coreFantasy = "成为照顾猫咪的人";
@@ -45,7 +45,8 @@ describe("toGddModel", () => {
       longTerm: "图鉴收集",
     });
     expect(m.references).toEqual({ borrow: ["开心消消乐"], avoid: ["重度肝氪卡牌"] });
-    expect(m.constitution.extras).toContain("核心循环：连同色猫消除");
+    expect(m.constitution.coreLoop).toContain("连同色猫消除");
+    expect(m.constitution.extras).toEqual([]);
     expect(m.presentation.where).toBe("手机");
     expect(m.presentation.dimension).toBe("平面");
   });
@@ -189,6 +190,68 @@ describe("toGddModel", () => {
     expect(md).toContain("### 多人");
     expect(md).not.toContain("关键词池");
     expect(md).not.toContain("禁止情感：");
+  });
+
+  it("How 含交互与爽点；空核心动作由链路补上", () => {
+    const s = createInitialState();
+    s.interaction = {
+      verb: "点击",
+      target: "空田",
+      feedback: "作物破土",
+      chain: "点击空田 → 选择种子 → 播种 → 作物破土",
+    };
+    s.coreDelight = "破土弹出成长时间";
+    const m = toGddModel(s);
+    expect(m.coreAction).toContain("点击空田");
+    expect(m.interaction.chain).toContain("→");
+    const md = renderGdd(m);
+    expect(md).toContain("### 核心交互");
+    expect(md).toContain("### 核心爽点");
+    expect(md).toContain("破土弹出成长时间");
+    const how = sectionsFromModel(m, false).find((x) => x.id === "how");
+    expect(how?.lines.some((l) => l.includes("交互链路"))).toBe(true);
+    expect(how?.lines.some((l) => l.includes("核心爽点"))).toBe(true);
+  });
+
+  it("短局成长整节只留无独立成长", () => {
+    const s = createInitialState();
+    s.growth = { none: true };
+    const m = toGddModel(s);
+    expect(m.growth.none).toBe(true);
+    const md = renderGdd(m);
+    expect(md).toContain("本游戏无独立成长");
+    expect(md).not.toContain("眼前目标");
+    const how = sectionsFromModel(m, true).find((x) => x.id === "how");
+    expect(how?.lines.some((l) => l.includes("本游戏无独立成长"))).toBe(true);
+    expect(how?.lines.some((l) => l.includes("眼前目标"))).toBe(false);
+  });
+
+  it("宪法只印八项；extras 失败/爽点不进宪法；none 无证据不写成长规则", () => {
+    const s = createInitialState();
+    s.constitution = ["核心循环：连同色猫消除"];
+    s.constitutionFields.extras = ["失败规则：针扎空", "最舍不得删的瞬间：猫爪", "难度节奏：越来越密"];
+    s.growth = { none: true };
+    const m = toGddModel(s);
+    expect(m.constitution.coreLoop).toContain("连同色猫消除");
+    expect(m.constitution.growthRule).toBe("");
+    expect(m.constitution.extras).toEqual([]);
+    const md = renderGdd(m);
+    expect(md).not.toContain("失败规则：针扎空");
+    expect(md).not.toContain("最舍不得删的瞬间：猫爪");
+    expect(md).not.toContain("难度节奏：越来越密");
+    expect(md).not.toContain("成长规则");
+    const card = sectionsFromModel(m, false).find((x) => x.id === "constitution");
+    expect(card?.lines.some((l) => l.includes("失败规则"))).toBe(false);
+    expect(card?.lines.some((l) => l.startsWith("成长规则"))).toBe(false);
+  });
+
+  it("用户或循环标明短局才把无独立成长写入成长规则", () => {
+    const s = createInitialState();
+    s.growth = { none: true };
+    s.loop.fiveMin = "短单局，无长线";
+    const m = toGddModel(s);
+    expect(m.constitution.growthRule).toBe("本游戏无独立成长");
+    expect(renderGdd(m)).toContain("- 成长规则：本游戏无独立成长");
   });
 });
 

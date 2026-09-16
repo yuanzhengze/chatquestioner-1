@@ -59,7 +59,7 @@ export interface EngineeringSignals {
 
 /** 贯穿全程的结构化状态：GDD 的事实源。 */
 export interface ConversationState {
-  /** 当前阶段 0..8（7 呈现，8 收敛） */
+  /** 当前阶段 0..10（9 呈现，10 收敛） */
   stage: number;
   guidance: Guidance;
 
@@ -70,6 +70,21 @@ export interface ConversationState {
   forbiddenEmotion?: string;
   coreFantasy?: string;
   coreAction?: string;
+  /** 核心交互：怎么操作、操作谁、立刻怎样。 */
+  interaction: {
+    verb?: string;
+    target?: string;
+    feedback?: string;
+    chain?: string;
+  };
+  /** 最舍不得删的一个好玩瞬间 */
+  coreDelight?: string;
+  growth: {
+    none?: boolean;
+    unlocks?: string;
+    nearGoal?: string;
+    afterTenMin?: string;
+  };
   theme?: string;
   world?: string;
   narrative?: string;
@@ -109,7 +124,7 @@ export interface ConversationState {
   askedStages: number[];
   /** 当前该弹采访选项、收敛三选，还是补一块的设计选项 */
   optionPhase?: OptionPhase;
-  /** 第一次到达第 8 节时的历史下标；此前的 📌 不算合格总结 */
+  /** 第一次到达收敛节时的历史下标；此前的 📌 不算合格总结 */
   summaryEligibleFrom?: number;
 }
 
@@ -121,6 +136,8 @@ export function createInitialState(): ConversationState {
     avoidReferences: [],
     juice: [],
     loop: {},
+    interaction: {},
+    growth: {},
     mechanics: [],
     keywordPools: emptyKeywordPools(),
     risks: [],
@@ -148,7 +165,18 @@ export function normalizeConversationState(state: ConversationState): Conversati
   }
   if (!Array.isArray(state.mechanics)) state.mechanics = [];
   if (!Array.isArray(state.constitution)) state.constitution = [];
-  if (!state.constitutionFields) state.constitutionFields = emptyConstitution();
+  if (!state.constitutionFields) {
+    state.constitutionFields = emptyConstitution();
+  } else {
+    const base = emptyConstitution();
+    state.constitutionFields = {
+      ...base,
+      ...state.constitutionFields,
+      extras: Array.isArray(state.constitutionFields.extras)
+        ? state.constitutionFields.extras
+        : [],
+    };
+  }
   if (!state.presentation) state.presentation = {};
   if (!state.difficulty) state.difficulty = {};
   if (!state.content || typeof state.content !== "object") {
@@ -157,6 +185,8 @@ export function normalizeConversationState(state: ConversationState): Conversati
     state.content.flags = { levels: false, boss: false, progression: false, multiplayer: false };
   }
   if (!state.loop) state.loop = {};
+  if (!state.interaction || typeof state.interaction !== "object") state.interaction = {};
+  if (!state.growth || typeof state.growth !== "object") state.growth = {};
   if (!state.keywordPools) state.keywordPools = emptyKeywordPools();
   if (!Array.isArray(state.askedStages)) state.askedStages = [];
   if (

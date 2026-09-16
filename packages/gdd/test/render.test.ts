@@ -17,6 +17,14 @@ function completeModel() {
   m.differentiator = "踩奶节奏的呼噜反馈";
   m.references = { borrow: ["Onet"], avoid: ["硬核计时压力"] };
   m.coreAction = "连同色猫";
+  m.interaction = {
+    verb: "划线",
+    target: "同色猫",
+    chain: "划线 → 同色猫 → 连消除并响起呼噜",
+    feedback: "呼噜与连消",
+  };
+  m.coreDelight = "连击时满屏猫爪烟花";
+  m.growth = { none: false, unlocks: "解锁新猫", nearGoal: "凑齐连击", afterTenMin: "能开新主题猫咖" };
   m.loop = { micro: "看猫连线", mid: "凑连击", macro: "解锁新猫", longTerm: "" };
   m.mechanics = ["划线连接", "连击奖励"];
   m.reward = "分数闪光";
@@ -41,9 +49,12 @@ function completeModel() {
     coreFantasy: "成为治愈系撸猫大师",
     coreLoop: "看猫连线",
     artRule: "水彩暖色",
-    contentBoundary: "",
+    contentBoundary: "单机体验，不做人与人的强制社交",
     presentationBoundary: "平面",
-    extras: ["核心幻想：治愈撸猫"],
+    growthRule: "解锁新猫",
+    worldRule: "",
+    uiRule: "",
+    extras: ["失败规则：时间耗尽", "最舍不得删的瞬间：猫爪烟花"],
   };
   m.presentation = { where: "手机", dimension: "平面", orientation: "竖屏", players: "自己玩", assets: "插画 / 音乐音效" };
   m.difficulty = { ramp: "猫变多", firstMinutes: "轻松上手", fatigue: "配色太近时换主题" };
@@ -56,10 +67,20 @@ describe("renderGdd", () => {
     expect(md).toContain("# 猫咪连连看");
     expect(md).toContain("一个关于把同色猫咪连起来解压的游戏。");
     expect(md).toContain("## 游戏宪法");
-    expect(md).toContain("核心幻想：治愈撸猫");
+    expect(md).toContain("核心幻想：成为治愈系撸猫大师");
+    expect(md).toContain("成长规则：解锁新猫");
+    expect(md).not.toContain("失败规则：时间耗尽");
+    expect(md).not.toContain("最舍不得删的瞬间：猫爪烟花");
+    expect(md).not.toContain("世界观规则");
+    expect(md).not.toContain("UI 规则");
     expect(md).toContain("参考作品");
     expect(md).toContain("Onet");
     expect(md).not.toContain("（未写）");
+    expect(md).toContain("### 核心交互");
+    expect(md).toContain("划线 → 同色猫");
+    expect(md).toContain("### 核心爽点");
+    expect(md).toContain("猫爪烟花");
+    expect(md).toContain("### 成长与变化");
   });
 
   it("renders all six keyword pools", () => {
@@ -134,7 +155,19 @@ describe("complete gate", () => {
     const m = completeModel();
     m.contentFlags.progression = true;
     m.contentDetail.progression = "";
+    m.growth = { none: false, unlocks: "", nearGoal: "", afterTenMin: "" };
     expect(isComplete(m)).toBe(false);
     expect(missingCompleteFields(m)).toContain("content.progression");
+  });
+
+  it("短局无独立成长时省略成长细项，仍可定稿", () => {
+    const m = completeModel();
+    m.growth = { none: true, unlocks: "", nearGoal: "", afterTenMin: "" };
+    m.contentFlags.progression = false;
+    m.contentDetail.progression = "";
+    expect(isComplete(m)).toBe(true);
+    const md = renderGdd(m);
+    expect(md).toContain("本游戏无独立成长");
+    expect(md).not.toContain("眼前目标");
   });
 });

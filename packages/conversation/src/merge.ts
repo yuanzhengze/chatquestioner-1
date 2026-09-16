@@ -1,6 +1,6 @@
 import type { ConversationState, EngineeringSignals, LoopState, PresentationState, DifficultyState, ContentState } from "./state.js";
 import type { KeywordPools, Constitution, ContentFlags } from "@cq/gdd";
-import { asGddText } from "@cq/gdd";
+import { asGddText, composeInteractionChain, isConcreteInteractionChain } from "@cq/gdd";
 
 /** 一轮 LLM 抽取的状态增量（全可选，camelCase 对齐 ConversationState）。 */
 export interface StateDelta {
@@ -11,6 +11,9 @@ export interface StateDelta {
   forbiddenEmotion?: string;
   coreFantasy?: string;
   coreAction?: string;
+  interaction?: { verb?: string; target?: string; feedback?: string; chain?: string };
+  coreDelight?: string;
+  growth?: { none?: boolean; unlocks?: string; nearGoal?: string; afterTenMin?: string };
   theme?: string;
   world?: string;
   narrative?: string;
@@ -82,6 +85,9 @@ export function mergeStateDelta(
   setText(delta.forbiddenEmotion, (v) => (state.forbiddenEmotion = v));
   setText(delta.coreFantasy, (v) => (state.coreFantasy = v));
   setText(delta.coreAction, (v) => (state.coreAction = v));
+  setText(delta.coreDelight, (v) => (state.coreDelight = v));
+  applyInteraction(state, delta.interaction, false);
+  applyGrowth(state, delta.growth, false);
   setText(delta.theme, (v) => (state.theme = v));
   setText(delta.world, (v) => (state.world = v));
   setText(delta.narrative, (v) => (state.narrative = v));
@@ -180,7 +186,55 @@ export function mergeStateDelta(
     if (e.mechanics?.length && !opts?.replaceLists) state.mechanics = uniqMerge(state.mechanics, e.mechanics);
   }
 
+  finalizeInteraction(state);
   return state;
+}
+
+function applyInteraction(
+  state: ConversationState,
+  incoming: StateDelta["interaction"] | undefined,
+  fillEmpty: boolean,
+): void {
+  if (!incoming) return;
+  if (!state.interaction || typeof state.interaction !== "object") state.interaction = {};
+  const put = fillEmpty
+    ? (cur: unknown, next: unknown, apply: (v: string) => void) => setIfEmpty(cur, next, apply)
+    : (_cur: unknown, next: unknown, apply: (v: string) => void) => setText(next, apply);
+  put(state.interaction.verb, incoming.verb, (v) => (state.interaction.verb = v));
+  put(state.interaction.target, incoming.target, (v) => (state.interaction.target = v));
+  put(state.interaction.feedback, incoming.feedback, (v) => (state.interaction.feedback = v));
+  const chain = asGddText(incoming.chain);
+  if (chain && isConcreteInteractionChain(chain)) {
+    put(state.interaction.chain, chain, (v) => (state.interaction.chain = v));
+  }
+}
+
+function applyGrowth(
+  state: ConversationState,
+  incoming: StateDelta["growth"] | undefined,
+  fillEmpty: boolean,
+): void {
+  if (!incoming) return;
+  if (!state.growth || typeof state.growth !== "object") state.growth = {};
+  if (incoming.none === true) state.growth.none = true;
+  const put = fillEmpty
+    ? (cur: unknown, next: unknown, apply: (v: string) => void) => setIfEmpty(cur, next, apply)
+    : (_cur: unknown, next: unknown, apply: (v: string) => void) => setText(next, apply);
+  put(state.growth.unlocks, incoming.unlocks, (v) => (state.growth.unlocks = v));
+  put(state.growth.nearGoal, incoming.nearGoal, (v) => (state.growth.nearGoal = v));
+  put(state.growth.afterTenMin, incoming.afterTenMin, (v) => (state.growth.afterTenMin = v));
+}
+
+function finalizeInteraction(state: ConversationState): void {
+  if (!state.interaction || typeof state.interaction !== "object") state.interaction = {};
+  if (!isConcreteInteractionChain(state.interaction.chain)) {
+    const composed = composeInteractionChain(
+      state.interaction.verb,
+      state.interaction.target,
+      state.interaction.feedback,
+    );
+    if (composed) state.interaction.chain = composed;
+  }
 }
 
 function mergeConstitution(state: ConversationState, c: Partial<Constitution>, fillEmptyOnly = false): void {
@@ -194,6 +248,9 @@ function mergeConstitution(state: ConversationState, c: Partial<Constitution>, f
   put(state.constitutionFields.presentationBoundary, c.presentationBoundary, (v) => {
     state.constitutionFields.presentationBoundary = v;
   });
+  put(state.constitutionFields.growthRule, c.growthRule, (v) => (state.constitutionFields.growthRule = v));
+  put(state.constitutionFields.worldRule, c.worldRule, (v) => (state.constitutionFields.worldRule = v));
+  put(state.constitutionFields.uiRule, c.uiRule, (v) => (state.constitutionFields.uiRule = v));
   if (Array.isArray(c.extras)) {
     state.constitutionFields.extras = uniqMerge(state.constitutionFields.extras, c.extras);
   }
@@ -208,6 +265,9 @@ export function mergeFillEmpty(state: ConversationState, delta: StateDelta): Con
   setIfEmpty(state.forbiddenEmotion, delta.forbiddenEmotion, (v) => (state.forbiddenEmotion = v));
   setIfEmpty(state.coreFantasy, delta.coreFantasy, (v) => (state.coreFantasy = v));
   setIfEmpty(state.coreAction, delta.coreAction, (v) => (state.coreAction = v));
+  setIfEmpty(state.coreDelight, delta.coreDelight, (v) => (state.coreDelight = v));
+  applyInteraction(state, delta.interaction, true);
+  applyGrowth(state, delta.growth, true);
   setIfEmpty(state.theme, delta.theme, (v) => (state.theme = v));
   setIfEmpty(state.world, delta.world, (v) => (state.world = v));
   setIfEmpty(state.narrative, delta.narrative, (v) => (state.narrative = v));
@@ -285,5 +345,6 @@ export function mergeFillEmpty(state: ConversationState, delta: StateDelta): Con
     }
   }
 
+  finalizeInteraction(state);
   return state;
 }

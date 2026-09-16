@@ -69,6 +69,48 @@ function shortKeywords(vals) {
   return out.slice(0, 10);
 }
 
+function growthHow(state) {
+  var g = (state.growth && typeof state.growth === "object") ? state.growth : {};
+  var unlocks = asString(g.unlocks);
+  var near = asString(g.nearGoal);
+  var after = asString(g.afterTenMin);
+  if (g.none && !unlocks && !near && !after) {
+    return "### 成长与变化\n本游戏无独立成长\n\n";
+  }
+  if (!unlocks && !near && !after) return "";
+  var lines = ["### 成长与变化"];
+  if (unlocks) lines.push("- 越玩越多：" + unlocks);
+  if (near) lines.push("- 眼前目标：" + near);
+  if (after) lines.push("- 玩一阵之后：" + after);
+  return lines.join("\n") + "\n\n";
+}
+
+function labeledConst(label, value) {
+  var t = asString(value);
+  return t ? "- " + label + "：" + t + "\n" : "";
+}
+
+function growthSkipEvidence(state) {
+  var hist = Array.isArray(state.history) ? state.history : [];
+  var user = hist.filter(function (m) { return m && m.role === "user"; }).map(function (m) { return m.content || ""; }).join(" ");
+  var loop = (state.loop && typeof state.loop === "object") ? state.loop : {};
+  var g = (state.growth && typeof state.growth === "object") ? state.growth : {};
+  var blob = [user, g.unlocks, loop.fiveMin, loop.thirtyMin, loop.longTerm].join(" ");
+  return /短单局|无长线|一次性|纯叙事|无独立成长|没有解锁|三分钟一局/.test(blob);
+}
+
+function growthRuleFromState(state, cf) {
+  if (asString(cf.growthRule)) return asString(cf.growthRule);
+  var g = (state.growth && typeof state.growth === "object") ? state.growth : {};
+  var parts = [];
+  if (asString(g.unlocks)) parts.push("越玩越多：" + asString(g.unlocks));
+  if (asString(g.nearGoal)) parts.push("眼前目标：" + asString(g.nearGoal));
+  if (asString(g.afterTenMin)) parts.push("玩一阵之后：" + asString(g.afterTenMin));
+  if (parts.length) return parts.join("；");
+  if (g.none && growthSkipEvidence(state)) return "本游戏无独立成长";
+  return "";
+}
+
 /** 从会话 state 快照拼一份可读 GDD（synthesis 未到时的兜底）。 */
 function gddFromState(state) {
   if (!state) return "";
@@ -113,9 +155,6 @@ function gddFromState(state) {
     .filter(Boolean);
   var poolBlock = poolLines.length ? "### 关键词池\n\n" + poolLines.join("\n") + "\n\n" : "";
 
-  var extraConst = asList(cf.extras).concat(asList(state.constitution))
-    .map(function (x) { return "- " + x; })
-    .join("\n");
   var highs = collapseNearDup(asList(state.juice), 6);
   var highlight = highs.length
     ? highs.map(function (h) { return "- " + h; }).join("\n")
@@ -133,24 +172,35 @@ function gddFromState(state) {
   return "# " + title + "\n\n"
     + "> 一句话 Pitch：" + gap(pitch) + "\n\n"
     + "## 游戏宪法\n\n"
-    + "- 核心幻想：" + gap(asString(cf.coreFantasy) || fantasy) + "\n"
-    + "- 核心循环：" + gap(asString(cf.coreLoop) || mid || micro) + "\n"
-    + "- 美术规则：" + gap(asString(cf.artRule) || asString(state.aesthetic)) + "\n"
-    + (extraConst ? extraConst + "\n" : "")
+    + labeledConst("核心幻想", asString(cf.coreFantasy) || fantasy)
+    + labeledConst("核心循环", asString(cf.coreLoop) || mid || micro)
+    + labeledConst("美术规则", asString(cf.artRule) || asString(state.aesthetic))
+    + labeledConst("内容边界", asString(cf.contentBoundary))
+    + labeledConst("呈现边界", asString(cf.presentationBoundary) || asString(pres.dimension))
+    + labeledConst("成长规则", growthRuleFromState(state, cf))
+    + labeledConst("世界观规则", asString(cf.worldRule))
+    + labeledConst("UI 规则", asString(cf.uiRule))
     + "\n## 1. What · 这是什么游戏\n\n"
     + "### 核心体验陈述\n" + gap(experience) + "\n\n"
     + "### 核心情感\n" + emotionBlock + "\n\n"
     + "### 核心幻想 / 玩家身份\n" + gap([fantasy, identity].filter(Boolean).join("。").replace(/。{2,}/g, "。")) + "\n\n"
     + "### 差异化亮点\n" + gap(asString(state.differentiator)) + "\n\n"
     + "## 2. How · 怎么玩\n\n"
-    + "### 核心动作\n" + gap(asString(state.coreAction)) + "\n\n"
+    + "### 核心动作\n" + gap(asString(state.coreAction) || asString(state.interaction && state.interaction.chain)) + "\n\n"
+    + "### 核心交互\n"
+    + "- 主要操作：" + gap(asString(state.interaction && state.interaction.verb)) + "\n"
+    + "- 操作对象：" + gap(asString(state.interaction && state.interaction.target)) + "\n"
+    + "- 交互链路：" + gap(asString(state.interaction && state.interaction.chain)) + "\n"
+    + "- 即时反馈：" + gap(asString(state.interaction && state.interaction.feedback)) + "\n\n"
     + "### 核心游戏循环\n"
     + "- 微循环：" + gap(micro) + "\n"
     + "- 中循环：" + gap(mid) + "\n"
     + "- 宏循环：" + gap(macro) + "\n"
     + (longTerm && longTerm !== macro ? "- 长线：" + longTerm + "\n" : "")
     + "\n### 核心机制\n" + (mechanics.length ? mechanics.map(function (m, i) { return (i + 1) + ". " + m; }).join("\n") : "1. （未写）") + "\n\n"
+    + "### 核心爽点\n" + gap(asString(state.coreDelight)) + "\n\n"
     + "### 奖励节奏\n" + gap(asString(state.reward)) + "\n\n"
+    + growthHow(state)
     + "## 3. Win · Lose\n\n- 胜利：" + gap(asString(state.winRule)) + "\n- 失败：" + gap(asString(state.failRule)) + "\n- 重玩：" + gap(asString(state.replayMotivation) || asString(state.failRule)) + "\n\n"
     + "## 4. 世界、叙事与美学\n\n"
     + "### 世界与情境\n" + gap(asString(state.world) || asString(state.theme)) + "\n\n"
