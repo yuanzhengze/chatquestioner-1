@@ -23,6 +23,7 @@ function dispatch(ev: { event: string; data: unknown }, h: SseHandlers): void {
         gddMarkdown: String(data.gddMarkdown ?? ""),
         gddModel: data.gddModel,
         complete: data.complete === true,
+        draftBar: data.draftBar === true,
       });
       break;
     case "warning":

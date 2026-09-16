@@ -103,6 +103,29 @@ describe("extractDiscussedIntoState", () => {
     await extractDiscussedIntoState(s, llm, { overwrite: true });
     expect(s.workingTitle).toBe("新标题");
   });
+
+  it("overwrite 时 mechanics / juice 替换而不是往历史上叠", async () => {
+    const s = createInitialState();
+    s.mechanics = ["香炉", "纸钱", "符咒", "供品", "放置"];
+    s.juice = ["天光渗入", "香烟被照散", "天光从门缝渗进来"];
+    s.history = [
+      { role: "assistant", content: "最常做的动作是什么？" },
+      { role: "user", content: "摆香炉纸钱符咒，靠香烟分清活人。" },
+    ];
+    const llm: LlmClient = {
+      async *stream(messages: ChatMessage[]) {
+        expect(messages[0]?.content).toMatch(/3–6/);
+        expect(messages[0]?.content).toMatch(/3–5/);
+        yield JSON.stringify({
+          mechanics: ["香烟显形", "民俗物件布阵", "护香救人封门三选"],
+          juice: ["第一声鸡鸣，天光从门缝渗入"],
+        });
+      },
+    };
+    await extractDiscussedIntoState(s, llm, { overwrite: true });
+    expect(s.mechanics).toEqual(["香烟显形", "民俗物件布阵", "护香救人封门三选"]);
+    expect(s.juice).toEqual(["第一声鸡鸣，天光从门缝渗入"]);
+  });
 });
 
 describe("advance 首次定稿覆盖 spark 占位", () => {

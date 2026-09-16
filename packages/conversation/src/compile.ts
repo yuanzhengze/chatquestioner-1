@@ -20,6 +20,10 @@ const MOD_ZH: Record<string, string> = {
   video: "影像",
 };
 
+export const MAX_DISPLAY_MECHANICS = 6;
+export const MAX_DISPLAY_HIGHLIGHTS = 6;
+const SHORT_KEYWORD_MAX = 12;
+
 function pick(...vals: unknown[]): string {
   for (const v of vals) {
     const t = asGddText(v);
@@ -38,24 +42,101 @@ function joinZh(values: unknown, map: Record<string, string>): string {
   return asList(values).map((v) => map[v] || v).filter(Boolean).join(" / ");
 }
 
-function fillPool(target: string[], ...vals: unknown[]): void {
-  for (const v of vals) {
-    const t = asGddText(v);
-    if (t && !target.includes(t)) target.push(t);
-  }
+function compactDup(s: string): string {
+  return asGddText(s)
+    .replace(/\s+/g, "")
+    .replace(/[。．，,、：:；;！!？?\-—（）()《》""'']/g, "")
+    .toLowerCase();
 }
 
-function chips(...vals: unknown[]): string[] {
+function bigrams(s: string): string[] {
+  const n = compactDup(s);
   const out: string[] = [];
-  for (const v of vals) {
-    const text = asGddText(v);
-    if (!text) continue;
-    for (const part of text.split(/[、，,/|➔→]/)) {
-      const t = part.trim();
-      if (t && t.length <= 32 && !out.includes(t)) out.push(t);
-    }
-  }
+  for (let i = 0; i < n.length - 1; i++) out.push(n.slice(i, i + 2));
   return out;
+}
+
+function nearDuplicate(a: string, b: string): boolean {
+  const ca = compactDup(a);
+  const cb = compactDup(b);
+  if (!ca || !cb) return false;
+  if (ca === cb) return true;
+  if (ca.length >= 2 && cb.includes(ca)) return true;
+  if (cb.length >= 2 && ca.includes(cb)) return true;
+  const A = bigrams(a);
+  const B = bigrams(b);
+  if (A.length < 3 || B.length < 3) return false;
+  const setB = new Set(B);
+  let inter = 0;
+  for (const x of A) if (setB.has(x)) inter++;
+  return inter / Math.min(A.length, B.length) >= 0.55;
+}
+
+/** 给人看的清单：去掉被包含的短句和近义重复，长句优先，保序截断。 */
+export function collapseNearDup(items: string[], max = MAX_DISPLAY_MECHANICS): string[] {
+  const cleaned: string[] = [];
+  for (const raw of items) {
+    const t = asGddText(raw);
+    if (t && !cleaned.includes(t)) cleaned.push(t);
+  }
+  const ranked = [...cleaned].sort((a, b) => b.length - a.length || cleaned.indexOf(a) - cleaned.indexOf(b));
+  const kept: string[] = [];
+  for (const item of ranked) {
+    if (kept.some((k) => nearDuplicate(item, k))) continue;
+    kept.push(item);
+  }
+  const keptSet = new Set(kept.slice(0, max));
+  return cleaned.filter((x) => keptSet.has(x));
+}
+
+function isShortKeyword(s: string): boolean {
+  const t = asGddText(s);
+  if (!t) return false;
+  if (/[。！？!?]/.test(t) || /[：:]/.test(t)) return false;
+  return t.length <= SHORT_KEYWORD_MAX;
+}
+
+function shortKeywords(vals: unknown): string[] {
+  const out: string[] = [];
+  for (const v of asList(vals)) {
+    if (!isShortKeyword(v)) continue;
+    if (!out.includes(v)) out.push(v);
+  }
+  return out.slice(0, 10);
+}
+
+/** 一段已包含另一段就只留长的；避免用句号硬接出。。 */
+export function joinDistinctSentences(a: unknown, b: unknown): { primary: string; secondary: string } {
+  const rawX = asGddText(a);
+  const rawY = asGddText(b);
+  const x = rawX.replace(/。+$/g, "");
+  const y = rawY.replace(/。+$/g, "");
+  if (!y) return { primary: rawX, secondary: "" };
+  if (!x) return { primary: rawY, secondary: "" };
+  if (x.includes(y) || y.includes(x)) {
+    const keep = x.length >= y.length ? rawX : rawY;
+    return { primary: keep.replace(/。{2,}/g, "。"), secondary: "" };
+  }
+  return { primary: rawX.replace(/。{2,}/g, "。"), secondary: rawY.replace(/。{2,}/g, "。") };
+}
+
+function looksMultiplayer(players: string): boolean {
+  return players === "要和别人一起" || /好友|排行|偷师|联机|多人/.test(players);
+}
+
+function pickSocialCopy(state: ConversationState, players: string): string {
+  const blobs = [
+    state.content?.multiplayer,
+    state.constitutionFields?.presentationBoundary,
+    state.pitch,
+    state.differentiator,
+    state.constitutionFields?.coreLoop,
+  ];
+  for (const b of blobs) {
+    const t = asGddText(b);
+    if (t && /好友|排行|偷师|联机|别人|一起|社交/.test(t)) return t;
+  }
+  return players;
 }
 
 /** 对话里把「第一人称视角」误写进了在哪玩。那不是电脑/手机。 */
@@ -79,19 +160,26 @@ export function toGddModel(state: ConversationState): GddModel {
   m.coreExperience = pick(state.coreExperience, state.pitch, state.coreEmotion);
   m.coreEmotion = pick(state.coreEmotion);
   m.forbiddenEmotion = pick(state.forbiddenEmotion);
-  m.coreFantasy = pick(state.coreFantasy, state.playerIdentity, state.coreExperience);
-  m.playerIdentity = pick(state.playerIdentity);
+  const fantasy = joinDistinctSentences(
+    pick(state.coreFantasy, state.playerIdentity, state.coreExperience),
+    pick(state.playerIdentity),
+  );
+  m.coreFantasy = fantasy.primary.replace(/。{2,}/g, "。");
+  m.playerIdentity = fantasy.secondary.replace(/。{2,}/g, "。");
   m.differentiator = pick(state.differentiator);
   m.references = { borrow: asList(state.references), avoid: asList(state.avoidReferences) };
   m.coreAction = pick(state.coreAction);
+  const longTerm = pick(state.loop?.longTerm);
   m.loop = {
     micro: pick(state.loop?.thirtySec),
     mid: pick(state.loop?.fiveMin, state.coreAction),
     macro: pick(state.loop?.thirtyMin, state.loop?.longTerm, state.winRule),
+    longTerm,
   };
   const mechanics = asList(state.mechanics);
   const engMechs = asList(state.engineering?.mechanics);
-  m.mechanics = mechanics.length ? mechanics : engMechs.length ? engMechs : (m.coreAction ? [m.coreAction] : []);
+  const rawMechs = mechanics.length ? mechanics : engMechs.length ? engMechs : (m.coreAction ? [m.coreAction] : []);
+  m.mechanics = collapseNearDup(rawMechs, MAX_DISPLAY_MECHANICS);
   m.reward = pick(state.reward);
   m.winRule = pick(state.winRule);
   m.loseRule = pick(state.failRule);
@@ -101,9 +189,9 @@ export function toGddModel(state: ConversationState): GddModel {
   m.narrative = pick(state.narrative);
   m.aesthetic = pick(state.aesthetic);
   m.gameFeel = pick(state.gameFeel);
-  m.highlight = pick(state.juice) || pick(state.gameFeel);
-  m.content = pick(state.content?.overview)
-    || [pick(state.world), pick(state.coreAction)].filter(Boolean).join("。");
+  m.highlights = collapseNearDup(asList(state.juice), MAX_DISPLAY_HIGHLIGHTS);
+  m.highlight = m.highlights.length ? m.highlights.join("、") : pick(state.gameFeel);
+  m.content = pick(state.content?.overview, state.world, state.theme);
   m.contentDetail = {
     levels: pick(state.content?.levels),
     boss: pick(state.content?.boss),
@@ -114,19 +202,13 @@ export function toGddModel(state: ConversationState): GddModel {
     ...(state.content?.flags || { levels: false, boss: false, progression: false, multiplayer: false }),
   };
   m.keywordPools = {
-    gameplay: asList(state.keywordPools?.gameplay),
-    emotion: asList(state.keywordPools?.emotion),
-    world: asList(state.keywordPools?.world),
-    visual: asList(state.keywordPools?.visual),
-    narrative: asList(state.keywordPools?.narrative),
-    motivation: asList(state.keywordPools?.motivation),
+    gameplay: shortKeywords(state.keywordPools?.gameplay),
+    emotion: shortKeywords(state.keywordPools?.emotion),
+    world: shortKeywords(state.keywordPools?.world),
+    visual: shortKeywords(state.keywordPools?.visual),
+    narrative: shortKeywords(state.keywordPools?.narrative),
+    motivation: shortKeywords(state.keywordPools?.motivation),
   };
-  fillPool(m.keywordPools.gameplay, state.coreAction, state.loop?.thirtySec, state.loop?.fiveMin, ...m.mechanics);
-  fillPool(m.keywordPools.emotion, state.coreEmotion, state.forbiddenEmotion, ...chips(state.coreEmotion));
-  fillPool(m.keywordPools.world, state.world, state.theme, ...chips(state.world, state.theme));
-  fillPool(m.keywordPools.visual, state.aesthetic, state.gameFeel, ...chips(state.aesthetic));
-  fillPool(m.keywordPools.narrative, state.narrative, state.playerIdentity, state.coreFantasy, state.coreExperience);
-  fillPool(m.keywordPools.motivation, state.reward, state.replayMotivation, state.winRule);
   const cf = state.constitutionFields;
   m.constitution = {
     coreFantasy: pick(cf?.coreFantasy, state.coreFantasy, state.coreExperience),
@@ -157,6 +239,12 @@ export function toGddModel(state: ConversationState): GddModel {
       || joinZh(state.engineering?.modalities, MOD_ZH)
       || pick(state.aesthetic),
   };
+  if (looksMultiplayer(m.presentation.players) && !m.contentFlags.multiplayer) {
+    m.contentFlags.multiplayer = true;
+  }
+  if (m.contentFlags.multiplayer && !asGddText(m.contentDetail.multiplayer)) {
+    m.contentDetail.multiplayer = pickSocialCopy(state, m.presentation.players);
+  }
   m.difficulty = {
     ramp: pick(state.difficulty?.ramp, state.difficultyCurve),
     firstMinutes: pick(state.difficulty?.firstMinutes),

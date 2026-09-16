@@ -228,6 +228,7 @@ describe("advance", () => {
     expect(isComplete(toGddModel(res.state))).toBe(false);
     expect(res.state.gddComplete).toBe(false);
     expect(res.readyForSynthesis).toBe(true);
+    expect(res.state.gddDraftBar).toBe(true);
     expect(res.options).toBeUndefined();
     expect(res.state.optionPhase).toBe("interview");
   });
@@ -468,7 +469,13 @@ describe("advance", () => {
     s.spark = "九龙城寨开火焦虑";
     s.coreEmotion = "压抑";
     s.pitch = "城寨幽鸣";
-    s.history = [{ role: "user", content: "九龙城寨开火焦虑，压抑，城寨幽鸣" }];
+    s.history = [
+      { role: "user", content: "九龙城寨开火焦虑，压抑，城寨幽鸣" },
+      {
+        role: "assistant",
+        content: "> 📌 **暂定游戏名**：《城寨幽鸣》\n> 📌 **一句话亮点**：开火即逃亡。",
+      },
+    ];
     const res = await advance(
       s,
       "确认当前的总结完美契合心中构想，直接生成最终的设计文档。",
@@ -477,6 +484,7 @@ describe("advance", () => {
     expect(isComplete(toGddModel(res.state))).toBe(false);
     expect(res.state.gddComplete).toBe(false);
     expect(res.readyForSynthesis).toBe(true);
+    expect(res.state.gddDraftBar).toBe(false);
   });
 
   it("第 8 节且本轮写出合格概念总结时，给出定稿三选", async () => {
@@ -738,7 +746,13 @@ describe("advance", () => {
     s.spark = "九龙城寨";
     s.coreEmotion = "压抑";
     s.pitch = "风水魇";
-    s.history = [{ role: "user", content: "九龙城寨，压抑，风水魇" }];
+    s.history = [
+      { role: "user", content: "九龙城寨，压抑，风水魇" },
+      {
+        role: "assistant",
+        content: "> 📌 **暂定名**：《城寨：风水魇》\n> 📌 **一句话亮点**：开火即逃亡。",
+      },
+    ];
     s.lastOptions = [
       { id: "A", label: "确认总结，生成设计文档", detail: "就按这个写进完整设计文档，保留风水城寨。" },
       { id: "B", label: "我还要再加点新设定", detail: "先不生成，再改一块。" },
@@ -746,6 +760,7 @@ describe("advance", () => {
     const res = await advance(s, s.lastOptions[0].detail, { llm, systemPrompt: SYS });
     expect(res.readyForSynthesis).toBe(true);
     expect(res.state.gddComplete).toBe(false);
+    expect(res.state.gddDraftBar).toBe(false);
   });
 
   it("一次写满字段也只推进一节，不会跳过未问的 6/7", async () => {

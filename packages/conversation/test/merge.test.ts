@@ -72,4 +72,15 @@ describe("mergeStateDelta", () => {
     });
     expect(s.presentation.assets).toBe("3D大鹅模型、派对BGM");
   });
+
+  it("replaceLists 时 mechanics / juice 整表替换，采访默认仍并集", () => {
+    const s = createInitialState();
+    s.mechanics = ["香炉", "纸钱", "符咒"];
+    s.juice = ["天光渗入", "香烟被照散"];
+    mergeStateDelta(s, { mechanics: ["香火显形", "供桌布阵"], juice: ["第一声鸡鸣"] });
+    expect(s.mechanics).toEqual(["香炉", "纸钱", "符咒", "香火显形", "供桌布阵"]);
+    mergeStateDelta(s, { mechanics: ["香火显形", "护香救人封门"], juice: ["鸡鸣天亮"] }, { replaceLists: true });
+    expect(s.mechanics).toEqual(["香火显形", "护香救人封门"]);
+    expect(s.juice).toEqual(["鸡鸣天亮"]);
+  });
 });

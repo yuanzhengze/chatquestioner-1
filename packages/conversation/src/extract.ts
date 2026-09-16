@@ -27,6 +27,8 @@ presentation{where,dimension,orientation,players,assets},
 difficulty{ramp,firstMinutes,fatigue},
 constitutionFields{coreFantasy,coreLoop,artRule,contentBoundary,presentationBoundary}
 
+mechanics 只写 3–6 条按优先级、互不相同的机制，不要把物件名和同一玩法各写一遍。
+juice 只写 3–5 个互不重复的高光瞬间，不要把同一画面拆成多句。
 where 只能是「电脑」「手机」「网页」之一（键鼠/PC→电脑，触屏→手机）。
 dimension 只能是「平面」或「能转视角的立体」。
 orientation 只能是「横屏」或「竖屏」。
@@ -271,6 +273,6 @@ export async function extractDiscussedIntoState(
   const json = parseJsonObject(raw);
   if (!json) return;
   const delta = groundedDelta(json, history);
-  if (opts?.overwrite) mergeStateDelta(state, delta);
+  if (opts?.overwrite) mergeStateDelta(state, delta, { replaceLists: true });
   else mergeFillEmpty(state, delta);
 }

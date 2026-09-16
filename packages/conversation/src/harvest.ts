@@ -22,6 +22,18 @@ export function hasConceptSummary(history: { role: string; content: string }[]):
   return history.some((m) => m.role === "assistant" && looksLikeConceptSummary(m.content || ""));
 }
 
+/**
+ * 预览顶上的「这是草稿」：已经出文档，且助手还没给过合格口头总结。
+ * 不看 isComplete。中途「现在就生成」亮条；总结后再定稿不亮。
+ */
+export function showDraftBar(state: {
+  history?: { role: string; content: string }[];
+  readyForSynthesis?: boolean;
+}): boolean {
+  if (!state.readyForSynthesis) return false;
+  return !hasConceptSummary(state.history || []);
+}
+
 /** 助手消息里真正在问的句子（❓ 或问号句）。不含共情段，避免「不仅是通关」这类话误伤。 */
 export function questionSentences(ask: string): string[] {
   const marks = [...ask.matchAll(/> ❓\s*(.+)/g)].map((m) => m[1].trim()).filter(Boolean);

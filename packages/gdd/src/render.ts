@@ -24,16 +24,49 @@ function none(reason: string, complete: boolean): string {
   return complete ? `本游戏无${reason}，不单列。` : `（未写）`;
 }
 
+function joinFantasy(m: GddModel, gap: string): string {
+  const parts = [m.coreFantasy, m.playerIdentity]
+    .map(asGddText)
+    .map((s) => s.replace(/。+$/g, ""))
+    .filter(Boolean);
+  const uniq: string[] = [];
+  for (const p of parts) {
+    const idx = uniq.findIndex((u) => u.includes(p) || p.includes(u));
+    if (idx >= 0) {
+      if (p.length > uniq[idx].length) uniq[idx] = p;
+      continue;
+    }
+    uniq.push(p);
+  }
+  return uniq.length ? uniq.join("。") : gap;
+}
+
+function highlightBlock(m: GddModel, gap: string): string {
+  const items = (m.highlights || []).map(asGddText).filter(Boolean);
+  if (items.length) return items.map((i) => `- ${i}`).join("\n");
+  return line(m.highlight, gap);
+}
+
+function optionalLabeled(label: string, value: unknown): string {
+  const t = asGddText(value);
+  return t ? `- ${label}：${t}` : "";
+}
+
+function poolSection(m: GddModel): string {
+  const lines = (Object.keys(POOL_LABELS) as (keyof KeywordPools)[])
+    .map((k) => {
+      const words = (m.keywordPools[k] || []).map(asGddText).filter(Boolean);
+      return words.length ? `- **${POOL_LABELS[k]}**：${words.join("、")}` : "";
+    })
+    .filter(Boolean);
+  if (!lines.length) return "";
+  return `### 关键词池\n\n${lines.join("\n")}`;
+}
+
 /** 按 skill gdd-template 章节渲染。定稿不用「待补充」。 */
 export function renderGdd(m: GddModel): string {
   const complete = isComplete(m);
   const gap = complete ? "本游戏无此项，不单列。" : "（未写）";
-  const pools = (Object.keys(POOL_LABELS) as (keyof KeywordPools)[])
-    .map((k) => {
-      const words = (m.keywordPools[k] || []).map(asGddText).filter(Boolean);
-      return `- **${POOL_LABELS[k]}**：${words.length ? words.join("、") : gap}`;
-    })
-    .join("\n");
 
   const extraConst = (m.constitution.extras || []).map(asGddText).filter(Boolean).map((x) => `- ${x}`).join("\n");
   const constitution = [
@@ -57,6 +90,29 @@ export function renderGdd(m: GddModel): string {
 
   const mid = line(m.loop.mid, complete ? "短单局，中循环即一局。" : "（未写）");
   const macro = line(m.loop.macro, complete ? "本游戏无长线。" : "（未写）");
+  const longTerm = asGddText(m.loop.longTerm);
+  const longLine = longTerm && longTerm !== asGddText(m.loop.macro)
+    ? `\n- 长线：${longTerm}`
+    : "";
+
+  const emotionLines = [
+    `- 主情感：${line(m.coreEmotion, gap)}`,
+    optionalLabeled("禁止情感", m.forbiddenEmotion),
+  ].filter(Boolean).join("\n");
+
+  const borrow = m.references.borrow.filter(Boolean);
+  const avoid = m.references.avoid.filter(Boolean);
+  const refLines = [
+    borrow.length ? `- 借鉴：${borrow.join("、")}` : "",
+    avoid.length ? `- 刻意避开：${avoid.join("、")}` : "",
+  ].filter(Boolean);
+  const refBlock = refLines.length ? `### 参考作品\n${refLines.join("\n")}` : "";
+
+  const pools = poolSection(m);
+  const contentExtras = [
+    ...details,
+    pools,
+  ].filter(Boolean);
 
   return `# ${line(m.title, "未命名游戏")}
 
@@ -74,19 +130,14 @@ ${constitution}
 ${line(m.coreExperience, gap)}
 
 ### 核心情感
-- 主情感：${line(m.coreEmotion, gap)}
-- 禁止情感：${line(m.forbiddenEmotion, gap)}
+${emotionLines}
 
 ### 核心幻想 / 玩家身份
-${line([m.coreFantasy, m.playerIdentity].map(asGddText).filter(Boolean).join("。"), gap)}
+${joinFantasy(m, gap)}
 
 ### 差异化亮点
 ${line(m.differentiator, gap)}
-
-### 参考作品
-- 借鉴：${m.references.borrow.length ? m.references.borrow.join("、") : gap}
-- 刻意避开：${m.references.avoid.length ? m.references.avoid.join("、") : gap}
-
+${refBlock ? `\n${refBlock}\n` : ""}
 ## 2. How · 怎么玩
 
 ### 核心动作
@@ -95,7 +146,7 @@ ${line(m.coreAction, gap)}
 ### 核心游戏循环
 - 微循环（约 30 秒 / 头几秒）：${line(m.loop.micro, gap)}
 - 中循环（约 5 分钟）：${mid}
-- 宏循环（约 30 分钟 / 长线）：${macro}
+- 宏循环（约 30 分钟 / 长线）：${macro}${longLine}
 
 ### 核心机制（按优先级）
 ${(() => {
@@ -127,16 +178,12 @@ ${line(m.aesthetic, gap)}
 ${line(m.gameFeel, gap)}
 
 ### 高光时刻（Juice）
-${line(m.highlight, gap)}
+${highlightBlock(m, gap)}
 
 ## 5. 内容
 
 ${contentBody}
-${details.length ? `\n${details.join("\n\n")}\n` : ""}
-### 关键词池
-
-${pools}
-
+${contentExtras.length ? `\n${contentExtras.join("\n\n")}\n` : ""}
 ## 6. 呈现与资产
 
 - 在哪玩：${line(m.presentation.where, gap)}

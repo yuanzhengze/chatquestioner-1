@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import {
   advance, createInitialState, toGddModel, normalizeConversationState,
   harvestIntoState, scrubUngroundedState, OPENING_MESSAGE, STAGE_ASKS_TITLE, STAGE_LABELS, historyWantsPreview,
+  showDraftBar,
   type ConversationState, type LlmClient, type Retriever,
 } from "@cq/conversation";
 import { renderGdd, isSubstantive, isComplete, type GddModel } from "@cq/gdd";
@@ -39,15 +40,21 @@ interface Synthesis {
   gddMarkdown: string;
   gddModel: GddModel;
   complete: boolean;
+  draftBar: boolean;
 }
 
-/** 有实质内容即可渲染。定稿与否看 complete；中途草稿由调用方按 readyForSynthesis 决定是否推送。 */
+/** 有实质内容即可渲染。complete 是 completeness 账；draftBar 才决定预览顶上的草稿条。 */
 function buildSynthesis(state: ConversationState, opts?: { requireComplete?: boolean }): Synthesis | null {
   const model = toGddModel(state);
   if (!isSubstantive(model)) return null;
   const complete = isComplete(model);
   if (opts?.requireComplete && !complete) return null;
-  return { gddMarkdown: renderGdd(model), gddModel: model, complete };
+  return {
+    gddMarkdown: renderGdd(model),
+    gddModel: model,
+    complete,
+    draftBar: showDraftBar(state),
+  };
 }
 
 /** 合法 session id：仅字母数字、下划线、连字符（randomUUID 输出可通过）。防路径穿越。 */
@@ -137,6 +144,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     const complete = isComplete(model);
     state.gddComplete = complete;
     state.readyForSynthesis = isSubstantive(model) && historyWantsPreview(state.history);
+    state.gddDraftBar = showDraftBar(state);
     const syn = (() => {
       if (!state.readyForSynthesis) return null;
       try {
@@ -147,7 +155,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       }
     })();
     if (!syn) return state;
-    return { ...state, gddMarkdown: syn.gddMarkdown, gddModel: syn.gddModel };
+    return { ...state, gddMarkdown: syn.gddMarkdown, gddModel: syn.gddModel, draftBar: syn.draftBar };
   });
 
   app.delete<{ Params: { id: string } }>("/api/session/:id", async (req, reply) => {

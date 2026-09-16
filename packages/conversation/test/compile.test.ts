@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { createRequire } from "node:module";
 import { createInitialState } from "../src/state.js";
 import { toGddModel } from "../src/compile.js";
 import { renderGdd } from "@cq/gdd";
+
+const { sectionsFromModel } = createRequire(import.meta.url)("../../../apps/miniprogram/utils/gddSections.js") as {
+  sectionsFromModel: (model: unknown, complete: boolean) => Array<{ id: string; title: string; lines: string[] }>;
+};
 
 function readyState() {
   const s = createInitialState();
@@ -37,6 +42,7 @@ describe("toGddModel", () => {
       micro: "划线连接同色猫",
       mid: "凑连击",
       macro: "解锁新猫",
+      longTerm: "图鉴收集",
     });
     expect(m.references).toEqual({ borrow: ["开心消消乐"], avoid: ["重度肝氪卡牌"] });
     expect(m.constitution.extras).toContain("核心循环：连同色猫消除");
@@ -47,7 +53,7 @@ describe("toGddModel", () => {
   it("缺字段时给安全默认，不抛异常", () => {
     const m = toGddModel(createInitialState());
     expect(m.title).toBe("未命名游戏");
-    expect(m.loop).toEqual({ micro: "", mid: "", macro: "" });
+    expect(m.loop).toEqual({ micro: "", mid: "", macro: "", longTerm: "" });
     expect(m.pitch).toBe("");
   });
 
@@ -120,5 +126,90 @@ describe("toGddModel", () => {
     expect(m.presentation.assets).toContain("派对BGM");
     expect(() => renderGdd(m)).not.toThrow();
     expect(renderGdd(m)).toContain("3D大鹅模型");
+  });
+
+  it("近义机制折叠到最多 6 条，短句被长句吃掉", () => {
+    const s = createInitialState();
+    s.mechanics = [
+      "摆放香炉、纸钱、符咒、供品",
+      "香炉",
+      "纸钱",
+      "符咒",
+      "供品",
+      "护香",
+      "香烟显形：香烟是辨认纸人与活人的关键",
+      "香火显形：香烟是判断活人、纸人和邪祟路径的关键信息源，香火稳定时信息可靠，香火乱时宅内空间开始撒谎。",
+      "供桌布置：香炉、纸钱、符咒、供品需要摆到关键位置形成组合",
+      "放置",
+      "路径判断",
+    ];
+    const m = toGddModel(s);
+    expect(m.mechanics.length).toBeGreaterThan(0);
+    expect(m.mechanics.length).toBeLessThanOrEqual(6);
+    expect(m.mechanics.some((x) => x === "香炉")).toBe(false);
+    expect(m.mechanics.some((x) => x.includes("香火显形") || x.includes("香烟显形"))).toBe(true);
+    expect(m.mechanics.some((x) => x.includes("供桌布置") || x.includes("摆放香炉"))).toBe(true);
+  });
+
+  it("词池不拿正文回填，只留短词；句子进不了池", () => {
+    const s = createInitialState();
+    s.coreAction = "左半屏拖食材，右半屏指挥伙计";
+    s.loop.thirtySec = "把白菜划进锅里";
+    s.mechanics = ["魔药式研发：拖拽食材入锅"];
+    s.keywordPools.gameplay = ["塔防", "策略", "反复把香炉、纸钱摆到关键位置，通过正确组合拖慢邪祟"];
+    s.keywordPools.emotion = ["压迫、紧张、绝望中的精准计算：每一波都像香快烧完。"];
+    const m = toGddModel(s);
+    expect(m.keywordPools.gameplay).toEqual(["塔防", "策略"]);
+    expect(m.keywordPools.emotion).toEqual([]);
+    expect(m.keywordPools.gameplay.join()).not.toContain("左半屏");
+  });
+
+  it("幻想与身份重复时不拼出。。；长线单独一行；一起玩则开多人章", () => {
+    const s = createInitialState();
+    s.coreFantasy = "化身为热血厨神兼铁腕掌柜，完成从破产到美食街霸主的逆袭。";
+    s.playerIdentity = "热血厨神兼铁腕掌柜";
+    s.loop.thirtyMin = "签下高利贷，在极限施压下还债。";
+    s.loop.longTerm = "不断扩建酒楼，最终买下整条美食街登顶排行榜。";
+    s.presentation.players = "要和别人一起";
+    s.pitch = "排行榜与好友偷师的横版热血模拟经营";
+    s.world = "夸张漫画风美食街";
+    s.coreAction = "拖食材入锅";
+    const m = toGddModel(s);
+    expect(m.playerIdentity).toBe("");
+    expect(`${m.coreFantasy}${m.playerIdentity}`).not.toContain("。。");
+    expect(m.loop.macro).toContain("高利贷");
+    expect(m.loop.longTerm).toContain("买下整条美食街");
+    expect(m.content).toBe("夸张漫画风美食街");
+    expect(m.content).not.toContain("拖食材入锅");
+    expect(m.contentFlags.multiplayer).toBe(true);
+    expect(m.contentDetail.multiplayer).toMatch(/排行榜|偷师/);
+    const md = renderGdd(m);
+    expect(md).toContain("长线：");
+    expect(md).toContain("买下整条美食街");
+    expect(md).toContain("### 多人");
+    expect(md).not.toContain("关键词池");
+    expect(md).not.toContain("禁止情感：");
+  });
+});
+
+describe("sectionsFromModel", () => {
+  it("高光分行、空词池不出卡、多人进内容章", () => {
+    const s = createInitialState();
+    s.workingTitle = "发光食堂";
+    s.pitch = "好友偷师与食神排行榜";
+    s.juice = ["金色巨龙", "金色巨龙幻影与满屏速度线", "汁水飞溅"];
+    s.presentation.players = "要和别人一起";
+    s.keywordPools.gameplay = ["左半屏手指拖拽划动离谱食材入锅并观察反应；右半屏狂点屏幕"];
+    const m = toGddModel(s);
+    const sections = sectionsFromModel(m, false);
+    const ids = sections.map((x) => x.id);
+    expect(ids).not.toContain("pools");
+    const world = sections.find((x) => x.id === "world");
+    expect(world?.lines.some((l) => l.includes("金色巨龙"))).toBe(true);
+    expect(world?.lines.join("、")).not.toMatch(/金色巨龙、金色巨龙/);
+    const content = sections.find((x) => x.id === "content");
+    expect(content?.lines.some((l) => l.includes("多人"))).toBe(true);
+    const what = sections.find((x) => x.id === "what");
+    expect(what?.lines.join("")).not.toContain("禁止情感");
   });
 });

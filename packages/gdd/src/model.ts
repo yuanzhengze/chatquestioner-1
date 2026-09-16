@@ -35,7 +35,7 @@ export interface GddModel {
   differentiator: string;
   references: { borrow: string[]; avoid: string[] };
   coreAction: string;
-  loop: { micro: string; mid: string; macro: string };
+  loop: { micro: string; mid: string; macro: string; longTerm: string };
   mechanics: string[];
   reward: string;
   winRule: string;
@@ -46,6 +46,8 @@ export interface GddModel {
   aesthetic: string;
   gameFeel: string;
   highlight: string;
+  /** 折叠后的高光条目；渲染用列表，highlight 仍给完整度门用。 */
+  highlights: string[];
   content: string;
   contentDetail: {
     levels: string;
@@ -97,7 +99,7 @@ export function emptyGddModel(): GddModel {
     differentiator: "",
     references: { borrow: [], avoid: [] },
     coreAction: "",
-    loop: { micro: "", mid: "", macro: "" },
+    loop: { micro: "", mid: "", macro: "", longTerm: "" },
     mechanics: [],
     reward: "",
     winRule: "",
@@ -108,6 +110,7 @@ export function emptyGddModel(): GddModel {
     aesthetic: "",
     gameFeel: "",
     highlight: "",
+    highlights: [],
     content: "",
     contentDetail: { levels: "", boss: "", progression: "", multiplayer: "" },
     contentFlags: { levels: false, boss: false, progression: false, multiplayer: false },

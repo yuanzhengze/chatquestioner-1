@@ -164,11 +164,37 @@ describe("routes", () => {
     const body = got.json();
     expect(body.readyForSynthesis).toBe(true);
     expect(body.gddComplete).toBe(false);
+    expect(body.gddDraftBar).toBe(false);
+    expect(body.draftBar).toBe(false);
     expect(body.workingTitle).toBe("城寨幽鸣");
     expect(body.gddMarkdown).toContain("城寨幽鸣");
     expect(body.gddMarkdown).toContain("搜刮");
     expect(body.gddMarkdown).toContain("冰室");
     expect(body.gddModel.title).toBe("城寨幽鸣");
+    await app.close();
+  });
+
+  it("GET 会话：中途现在就生成且没有口头总结时亮草稿条", async () => {
+    const { app, store } = makeApp();
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    const s = createInitialState();
+    s.guidance = "accepted";
+    s.spark = "猫咪帝国";
+    s.pitch = "猫RTS";
+    s.coreEmotion = "反差萌";
+    s.history = [
+      { role: "user", content: "猫咪帝国，猫RTS，反差萌" },
+      { role: "assistant", content: "先看一版带缺口的草稿。" },
+      { role: "user", content: "现在就生成" },
+    ];
+    await store.save(created.id, s);
+    const got = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
+    expect(got.statusCode).toBe(200);
+    const body = got.json();
+    expect(body.readyForSynthesis).toBe(true);
+    expect(body.gddComplete).toBe(false);
+    expect(body.gddDraftBar).toBe(true);
+    expect(body.draftBar).toBe(true);
     await app.close();
   });
 

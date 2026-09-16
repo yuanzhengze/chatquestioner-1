@@ -16,7 +16,7 @@ import { nextStage, buildGuideStageHint, askStageOf, markStageAsked } from "./st
 import { normalizeConversationState, type ConversationState, type OptionPhase } from "./state.js";
 import { buildKnowledgeContext, type Retriever } from "./retrieval.js";
 import { buildClarifySystemPrompt } from "./clarifySkill.js";
-import { harvestIntoState } from "./harvest.js";
+import { harvestIntoState, showDraftBar } from "./harvest.js";
 import { extractDiscussedIntoState, groundedDeltaWithReply, scrubUngroundedState } from "./extract.js";
 import { toGddModel } from "./compile.js";
 import { isComplete, isSubstantive } from "@cq/gdd";
@@ -263,6 +263,7 @@ async function finish(
   const complete = isComplete(model);
   state.gddComplete = complete;
   const readyForSynthesis = isSubstantive(model) && wantsDoc && (generating || alreadyHadDoc);
+  state.gddDraftBar = readyForSynthesis && showDraftBar({ history: state.history, readyForSynthesis });
   const picked = cardsForReply(
     reply,
     options,

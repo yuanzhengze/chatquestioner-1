@@ -24,6 +24,7 @@ describe("口头总结闸", () => {
     expect(canWriteSummary(s)).toBe(true);
     expect(formatSummaryEligibility(s)).toContain("may_write_summary: true");
     expect(formatSummaryEligibility(s)).toContain("completeness: false");
+    expect(formatSummaryEligibility(s)).toContain("口头总结后的定稿预览不亮条");
   });
 
   it("到达第 8 节之后才打开窗口，窗口前的 📌 不算三选", () => {

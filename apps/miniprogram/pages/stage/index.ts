@@ -54,6 +54,7 @@ Page({
     this._synthesisMd = "";
     this._synthesisModel = null as unknown;
     this._synthesisComplete = false;
+    this._synthesisDraftBar = false;
     this._lastOptions = [] as TurnOption[];
     this._openGddTimer = 0 as number;
     this._driver = null;
@@ -127,6 +128,7 @@ Page({
     this._synthesisMd = "";
     this._synthesisModel = null;
     this._synthesisComplete = false;
+    this._synthesisDraftBar = false;
     this._lastOptions = [] as TurnOption[];
     this._warnTick = 0;
     this._typing = false;
@@ -178,6 +180,7 @@ Page({
     this._synthesisMd = ready ? (md || gddFromState(state)) : "";
     this._synthesisModel = ready ? model : null;
     this._synthesisComplete = gddComplete;
+    this._synthesisDraftBar = state.gddDraftBar === true || state.draftBar === true;
     this.setData({
       messages: messages.length ? messages : [{ role: "assistant", content: WAKING }],
       options,
@@ -393,6 +396,8 @@ Page({
       },
       onState: (s) => {
         this._state = s;
+        if (typeof s.gddDraftBar === "boolean") this._synthesisDraftBar = s.gddDraftBar === true;
+        else if (typeof s.draftBar === "boolean") this._synthesisDraftBar = s.draftBar === true;
         if (Array.isArray(s.lastOptions)) {
           const opts = this.asOptions(s.lastOptions);
           this._lastOptions = opts;
@@ -427,6 +432,7 @@ Page({
           this._synthesisMd = payload.gddMarkdown;
           this._synthesisModel = payload.gddModel || null;
           this._synthesisComplete = payload.complete === true;
+          this._synthesisDraftBar = payload.draftBar === true;
         }
       },
       onWarning: () => {
@@ -616,6 +622,7 @@ Page({
           markdown,
           model: this._synthesisModel || null,
           complete: this._synthesisComplete === true,
+          draftBar: this._synthesisDraftBar === true,
         },
         complete: () => {
           wx.navigateTo({
@@ -626,6 +633,7 @@ Page({
                   markdown,
                   model: this._synthesisModel || null,
                   complete: this._synthesisComplete === true,
+                  draftBar: this._synthesisDraftBar === true,
                 });
               }
             },

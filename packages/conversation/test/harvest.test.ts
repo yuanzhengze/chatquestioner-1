@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createInitialState } from "../src/state.js";
-import { harvestIntoState, hasConceptSummary, questionSentences } from "../src/harvest.js";
+import { harvestIntoState, hasConceptSummary, showDraftBar, questionSentences } from "../src/harvest.js";
 import { toGddModel } from "../src/compile.js";
 import { renderGdd, isComplete, isSubstantive } from "@cq/gdd";
 
@@ -185,5 +185,35 @@ describe("harvestIntoState", () => {
     const md = renderGdd(toGddModel(s));
     expect(md).not.toMatch(/内容边界：（未写）/);
     expect(md).not.toMatch(/呈现边界：（未写）/);
+  });
+});
+
+describe("showDraftBar", () => {
+  it("中途要文档且没有口头总结时亮条", () => {
+    const s = createInitialState();
+    s.readyForSynthesis = true;
+    s.history = [
+      { role: "user", content: "现在就生成" },
+      { role: "assistant", content: "先看一版带缺口的草稿。" },
+    ];
+    expect(hasConceptSummary(s.history)).toBe(false);
+    expect(showDraftBar(s)).toBe(true);
+  });
+
+  it("已有合格口头总结时不亮条，即使还没完整", () => {
+    const s = createInitialState();
+    s.readyForSynthesis = true;
+    s.history = [
+      { role: "assistant", content: CAT_SUMMARY },
+      { role: "user", content: "就按这个定稿" },
+    ];
+    expect(isComplete(toGddModel(s))).toBe(false);
+    expect(showDraftBar(s)).toBe(false);
+  });
+
+  it("还没出文档时不亮条", () => {
+    const s = createInitialState();
+    s.history = [{ role: "user", content: "现在就生成" }];
+    expect(showDraftBar(s)).toBe(false);
   });
 });

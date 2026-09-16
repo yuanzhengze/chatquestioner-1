@@ -17,7 +17,7 @@ function completeModel() {
   m.differentiator = "踩奶节奏的呼噜反馈";
   m.references = { borrow: ["Onet"], avoid: ["硬核计时压力"] };
   m.coreAction = "连同色猫";
-  m.loop = { micro: "看猫连线", mid: "凑连击", macro: "解锁新猫" };
+  m.loop = { micro: "看猫连线", mid: "凑连击", macro: "解锁新猫", longTerm: "" };
   m.mechanics = ["划线连接", "连击奖励"];
   m.reward = "分数闪光";
   m.winRule = "达到目标分";
@@ -28,6 +28,7 @@ function completeModel() {
   m.aesthetic = "水彩暖色";
   m.gameFeel = "撸猫顺滑";
   m.highlight = "猫爪烟花";
+  m.highlights = ["猫爪烟花"];
   m.keywordPools = {
     gameplay: five("玩法"),
     emotion: five("情绪"),
@@ -79,6 +80,21 @@ describe("renderGdd", () => {
     (m.presentation as { assets: unknown }).assets = ["3D大鹅模型", "派对BGM"];
     expect(() => renderGdd(m)).not.toThrow();
     expect(renderGdd(m)).toContain("3D大鹅模型");
+  });
+
+  it("高光走列表；没写禁止情感和避开就不印未写；空词池整节省略", () => {
+    const m = emptyGddModel();
+    m.title = "香火未尽";
+    m.pitch = "民俗塔防";
+    m.highlights = ["天光从门缝渗入", "香烟被照散"];
+    m.highlight = "天光从门缝渗入、香烟被照散";
+    const md = renderGdd(m);
+    expect(md).toContain("- 天光从门缝渗入");
+    expect(md).toContain("- 香烟被照散");
+    expect(md).not.toContain("禁止情感：");
+    expect(md).not.toContain("刻意避开");
+    expect(md).not.toContain("### 关键词池");
+    expect(md).not.toContain("（待补充）");
   });
 });
 

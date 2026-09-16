@@ -41,4 +41,5 @@ export interface SynthesisPayload {
   gddMarkdown: string;
   gddModel?: unknown;
   complete?: boolean;
+  draftBar?: boolean;
 }

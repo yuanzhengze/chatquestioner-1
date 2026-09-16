@@ -211,7 +211,7 @@ Page({
 
     const ch = this.getOpenerEventChannel();
     if (ch && typeof ch.on === "function") {
-      ch.on("gddDraft", (payload: { markdown?: string; model?: unknown; complete?: boolean }) => {
+      ch.on("gddDraft", (payload: { markdown?: string; model?: unknown; complete?: boolean; draftBar?: boolean }) => {
         this.applyPayload(payload);
       });
     }
@@ -250,17 +250,18 @@ Page({
 
   applyFromStorage() {
     try {
-      const draft = wx.getStorageSync(GDD_DRAFT_KEY) as { markdown?: string; model?: unknown; complete?: boolean } | "";
+      const draft = wx.getStorageSync(GDD_DRAFT_KEY) as { markdown?: string; model?: unknown; complete?: boolean; draftBar?: boolean } | "";
       if (draft && typeof draft === "object" && draft.markdown) this.applyPayload(draft);
     } catch (_e) {
       // 读缓存失败时等 eventChannel / 超时
     }
   },
 
-  applyPayload(payload?: { markdown?: string; model?: unknown; complete?: boolean }) {
+  applyPayload(payload?: { markdown?: string; model?: unknown; complete?: boolean; draftBar?: boolean }) {
     const markdown = String((payload && payload.markdown) || "").trim();
     const model = payload && payload.model && typeof payload.model === "object" ? payload.model : null;
     const complete = payload && payload.complete === true;
+    const draftBar = payload && payload.draftBar === true;
     if (!markdown) {
       this._markdown = "";
       this._model = null;
@@ -306,7 +307,7 @@ Page({
       pitch,
       html,
       plain: markdown,
-      draft: Boolean(model) && !complete,
+      draft: draftBar,
       sections,
       expandedId: sections.length ? sections[0].id : "",
     });

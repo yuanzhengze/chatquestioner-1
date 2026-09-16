@@ -77,9 +77,9 @@ describe("剧本回放：治愈系猫咪连连看", () => {
     const md = renderGdd(toGddModel(state));
     expect(md).toContain("深夜猫咖");
     expect(md).toContain("治愈");
-    expect(md).toContain("参考作品");
     expect(md).not.toContain("开心消消乐");
     expect(md).not.toContain("重肝氪卡牌");
     expect(md).not.toContain("肝氪焦虑");
+    expect(md).not.toContain("### 参考作品");
   });
 });

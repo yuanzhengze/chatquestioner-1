@@ -21,6 +21,7 @@ export interface SynthesisEvent {
   gddMarkdown: string;
   gddModel?: unknown;
   complete?: boolean;
+  draftBar?: boolean;
 }
 export interface ErrorEvent { message: string }
 export interface DoneEvent { readyForSynthesis: boolean }

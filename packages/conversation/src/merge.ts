@@ -66,8 +66,17 @@ function setIfEmpty(cur: unknown, incoming: unknown, apply: (v: string) => void)
   apply(t);
 }
 
+export interface MergeDeltaOptions {
+  /** 出稿抽取：mechanics / juice 整表替换，不再往历史上叠。采访轮不要开。 */
+  replaceLists?: boolean;
+}
+
 /** 原地把 delta 合并进 state 并返回 state。已有字符串会被覆盖。 */
-export function mergeStateDelta(state: ConversationState, delta: StateDelta): ConversationState {
+export function mergeStateDelta(
+  state: ConversationState,
+  delta: StateDelta,
+  opts?: MergeDeltaOptions,
+): ConversationState {
   setText(delta.spark, (v) => (state.spark = v));
   setText(delta.coreEmotion, (v) => (state.coreEmotion = v));
   setText(delta.forbiddenEmotion, (v) => (state.forbiddenEmotion = v));
@@ -91,9 +100,14 @@ export function mergeStateDelta(state: ConversationState, delta: StateDelta): Co
 
   state.references = uniqMerge(state.references, delta.references);
   state.avoidReferences = uniqMerge(state.avoidReferences, delta.avoidReferences);
-  state.juice = uniqMerge(state.juice, delta.juice);
   state.risks = uniqMerge(state.risks, delta.risks);
-  state.mechanics = uniqMerge(state.mechanics, delta.mechanics);
+  if (opts?.replaceLists) {
+    if (Array.isArray(delta.juice)) state.juice = uniqMerge([], delta.juice);
+    if (Array.isArray(delta.mechanics)) state.mechanics = uniqMerge([], delta.mechanics);
+  } else {
+    state.juice = uniqMerge(state.juice, delta.juice);
+    state.mechanics = uniqMerge(state.mechanics, delta.mechanics);
+  }
 
   if (Array.isArray(delta.constitution)) {
     state.constitution = uniqMerge(state.constitution, delta.constitution);
@@ -163,7 +177,7 @@ export function mergeStateDelta(state: ConversationState, delta: StateDelta): Co
     state.engineering.mechanics = uniqMerge(state.engineering.mechanics, e.mechanics);
     state.engineering.intentTerms = uniqMerge(state.engineering.intentTerms, e.intentTerms);
     state.engineering.signatureTerms = uniqMerge(state.engineering.signatureTerms, e.signatureTerms);
-    if (e.mechanics?.length) state.mechanics = uniqMerge(state.mechanics, e.mechanics);
+    if (e.mechanics?.length && !opts?.replaceLists) state.mechanics = uniqMerge(state.mechanics, e.mechanics);
   }
 
   return state;

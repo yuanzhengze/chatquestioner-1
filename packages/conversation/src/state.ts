@@ -101,8 +101,10 @@ export interface ConversationState {
   history: ChatMessage[];
   lastOptions?: TurnOption[];
   readyForSynthesis?: boolean;
-  /** 定稿（过 completeness）才为 true；草稿预览时仍可以是 false */
+  /** 定稿（过 completeness）才为 true；中途半成品仍可以是 false */
   gddComplete?: boolean;
+  /** 预览顶上的草稿条。跟有没有合格口头总结走，不跟 gddComplete。 */
+  gddDraftBar?: boolean;
   /** 已经在该阶段上问过至少一轮，避免字段被顺带填上就跳节 */
   askedStages: number[];
   /** 当前该弹采访选项、收敛三选，还是补一块的设计选项 */
