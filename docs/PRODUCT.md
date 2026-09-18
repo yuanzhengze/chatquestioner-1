@@ -4,7 +4,7 @@
 > 对照实现：`packages/conversation/`、`prompts/game-gdd-clarify/`、`apps/miniprogram/`。  
 > 任务书（范围与待定项）：仓库外 `D:\Newbee\Newbee小程序开发任务书.md`。  
 > 开发过程流水：仓库外 `D:\Newbee\docs\DEVELOPMENT_LOG.md`（不替代本文件）。  
-> 最后与代码对齐：Interactive GDD 第一阶段（真封面 + 游戏基因 + 交互分镜 + 循环三环；2026-09-18，`d1d34d3`）。
+> 最后与代码对齐：手风琴 / Markdown「怎么玩」含机制，「为什么继续玩」承接循环与留存（2026-09-18）。提交 SHA 以 `git log -1` 为准。
 
 ---
 
@@ -235,7 +235,8 @@ GDD **不是**模型整篇写出来的。会话字段进 `toGddModel`，再 `ren
 
 - 核心幻想和玩家身份：一段已经包含另一段就只留一段，不要拼出 `。。`。
 - 游戏宪法只印已确认的八项，顺序固定；没聊过的行省略。
-- 第 5 章内容不要把世界和核心动作硬接在一起。
+- 内容章不要把世界和核心动作硬接在一起。
+- Markdown / 手风琴「怎么玩」印核心动作、核心交互、核心机制；循环、爽点、奖励、成长印在「为什么继续玩」。上面的分镜和三环标题仍是「一局怎么转」，不改采访。
 - 宏循环用三十分钟循环；长线目标和它不是一回事时多写一行「长线」。
 - 「要和别人一起」就打开多人章（排行榜/偷师等），不要只停在呈现栏口语。
 
@@ -256,8 +257,8 @@ GDD **不是**模型整篇写出来的。会话字段进 `toGddModel`，再 `ren
 3. 游戏基因（幻想 / 情感 / 差异化 / 在哪玩）
 4. 「你怎么玩」分镜（点下一步）
 5. 「一局怎么转」三环（点开原文）
-6. 原章节手风琴
-7. 完整文档 + 复制全文
+6. 章节手风琴：游戏宪法 → 这是什么游戏 → **怎么玩**（动作 / 交互 / 机制）→ **为什么继续玩**（循环 / 爽点 / 奖励 / 成长）→ 胜利与失败 → …
+7. 完整文档 + 复制全文（How 与 Why 两章，编号 2 / 3；Win 起顺延为 4–8）
 8. 分享
 
 封面在定稿/出文档之后**异步**生成，页面先出结构再换图。GET `/api/session/:id` **仍然不跑 extract、不堵生图**。刷新时按标题/幻想等指纹决定是否重绘。微信不直连 LiteLLM：图由本服务 `/api/session/:id/cover` 下发，小程序 `downloadFile` 后再显示。第一阶段**不**点按重生图（点封面没有反应是设计）。
@@ -311,6 +312,7 @@ GDD **不是**模型整篇写出来的。会话字段进 `toGddModel`，再 `ren
 | 首次定稿撰写质量 | 本文件 §5.3 | `advance.ts` 出稿抽取一律 `overwrite`；harvest 认 `**标签：**` 与 `**标签**：` |
 | 文档给人看时去重、空栏省略、词池短词 | 本文件 §5.5 | `compile.ts` 折叠机制、`shortKeywords`；`render.ts` 与 `gddSections.js` 列表高光、省略空栏；出稿 extract `replaceLists` |
 | Interactive GDD 结果页 | 本文件 §5.6、§6、§7 | `packages/gdd/src/view.ts`；`apps/server` 封面异步生图；小程序 `pages/gdd` 固定组件 |
+| How / 为什么继续玩怎么切章 | 本文件 §5.5、§5.6 | `gdd-template.md`；`render.ts`；`gddSections.js`；fallback `gdd.js` |
 | 预览草稿条 | 本文件 §5.3、§5.4 | `harvest.ts` 的 `showDraftBar`（有合格口头总结就不亮）；小程序 `gdd/index` 的 `draft` 用 `draftBar`，不用 `!gddComplete` |
 | 问哪一节、问法内核 | 本文件 §3.3 | `prompts/game-gdd-clarify/asks.md`、`stages.ts` |
 | 完整度清单 | 本文件 §5.4 | `completeness.md` 与 `packages/gdd/src/model.ts` 必须一起改 |

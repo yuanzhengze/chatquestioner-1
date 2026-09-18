@@ -78,9 +78,23 @@ describe("renderGdd", () => {
     expect(md).not.toContain("（未写）");
     expect(md).toContain("### 核心交互");
     expect(md).toContain("划线 → 同色猫");
+    expect(md).toContain("## 2. How · 怎么玩");
+    expect(md).toContain("## 3. Why · 为什么继续玩");
+    expect(md).toContain("## 4. Win · Lose");
     expect(md).toContain("### 核心爽点");
     expect(md).toContain("猫爪烟花");
     expect(md).toContain("### 成长与变化");
+    const howIdx = md.indexOf("## 2. How · 怎么玩");
+    const whyIdx = md.indexOf("## 3. Why · 为什么继续玩");
+    const winIdx = md.indexOf("## 4. Win · Lose");
+    const delightIdx = md.indexOf("### 核心爽点");
+    expect(howIdx).toBeGreaterThan(-1);
+    expect(whyIdx).toBeGreaterThan(howIdx);
+    expect(delightIdx).toBeGreaterThan(whyIdx);
+    expect(md.slice(howIdx, whyIdx)).toContain("### 核心机制");
+    expect(md.slice(howIdx, whyIdx)).not.toContain("### 核心游戏循环");
+    expect(md.slice(howIdx, whyIdx)).not.toContain("### 核心爽点");
+    expect(md.slice(whyIdx, winIdx)).not.toContain("### 核心机制");
   });
 
   it("renders all six keyword pools", () => {

@@ -174,16 +174,18 @@ ${line(m.coreAction, gap)}
 
 ${interactionBlock(m, gap)}
 
-### 核心游戏循环
-- 微循环（约 30 秒 / 头几秒）：${line(m.loop.micro, gap)}
-- 中循环（约 5 分钟）：${mid}
-- 宏循环（约 30 分钟 / 长线）：${macro}${longLine}
-
 ### 核心机制（按优先级）
 ${(() => {
     const items = (m.mechanics || []).map(asGddText).filter(Boolean);
     return items.length ? items.map((item, i) => `${i + 1}. ${item}`).join("\n") : `1. ${gap}`;
   })()}
+
+## 3. Why · 为什么继续玩
+
+### 核心游戏循环
+- 微循环（约 30 秒 / 头几秒）：${line(m.loop.micro, gap)}
+- 中循环（约 5 分钟）：${mid}
+- 宏循环（约 30 分钟 / 长线）：${macro}${longLine}
 
 ### 核心爽点
 ${line(m.coreDelight, gap)}
@@ -194,13 +196,13 @@ ${(() => {
     const g = growthBlock(m, complete, gap);
     return g ? `\n${g}\n` : "";
   })()}
-## 3. Win · Lose
+## 4. Win · Lose
 
 - 胜利：${line(m.winRule, gap)}
 - 失败：${line(m.loseRule, gap)}
 - 重玩动机：${line(m.replayMotivation, gap)}
 
-## 4. 世界、叙事与美学
+## 5. 世界、叙事与美学
 
 ### 世界与情境
 ${line(m.world, gap)}
@@ -217,11 +219,11 @@ ${line(m.gameFeel, gap)}
 ### 高光时刻（Juice）
 ${highlightBlock(m, gap)}
 
-## 5. 内容
+## 6. 内容
 
 ${contentBody}
 ${contentExtras.length ? `\n${contentExtras.join("\n\n")}\n` : ""}
-## 6. 呈现与资产
+## 7. 呈现与资产
 
 - 在哪玩：${line(m.presentation.where, gap)}
 - 画面维度：${line(m.presentation.dimension, gap)}
@@ -229,7 +231,7 @@ ${contentExtras.length ? `\n${contentExtras.join("\n\n")}\n` : ""}
 - 人数：${line(m.presentation.players, gap)}
 - 主要资产：${line(m.presentation.assets, gap)}
 
-## 7. 难度与心流
+## 8. 难度与心流
 
 - 怎么上强度：${line(m.difficulty.ramp, gap)}
 - 前几分钟玩家应感到：${line(m.difficulty.firstMinutes, gap)}

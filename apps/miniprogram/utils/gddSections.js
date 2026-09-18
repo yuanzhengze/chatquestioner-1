@@ -95,30 +95,32 @@ function sectionsFromModel(model, complete) {
   push(how, "操作对象：" + line(inter.target, complete));
   push(how, "交互链路：" + line(inter.chain, complete));
   push(how, "即时反馈：" + line(inter.feedback, complete));
-  push(how, "微循环：" + line(loop.micro, complete));
-  push(how, "中循环：" + line(loop.mid, complete));
-  push(how, "宏循环：" + line(loop.macro, complete));
-  var longTerm = String(loop.longTerm || "").trim();
-  if (longTerm && longTerm !== String(loop.macro || "").trim()) {
-    push(how, "长线：" + longTerm);
-  }
   if (mechanics.length) {
     mechanics.forEach(function (m, i) { how.push((i + 1) + ". " + m); });
   } else {
     push(how, "机制：" + line("", complete));
   }
-  push(how, "核心爽点：" + line(model.coreDelight, complete));
-  push(how, "奖励：" + line(model.reward, complete));
+
+  var whyCard = [];
+  push(whyCard, "微循环：" + line(loop.micro, complete));
+  push(whyCard, "中循环：" + line(loop.mid, complete));
+  push(whyCard, "宏循环：" + line(loop.macro, complete));
+  var longTerm = String(loop.longTerm || "").trim();
+  if (longTerm && longTerm !== String(loop.macro || "").trim()) {
+    push(whyCard, "长线：" + longTerm);
+  }
+  push(whyCard, "核心爽点：" + line(model.coreDelight, complete));
+  push(whyCard, "奖励：" + line(model.reward, complete));
   var growth = model.growth && typeof model.growth === "object" ? model.growth : {};
   var unlocks = String(growth.unlocks || "").trim();
   var nearGoal = String(growth.nearGoal || "").trim();
   var afterTen = String(growth.afterTenMin || "").trim();
   if (growth.none && !unlocks && !nearGoal && !afterTen) {
-    push(how, "成长与变化：本游戏无独立成长");
+    push(whyCard, "成长与变化：本游戏无独立成长");
   } else if (unlocks || nearGoal || afterTen) {
-    if (unlocks) push(how, "越玩越多：" + unlocks);
-    if (nearGoal) push(how, "眼前目标：" + nearGoal);
-    if (afterTen) push(how, "玩一阵之后：" + afterTen);
+    if (unlocks) push(whyCard, "越玩越多：" + unlocks);
+    if (nearGoal) push(whyCard, "眼前目标：" + nearGoal);
+    if (afterTen) push(whyCard, "玩一阵之后：" + afterTen);
   }
 
   var win = [];
@@ -158,10 +160,13 @@ function sectionsFromModel(model, complete) {
   if (flags.progression) push(content, "养成 / 长线：" + line(detail.progression, complete));
   if (flags.multiplayer) push(content, "多人：" + line(detail.multiplayer, complete));
 
+  var howLines = how.filter(Boolean);
+  var whyLines = whyCard.filter(Boolean);
   var sections = [
     { id: "constitution", title: "游戏宪法", lines: constitution.filter(Boolean) },
     { id: "what", title: "这是什么游戏", lines: what.filter(Boolean) },
-    { id: "how", title: "怎么玩", lines: how.filter(Boolean) },
+    { id: "how", title: "怎么玩", lines: howLines },
+    { id: "why", title: "为什么继续玩", lines: whyLines },
     { id: "win", title: "胜利与失败", lines: win.filter(Boolean) },
     { id: "world", title: "世界与美学", lines: world.filter(Boolean) },
   ];

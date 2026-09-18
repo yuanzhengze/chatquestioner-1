@@ -192,27 +192,28 @@ function gddFromState(state) {
     + "- 操作对象：" + gap(asString(state.interaction && state.interaction.target)) + "\n"
     + "- 交互链路：" + gap(asString(state.interaction && state.interaction.chain)) + "\n"
     + "- 即时反馈：" + gap(asString(state.interaction && state.interaction.feedback)) + "\n\n"
+    + "### 核心机制\n" + (mechanics.length ? mechanics.map(function (m, i) { return (i + 1) + ". " + m; }).join("\n") : "1. （未写）") + "\n\n"
+    + "## 3. Why · 为什么继续玩\n\n"
     + "### 核心游戏循环\n"
     + "- 微循环：" + gap(micro) + "\n"
     + "- 中循环：" + gap(mid) + "\n"
     + "- 宏循环：" + gap(macro) + "\n"
     + (longTerm && longTerm !== macro ? "- 长线：" + longTerm + "\n" : "")
-    + "\n### 核心机制\n" + (mechanics.length ? mechanics.map(function (m, i) { return (i + 1) + ". " + m; }).join("\n") : "1. （未写）") + "\n\n"
-    + "### 核心爽点\n" + gap(asString(state.coreDelight)) + "\n\n"
+    + "\n### 核心爽点\n" + gap(asString(state.coreDelight)) + "\n\n"
     + "### 奖励节奏\n" + gap(asString(state.reward)) + "\n\n"
     + growthHow(state)
-    + "## 3. Win · Lose\n\n- 胜利：" + gap(asString(state.winRule)) + "\n- 失败：" + gap(asString(state.failRule)) + "\n- 重玩：" + gap(asString(state.replayMotivation) || asString(state.failRule)) + "\n\n"
-    + "## 4. 世界、叙事与美学\n\n"
+    + "## 4. Win · Lose\n\n- 胜利：" + gap(asString(state.winRule)) + "\n- 失败：" + gap(asString(state.failRule)) + "\n- 重玩：" + gap(asString(state.replayMotivation) || asString(state.failRule)) + "\n\n"
+    + "## 5. 世界、叙事与美学\n\n"
     + "### 世界与情境\n" + gap(asString(state.world) || asString(state.theme)) + "\n\n"
     + "### 叙事\n" + gap(asString(state.narrative)) + "\n\n"
     + "### 视听氛围\n" + gap(asString(state.aesthetic)) + "\n\n"
     + "### 手感\n" + gap(asString(state.gameFeel)) + "\n\n"
     + "### 高光时刻\n" + gap(highlight) + "\n\n"
-    + "## 5. 内容\n\n" + gap(asString(state.world) || asString(state.theme)) + "\n\n"
+    + "## 6. 内容\n\n" + gap(asString(state.world) || asString(state.theme)) + "\n\n"
     + (social ? "### 多人\n" + social + "\n\n" : "")
     + poolBlock
-    + "## 6. 呈现与资产\n\n- 在哪玩：" + gap(where) + "\n- 画面维度：" + gap(asString(pres.dimension)) + "\n- 主要资产：" + gap(asString(pres.assets) || asString(state.aesthetic)) + "\n\n"
-    + "## 7. 难度与心流\n\n- 怎么上强度：" + gap(asString(diff.ramp) || asString(state.difficultyCurve)) + "\n";
+    + "## 7. 呈现与资产\n\n- 在哪玩：" + gap(where) + "\n- 画面维度：" + gap(asString(pres.dimension)) + "\n- 主要资产：" + gap(asString(pres.assets) || asString(state.aesthetic)) + "\n\n"
+    + "## 8. 难度与心流\n\n- 怎么上强度：" + gap(asString(diff.ramp) || asString(state.difficultyCurve)) + "\n";
 }
 
 module.exports.gddFromState = gddFromState;

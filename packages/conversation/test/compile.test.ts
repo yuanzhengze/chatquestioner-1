@@ -208,9 +208,15 @@ describe("toGddModel", () => {
     expect(md).toContain("### 核心交互");
     expect(md).toContain("### 核心爽点");
     expect(md).toContain("破土弹出成长时间");
+    expect(md).toContain("## 3. Why · 为什么继续玩");
+    expect(md.slice(md.indexOf("## 2. How · 怎么玩"), md.indexOf("## 3. Why · 为什么继续玩"))).not.toContain("### 核心游戏循环");
+    expect(md.slice(md.indexOf("## 2. How · 怎么玩"), md.indexOf("## 3. Why · 为什么继续玩"))).toContain("### 核心机制");
     const how = sectionsFromModel(m, false).find((x) => x.id === "how");
+    const why = sectionsFromModel(m, false).find((x) => x.id === "why");
+    expect(why?.title).toBe("为什么继续玩");
     expect(how?.lines.some((l) => l.includes("交互链路"))).toBe(true);
-    expect(how?.lines.some((l) => l.includes("核心爽点"))).toBe(true);
+    expect(how?.lines.some((l) => l.includes("核心爽点"))).toBe(false);
+    expect(why?.lines.some((l) => l.includes("核心爽点"))).toBe(true);
   });
 
   it("短局成长整节只留无独立成长", () => {
@@ -222,8 +228,11 @@ describe("toGddModel", () => {
     expect(md).toContain("本游戏无独立成长");
     expect(md).not.toContain("眼前目标");
     const how = sectionsFromModel(m, true).find((x) => x.id === "how");
-    expect(how?.lines.some((l) => l.includes("本游戏无独立成长"))).toBe(true);
-    expect(how?.lines.some((l) => l.includes("眼前目标"))).toBe(false);
+    const why = sectionsFromModel(m, true).find((x) => x.id === "why");
+    expect(why?.title).toBe("为什么继续玩");
+    expect(why?.lines.some((l) => l.includes("本游戏无独立成长"))).toBe(true);
+    expect(how?.lines.some((l) => l.includes("本游戏无独立成长"))).toBe(false);
+    expect(why?.lines.some((l) => l.includes("眼前目标"))).toBe(false);
   });
 
   it("宪法只印八项；extras 失败/爽点不进宪法；none 无证据不写成长规则", () => {

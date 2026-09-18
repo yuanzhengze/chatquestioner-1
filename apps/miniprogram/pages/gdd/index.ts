@@ -348,7 +348,12 @@ Page({
     const view = toGddView(model || {});
     const title = view.title || meta.title || "未命名游戏";
     const pitch = view.pitch || meta.pitch || "";
-    const sections = sectionsFromModel(model, complete) as Array<{ id: string; title: string; lines: string[] }>;
+    let sections: Array<{ id: string; title: string; lines: string[] }> = [];
+    try {
+      sections = sectionsFromModel(model, complete) as Array<{ id: string; title: string; lines: string[] }>;
+    } catch (_e) {
+      sections = [];
+    }
     const storyboard = view.storyboard || [];
     this._markdown = markdown;
     this._model = model;
