@@ -3,52 +3,55 @@
   align-items: flex-end;
   gap: 16rpx;
   padding: 16rpx 32rpx 24rpx;
-  background: #191919;
-  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--bg-base);
+  border-top: 1px solid var(--divider);
 }
 .input {
   flex: 1;
   min-width: 0;
   min-height: 72rpx;
   max-height: 200rpx;
-  background: #242424;
-  color: #ffffff;
-  border: 1px solid #404040;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 16rpx;
   padding: 18rpx 24rpx;
   font-size: 30rpx;
   line-height: 1.5;
 }
 .input.on {
-  border-color: #d4ff48;
+  border-color: var(--brand);
 }
-.ph { color: rgba(255, 255, 255, 0.30); }
+.ph { color: var(--text-3); }
 .send {
   flex-shrink: 0;
   width: 72rpx;
   height: 72rpx;
   margin-bottom: 2rpx;
   border-radius: 50%;
-  background: #d4ff48;
+  background: var(--brand);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .send.off { opacity: 0.22; }
-.send-press { opacity: 0.82; }
+.send-press {
+  background: var(--brand-hover);
+  transform: scale(var(--press-scale));
+}
 .send-arrow {
   width: 0;
   height: 0;
   border-left: 12rpx solid transparent;
   border-right: 12rpx solid transparent;
-  border-bottom: 18rpx solid #0d0d0d;
+  border-bottom: 18rpx solid var(--text-on-bright);
   margin-top: -4rpx;
 }
 .send-spin {
   width: 28rpx;
   height: 28rpx;
-  border: 4rpx solid rgba(13, 13, 13, 0.22);
-  border-top-color: #0d0d0d;
+  border: 4rpx solid var(--text-on-bright-3);
+  border-top-color: var(--text-on-bright);
   border-radius: 50%;
   animation: sendSpin 0.7s linear infinite;
 }

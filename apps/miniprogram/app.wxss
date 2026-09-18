@@ -1,27 +1,77 @@
+/* ForgeaX Design Tokens · 对照工作区根目录《ForgeaX界面设计规范.html》
+   小程序用 rpx：桌面 1px ≈ 2rpx。不把 Studio 桌面壳搬过来，只搬令牌与组件约定。 */
+
 page {
-  --bg-canvas: #0d0d0d;
-  --bg-panel: #191919;
-  --bg-elevated: #242424;
-  --bg-float: #333333;
-  --text: #ffffff;
+  --lime-300: #DFFF78;
+  --lime-400: #D4FF48;
+  --lime-500: #B1D43C;
+  --lime-700: #6A7F24;
+  --neutral-0: #FFFFFF;
+  --neutral-400: #999999;
+  --neutral-600: #666666;
+  --neutral-750: #404040;
+  --neutral-800: #333333;
+  --neutral-850: #242424;
+  --neutral-900: #191919;
+  --neutral-950: #0D0D0D;
+  --neutral-1000: #000000;
+  --red-400: #F26A6A;
+  --red-600: #BE3636;
+  --orange-400: #FFB056;
+  --green-600: #1B9D4B;
+  --yellow-600: #BA8E06;
+
+  --bg-canvas: var(--neutral-950);
+  --bg-base: var(--neutral-900);
+  --bg-elevated: var(--neutral-850);
+  --bg-floating: var(--neutral-800);
+  --text: var(--neutral-0);
   --text-2: rgba(255, 255, 255, 0.60);
   --text-3: rgba(255, 255, 255, 0.30);
-  --border: #333333;
-  --border-2: #404040;
+  --text-disabled: rgba(255, 255, 255, 0.20);
+  --text-on-bright: var(--neutral-1000);
+  --text-on-bright-2: rgba(0, 0, 0, 0.60);
+  --text-on-bright-3: rgba(0, 0, 0, 0.30);
+  --border-subtle: var(--neutral-800);
+  --border: var(--neutral-750);
+  --border-strong: #737373;
+  --divider-subtle: rgba(255, 255, 255, 0.05);
   --divider: rgba(255, 255, 255, 0.10);
-  --brand: #d4ff48;
-  --brand-soft: rgba(212, 255, 72, 0.10);
-  --error: #f26a6a;
-  --warning: #ffb056;
+  --divider-strong: rgba(255, 255, 255, 0.15);
+  --brand: var(--lime-400);
+  --brand-light: var(--lime-300);
+  --brand-hover: #C5F038;
+  --brand-tint: rgba(212, 255, 72, 0.10);
+  --brand-stroke: rgba(212, 255, 72, 0.34);
+  --brand-ring: rgba(212, 255, 72, 0.30);
+  --hover: rgba(255, 255, 255, 0.05);
+  --selected-neutral: rgba(255, 255, 255, 0.10);
+  --error: var(--red-400);
+  --error-strong: var(--red-600);
+  --overlay: rgba(0, 0, 0, 0.55);
+
   --r-tag: 8rpx;
+  --r-compact: 12rpx;
   --r-ctrl: 16rpx;
   --r-panel: 24rpx;
   --r-card: 32rpx;
-  background: #0d0d0d;
-  color: #ffffff;
-  font-size: 30rpx;
+  --r-full: 9999rpx;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-instant: 80ms;
+  --dur-fast: 110ms;
+  --dur-base: 150ms;
+  --dur-smooth: 190ms;
+  --dur-panel: 220ms;
+  --press-scale: 0.996;
+
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  background: var(--bg-canvas);
+  color: var(--text);
+  font-size: 28rpx;
+  font-weight: 400;
   line-height: 1.55;
 }
 
-.muted { color: rgba(255, 255, 255, 0.60); }
-.err { color: #f26a6a; }
+.muted { color: var(--text-2); }
+.err { color: var(--error); }

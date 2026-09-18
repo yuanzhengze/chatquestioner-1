@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: width 200ms ease, height 200ms ease;
+  transition: width var(--dur-smooth) var(--ease-out), height var(--dur-smooth) var(--ease-out);
 }
 .halo.compact {
   width: 240rpx;
@@ -15,7 +15,7 @@
   position: absolute;
   inset: -8%;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, rgba(212, 255, 72, 0.18) 0%, transparent 62%);
+  background: radial-gradient(circle at 50% 45%, var(--brand-tint) 0%, transparent 62%);
   z-index: 0;
 }
 .face {

@@ -10,7 +10,7 @@ const { shareGddMarkdown } = require("../../utils/gddExport.js");
 /** 微信分享图建议 5:4，避免不设 imageUrl 时退回整页截屏。 */
 const SHARE_W = 500;
 const SHARE_H = 400;
-const ACCORDION_MS = 320;
+const ACCORDION_MS = 220;
 
 function absUrl(path: string): string {
   const p = String(path || "").trim();
@@ -118,7 +118,7 @@ function drawShareCard(
 
   ctx.fillStyle = "#D4FF48";
   fillRoundRect(ctx, 28, 28, 132, 36, 4);
-  ctx.fillStyle = "#0D0D0D";
+  ctx.fillStyle = "#000000";
   ctx.font = "20px sans-serif";
   ctx.fillText("游戏文档", 48, 53);
 

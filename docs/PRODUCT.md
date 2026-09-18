@@ -4,7 +4,7 @@
 > 对照实现：`packages/conversation/`、`prompts/game-gdd-clarify/`、`apps/miniprogram/`。  
 > 任务书（范围与待定项）：仓库外 `D:\Newbee\Newbee小程序开发任务书.md`。  
 > 开发过程流水：仓库外 `D:\Newbee\docs\DEVELOPMENT_LOG.md`（不替代本文件）。  
-> 最后与代码对齐：手风琴展开收回带动画并跟视角（2026-09-18）。导出 GDD 见 §3.8。切章仍是「怎么玩」含机制、「为什么继续玩」承接循环与留存。预览点一句改见 §3.7。
+> 最后与代码对齐：小程序视觉令牌对齐 ForgeaX 界面设计规范（2026-09-18）。手风琴展开收回带动画并跟视角。导出 GDD 见 §3.8。切章仍是「怎么玩」含机制、「为什么继续玩」承接循环与留存。预览点一句改见 §3.7。
 
 ---
 
@@ -307,7 +307,7 @@ GDD **不是**模型整篇写出来的。会话字段进 `toGddModel`，再 `ren
 3. 游戏基因（幻想 / 情感 / 差异化 / 在哪玩）
 4. 「你怎么玩」分镜（点下一步）
 5. 「一局怎么转」三环（点开原文）
-6. 章节手风琴：游戏宪法 → 这是什么游戏 → **怎么玩**（动作 / 交互 / 机制）→ **为什么继续玩**（循环 / 爽点 / 奖励 / 成长）→ 胜利与失败 → …。展开收回有动画。点另一块时，视角跟到那一块的标题，不停在上一块展开后的底部。自己的预览里，点一句先高亮，右侧出现绿色 ✎，再点 ✎ 去改；分享页只读。
+6. 章节手风琴：游戏宪法 → 这是什么游戏 → **怎么玩**（动作 / 交互 / 机制）→ **为什么继续玩**（循环 / 爽点 / 奖励 / 成长）→ 胜利与失败 → …。展开收回约 220ms。点另一块时，视角跟到那一块的标题，不停在上一块展开后的底部。自己的预览里，点一句先高亮，右侧出现绿色 ✎，再点 ✎ 去改；分享页只读。
 7. 完整文档 + 复制全文（How 与 Why 两章，编号 2 / 3；Win 起顺延为 4–8）
 8. 分享给朋友（小程序卡片）+ 导出 GDD 文件（仅主人预览；发给文件传输助手即相当于保存在微信里）
 
@@ -322,6 +322,8 @@ GDD **不是**模型整篇写出来的。会话字段进 `toGddModel`，再 `ren
 ## 6. 小程序页面（当前）
 
 底部三 Tab：**首页 / 共创 / 我的**。
+
+视觉跟工作区根目录《ForgeaX界面设计规范.html》的令牌，不搬 Studio 三栏壳。画布 `#0D0D0D`、面板 `#191919` / `#242424`、主色 lime `#D4FF48`。主按钮 lime 底必须黑字 `#000000`，按压缩放 0.996、悬停 `#C5F038`；次按钮灰面 `#242424` + 描边 `#404040`。选中用 lime 10% 底。动效 80–220ms。导航栏 / Tab / canvas 不能写 CSS 变量，仍写这些十六进制。不引入 Inter 网字，中文走 PingFang SC。
 
 | 页面 | 产品要点 |
 | --- | --- |
@@ -364,6 +366,7 @@ GDD **不是**模型整篇写出来的。会话字段进 `toGddModel`，再 `ren
 | Interactive GDD 结果页 | 本文件 §5.6、§6、§7 | `packages/gdd/src/view.ts`；`apps/server` 封面异步生图；小程序 `pages/gdd` 固定组件 |
 | 预览里点一句改 | 本文件 §3.7、§4 | `packages/conversation/src/patch.ts`；`advance.ts` 的 patch 相；小程序 `gdd/index` 点句与 ✎；`POST /api/session/:id/patch` |
 | 手风琴展开收回 / 切块跟视角 | 本文件 §5.6、§6 | 小程序 `gdd/index` 的 `.card-fold` 动画与 `scrollAccordionTo` |
+| 小程序视觉（色、按钮、动效） | 本文件 §6；仓外《ForgeaX界面设计规范.html》 | `apps/miniprogram/app.wxss` 令牌；各页 `.wxss`；组件 `styleIsolation: apply-shared`；`utils/md.js` 行内高亮黑字；分享卡 canvas 亮底黑字 |
 | 导出 GDD 文件 | 本文件 §3.8、§6 | 小程序 `gdd/index` 的 `onExportFile`；`utils/gddExport.js`；不改分享快照协议 |
 | How / 为什么继续玩怎么切章 | 本文件 §5.5、§5.6 | `gdd-template.md`；`render.ts`；`gddSections.js`；fallback `gdd.js` |
 | 预览草稿条 | 本文件 §5.3、§5.4 | `harvest.ts` 的 `showDraftBar`（有合格口头总结就不亮）；小程序 `gdd/index` 的 `draft` 用 `draftBar`，不用 `!gddComplete` |

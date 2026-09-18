@@ -6,7 +6,7 @@ function escapeHtml(s) {
 function inline(s) {
   return escapeHtml(s).replace(
     /\*\*(.+?)\*\*/g,
-    '<strong style="color:#0D0D0D;background:#D4FF48;padding:0 4px;border-radius:4px;font-weight:600">$1</strong>',
+    '<strong style="color:#000000;background:#D4FF48;padding:0 4px;border-radius:4px;font-weight:600">$1</strong>',
   );
 }
 

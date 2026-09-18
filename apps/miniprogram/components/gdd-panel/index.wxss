@@ -4,8 +4,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #191919;
-  border: 1px solid #333333;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
   border-radius: 24rpx;
   overflow: hidden;
 }
@@ -14,19 +14,20 @@
   align-items: center;
   justify-content: space-between;
   padding: 20rpx 28rpx;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid var(--divider);
 }
 .title {
   font-size: 26rpx;
   font-weight: 600;
-  color: #d4ff48;
+  color: var(--brand);
 }
 .copy {
   font-size: 22rpx;
-  color: #d4ff48;
+  color: var(--brand);
   padding: 6rpx 16rpx;
-  border: 1px solid #d4ff48;
-  border-radius: 16rpx;
+  background: var(--brand-tint);
+  border: 1px solid var(--brand-stroke);
+  border-radius: 12rpx;
 }
 .body {
   flex: 1;
@@ -36,5 +37,5 @@
 }
 .empty {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.60);
+  color: var(--text-2);
 }

@@ -15,19 +15,19 @@
   font-size: 20rpx;
   letter-spacing: 0.04em;
   margin-bottom: 6rpx;
-  color: rgba(255, 255, 255, 0.30);
+  color: var(--text-3);
 }
 .bubble.user {
   margin-left: auto;
-  background: #d4ff48;
-  color: #0d0d0d;
+  background: var(--brand);
+  color: var(--text-on-bright);
   white-space: pre-wrap;
 }
-.bubble.user .role { color: #0d0d0d; }
+.bubble.user .role { color: var(--text-on-bright); }
 .bubble.assistant {
-  background: #191919;
-  border: 1px solid #333333;
-  color: #ffffff;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  color: var(--text);
 }
 .md {
   display: block;
