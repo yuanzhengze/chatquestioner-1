@@ -119,7 +119,10 @@
     <text wx:if="{{!html}}" class="doc-plain">{{plain}}</text>
   </view>
 
-  <button wx:if="{{!fromShare}}" class="share-btn" open-type="share" hover-class="none">分享给朋友</button>
+  <view wx:if="{{!fromShare}}" class="share-actions">
+    <button class="share-btn" open-type="share" hover-class="none">分享给朋友</button>
+    <button class="export-btn" hover-class="none" bindtap="onExportFile">导出 GDD 文件</button>
+  </view>
 
   <view wx:if="{{fromShare}}" class="share-footer">
     <button class="try-btn ghost" hover-class="none" bindtap="onTryCoCreate">我也来共创</button>

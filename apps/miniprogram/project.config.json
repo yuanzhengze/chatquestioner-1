@@ -25,6 +25,10 @@
       {
         "value": "typings",
         "type": "folder"
+      },
+      {
+        "value": "test",
+        "type": "folder"
       }
     ],
     "include": []

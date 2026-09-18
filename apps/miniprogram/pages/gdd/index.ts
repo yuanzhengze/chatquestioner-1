@@ -5,6 +5,7 @@ const { mdToHtml } = require("../../utils/md.js");
 const { parseGddPreview } = require("../../utils/gddPreview.js");
 const { sectionsFromModel } = require("../../utils/gddSections.js");
 const { toGddView } = require("../../utils/gddView.js");
+const { shareGddMarkdown } = require("../../utils/gddExport.js");
 
 /** 微信分享图建议 5:4，避免不设 imageUrl 时退回整页截屏。 */
 const SHARE_W = 500;
@@ -676,6 +677,41 @@ Page({
         wx.showToast({ title: "已复制 GDD", icon: "success" });
       },
     });
+  },
+
+  onExportFile() {
+    if (this._fromShare) return;
+    const markdown = this._markdown;
+    if (!String(markdown || "").trim()) {
+      wx.showToast({ title: "还没有文档可导出", icon: "none" });
+      return;
+    }
+    const failToast = () => {
+      wx.showToast({ title: "文件没发出去，可以先复制全文", icon: "none" });
+    };
+    const result = shareGddMarkdown({
+      title: this.data.title,
+      markdown,
+      userDataPath: wx.env.USER_DATA_PATH,
+      writeFileSync: (filePath: string, data: string, encoding: string) => {
+        wx.getFileSystemManager().writeFileSync(filePath, data, encoding);
+      },
+      shareFileMessage: (opts: {
+        filePath: string;
+        fileName: string;
+        success: () => void;
+        fail: (err: unknown) => void;
+      }) => {
+        wx.shareFileMessage(opts);
+      },
+      onFail: failToast,
+      onUnsupported: () => {
+        wx.showToast({ title: "模拟器发不了，请用真机", icon: "none" });
+      },
+    });
+    if (!result.ok && result.reason === "empty") {
+      wx.showToast({ title: "还没有文档可导出", icon: "none" });
+    }
   },
 
   onTryCoCreate() {
