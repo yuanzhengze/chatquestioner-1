@@ -241,8 +241,32 @@ page { background: #0d0d0d; color: #ffffff; }
 .card-chevron {
   color: #d4ff48;
   font-size: 28rpx;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 0.32s ease;
+}
+.card.on .card-chevron {
+  transform: rotate(90deg);
+}
+.card-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: grid-template-rows 0.32s ease, max-height 0.32s ease, opacity 0.22s ease;
+}
+.card.on .card-fold {
+  grid-template-rows: 1fr;
+  max-height: 4000rpx;
+  opacity: 1;
 }
 .card-body {
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+}
+.card.on .card-body {
   margin-top: 16rpx;
 }
 .card-line {

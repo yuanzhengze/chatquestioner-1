@@ -80,32 +80,35 @@
   <view
     wx:for="{{sections}}"
     wx:key="id"
+    id="gdd-sec-{{item.id}}"
     class="card {{expandedId === item.id ? 'on' : ''}}"
   >
     <view class="card-h" data-id="{{item.id}}" catchtap="onToggleSection">
       <view class="card-title">{{item.title}}</view>
-      <view class="card-chevron">{{expandedId === item.id ? '▾' : '▸'}}</view>
+      <view class="card-chevron">▸</view>
     </view>
-    <view wx:if="{{expandedId === item.id}}" class="card-body">
-      <view
-        wx:for="{{item.lines}}"
-        wx:for-item="line"
-        wx:key="id"
-        class="card-line {{fromShare ? '' : 'tap'}} {{selectedLineId === line.id ? 'on' : ''}}"
-        data-id="{{line.id}}"
-        catchtap="onSelectLine"
-      >
-        <text class="card-line-text">{{line.text}}</text>
-        <text
-          wx:if="{{!fromShare && selectedLineId === line.id}}"
-          class="line-edit"
+    <view id="gdd-fold-{{item.id}}" class="card-fold">
+      <view class="card-body">
+        <view
+          wx:for="{{item.lines}}"
+          wx:for-item="line"
+          wx:key="id"
+          class="card-line {{fromShare ? '' : 'tap'}} {{selectedLineId === line.id ? 'on' : ''}}"
           data-id="{{line.id}}"
-          data-text="{{line.text}}"
-          data-section="{{item.id}}"
-          data-title="{{item.title}}"
-          catchtap="onPatchLine"
-        >✎</text>
-        <text wx:elif="{{!fromShare}}" class="line-edit-slot"></text>
+          catchtap="onSelectLine"
+        >
+          <text class="card-line-text">{{line.text}}</text>
+          <text
+            wx:if="{{!fromShare && selectedLineId === line.id}}"
+            class="line-edit"
+            data-id="{{line.id}}"
+            data-text="{{line.text}}"
+            data-section="{{item.id}}"
+            data-title="{{item.title}}"
+            catchtap="onPatchLine"
+          >✎</text>
+          <text wx:elif="{{!fromShare}}" class="line-edit-slot"></text>
+        </view>
       </view>
     </view>
   </view>

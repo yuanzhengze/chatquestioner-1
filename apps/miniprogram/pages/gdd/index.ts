@@ -10,6 +10,7 @@ const { shareGddMarkdown } = require("../../utils/gddExport.js");
 /** 微信分享图建议 5:4，避免不设 imageUrl 时退回整页截屏。 */
 const SHARE_W = 500;
 const SHARE_H = 400;
+const ACCORDION_MS = 320;
 
 function absUrl(path: string): string {
   const p = String(path || "").trim();
@@ -629,9 +630,46 @@ Page({
   },
 
   onToggleSection(e: { currentTarget: { dataset: { id?: string } } }) {
-    const id = e.currentTarget.dataset.id;
+    const id = String((e.currentTarget.dataset && e.currentTarget.dataset.id) || "");
     if (!id) return;
-    this.setData({ expandedId: this.data.expandedId === id ? "" : id });
+    const prev = String(this.data.expandedId || "");
+    const next = prev === id ? "" : id;
+    if (!next) {
+      this.setData({ expandedId: "", selectedLineId: "" });
+      return;
+    }
+    this.scrollAccordionTo(prev, next);
+  },
+
+  /** 切到另一块时，按「上一块收回后」的位置把新标题滚进视野，避免视角停在长模块展开后的底部。 */
+  scrollAccordionTo(prevId: string, nextId: string) {
+    const q = wx.createSelectorQuery();
+    q.selectViewport().scrollOffset();
+    q.select(`#gdd-sec-${nextId}`).boundingClientRect();
+    if (prevId) {
+      q.select(`#gdd-sec-${prevId}`).boundingClientRect();
+      q.select(`#gdd-fold-${prevId}`).boundingClientRect();
+    }
+    q.exec((res: Array<{ scrollTop?: number; top?: number; height?: number } | null>) => {
+      const scrollTop = Number((res && res[0] && res[0].scrollTop) || 0);
+      const nextRect = res && res[1];
+      if (!nextRect || typeof nextRect.top !== "number") {
+        this.setData({ expandedId: nextId, selectedLineId: "" });
+        return;
+      }
+      let lift = 0;
+      if (prevId) {
+        const prevRect = res[2];
+        const prevFold = res[3];
+        if (prevRect && prevFold && nextRect.top > (prevRect.top || 0)) {
+          lift = Number(prevFold.height || 0);
+        }
+      }
+      const padding = 8;
+      const target = Math.max(0, scrollTop + nextRect.top - lift - padding);
+      this.setData({ expandedId: nextId, selectedLineId: "" });
+      wx.pageScrollTo({ scrollTop: target, duration: ACCORDION_MS });
+    });
   },
 
   onSelectLine(e: { currentTarget: { dataset: { id?: string } } }) {
