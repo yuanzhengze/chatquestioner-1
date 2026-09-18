@@ -623,6 +623,7 @@ Page({
           model: this._synthesisModel || null,
           complete: this._synthesisComplete === true,
           draftBar: this._synthesisDraftBar === true,
+          sessionId: this._sessionId || "",
         },
         complete: () => {
           wx.navigateTo({
@@ -634,6 +635,7 @@ Page({
                   model: this._synthesisModel || null,
                   complete: this._synthesisComplete === true,
                   draftBar: this._synthesisDraftBar === true,
+                  sessionId: this._sessionId || "",
                 });
               }
             },

@@ -20,6 +20,7 @@ export interface OptionsEvent { options: TurnOption[] }
 export interface SynthesisEvent {
   gddMarkdown: string;
   gddModel?: unknown;
+  gddView?: unknown;
   complete?: boolean;
   draftBar?: boolean;
 }

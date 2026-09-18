@@ -2,7 +2,9 @@
  * 开发期 API 根地址。
  * - 模拟器：127.0.0.1 即可
  * - 真机：改成电脑的局域网 IP，例如 http://192.168.1.8:8420
+ * 封面图也走这个根（/api/session/:id/cover），不要让小程序直连 LiteLLM。
  * 本仓库 project.config.json 已设 urlCheck: false，模拟器一般不用再勾「不校验合法域名」。
+ * 真机/正式版还要把该 API 域名配进 request / downloadFile 合法域名。
  */
 export const API_BASE = "http://127.0.0.1:8420";
 

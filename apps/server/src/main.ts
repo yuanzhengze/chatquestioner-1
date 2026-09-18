@@ -3,6 +3,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
 import { OpenAiLlmClient } from "./llm/openaiClient.js";
+import { OpenAiImageClient } from "./imageClient.js";
 import { FileSessionStore, type SessionStore } from "./sessionStore.js";
 import { buildServer } from "./server.js";
 import { loadRetriever } from "./knowledgeRetriever.js";
@@ -19,6 +20,15 @@ async function start(): Promise<void> {
   const cfg = loadConfig();
   const skillDir = resolve(repoRoot, "prompts", "game-gdd-clarify");
   const llm = new OpenAiLlmClient({ baseURL: cfg.LLM_BASE_URL, apiKey: cfg.LLM_API_KEY, model: cfg.LLM_MODEL });
+  const imageModel = (cfg.IMAGE_MODEL || "").trim();
+  const image = imageModel
+    ? new OpenAiImageClient({
+      baseURL: cfg.IMAGE_BASE_URL || cfg.LLM_BASE_URL,
+      apiKey: cfg.IMAGE_API_KEY || cfg.LLM_API_KEY,
+      model: imageModel,
+      size: cfg.IMAGE_SIZE || "1024x1024",
+    })
+    : undefined;
 
   // 配了 DATABASE_URL 就走 Postgres（会话入库 + 启用后台/卡片 API），否则回退文件存储。
   let store: SessionStore;
@@ -41,7 +51,9 @@ async function start(): Promise<void> {
 
   const app = buildServer({
     llm, store, skillDir, retrieve, repo,
+    image,
     shareDir: resolve(repoRoot, "data"),
+    coverDir: resolve(repoRoot, "data", "covers"),
     webDir: resolve(repoRoot, "apps/web/dist"),
     avatarDir: resolve(repoRoot, "apps/web/public/avatar"),
   });

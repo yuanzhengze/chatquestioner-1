@@ -1,13 +1,25 @@
-import { GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
-import { createShare, getShare } from "../../utils/api";
+import { API_BASE, GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
+import { attachShareCover, createShare, downloadCover, getCoverMeta, getShare, requestCover } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
 const { parseGddPreview } = require("../../utils/gddPreview.js");
 const { sectionsFromModel } = require("../../utils/gddSections.js");
+const { toGddView } = require("../../utils/gddView.js");
 
 /** 微信分享图建议 5:4，避免不设 imageUrl 时退回整页截屏。 */
 const SHARE_W = 500;
 const SHARE_H = 400;
+
+function absUrl(path: string): string {
+  const p = String(path || "").trim();
+  if (!p) return "";
+  if (/^https?:\/\//i.test(p)) return p;
+  return `${API_BASE}${p.startsWith("/") ? p : `/${p}`}`;
+}
+
+/** gpt-image-2 出一张约 2MB 图经常要 1–3 分钟，不能按 30 秒放弃。 */
+const COVER_POLL_MS = 2000;
+const COVER_POLL_MAX = 90;
 
 function wrapText(
   ctx: { measureText: (t: string) => { width: number } },
@@ -176,6 +188,18 @@ Page({
     draft: false,
     sections: [] as Array<{ id: string; title: string; lines: string[] }>,
     expandedId: "constitution",
+    coverUrl: "",
+    coverPending: false,
+    dna: [] as Array<{ id: string; label: string; text: string }>,
+    dnaOpen: "",
+    dnaFull: "",
+    storyboard: [] as Array<{ title: string; text: string }>,
+    storyIndex: 0,
+    frameTitle: "",
+    frameText: "",
+    loopNodes: [] as Array<{ id: string; label: string; text: string }>,
+    loopOpen: "",
+    loopText: "",
   },
 
   _markdown: "",
@@ -188,6 +212,9 @@ Page({
   _sharePromise: null as Promise<{ id: string; title: string }> | null,
   _shareImage: "",
   _shareImagePromise: null as Promise<string> | null,
+  _sessionId: "",
+  _coverTimer: 0 as number,
+  _coverTries: 0,
 
   onLoad(query: { s?: string }) {
     try {
@@ -211,7 +238,7 @@ Page({
 
     const ch = this.getOpenerEventChannel();
     if (ch && typeof ch.on === "function") {
-      ch.on("gddDraft", (payload: { markdown?: string; model?: unknown; complete?: boolean; draftBar?: boolean }) => {
+      ch.on("gddDraft", (payload: { markdown?: string; model?: unknown; complete?: boolean; draftBar?: boolean; sessionId?: string }) => {
         this.applyPayload(payload);
       });
     }
@@ -231,6 +258,7 @@ Page({
 
   onUnload() {
     if (this._waitTimer) clearTimeout(this._waitTimer);
+    this.stopCoverWatch();
   },
 
   async loadShare(id: string) {
@@ -240,6 +268,7 @@ Page({
         markdown: snap.markdown,
         model: snap.model,
         complete: snap.complete,
+        coverImageUrl: snap.coverImageUrl,
       });
     } catch (_e) {
       this._shareId = "";
@@ -250,18 +279,33 @@ Page({
 
   applyFromStorage() {
     try {
-      const draft = wx.getStorageSync(GDD_DRAFT_KEY) as { markdown?: string; model?: unknown; complete?: boolean; draftBar?: boolean } | "";
+      const draft = wx.getStorageSync(GDD_DRAFT_KEY) as {
+        markdown?: string;
+        model?: unknown;
+        complete?: boolean;
+        draftBar?: boolean;
+        sessionId?: string;
+      } | "";
       if (draft && typeof draft === "object" && draft.markdown) this.applyPayload(draft);
     } catch (_e) {
       // 读缓存失败时等 eventChannel / 超时
     }
   },
 
-  applyPayload(payload?: { markdown?: string; model?: unknown; complete?: boolean; draftBar?: boolean }) {
+  applyPayload(payload?: {
+    markdown?: string;
+    model?: unknown;
+    complete?: boolean;
+    draftBar?: boolean;
+    sessionId?: string;
+    coverImageUrl?: string;
+  }) {
     const markdown = String((payload && payload.markdown) || "").trim();
     const model = payload && payload.model && typeof payload.model === "object" ? payload.model : null;
     const complete = payload && payload.complete === true;
     const draftBar = payload && payload.draftBar === true;
+    this._sessionId = payload && payload.sessionId ? String(payload.sessionId) : this._sessionId;
+    this.stopCoverWatch();
     if (!markdown) {
       this._markdown = "";
       this._model = null;
@@ -279,6 +323,18 @@ Page({
         draft: false,
         sections: [],
         expandedId: "constitution",
+        coverUrl: "",
+        coverPending: false,
+        dna: [],
+        dnaOpen: "",
+        dnaFull: "",
+        storyboard: [],
+        storyIndex: 0,
+        frameTitle: "",
+        frameText: "",
+        loopNodes: [],
+        loopOpen: "",
+        loopText: "",
       });
       return;
     }
@@ -289,13 +345,11 @@ Page({
     } catch (_e) {
       html = "";
     }
-    const title = (model && typeof model === "object" && (model as { title?: string }).title)
-      || meta.title
-      || "未命名游戏";
-    const pitch = (model && typeof model === "object" && (model as { pitch?: string }).pitch)
-      || meta.pitch
-      || "";
+    const view = toGddView(model || {});
+    const title = view.title || meta.title || "未命名游戏";
+    const pitch = view.pitch || meta.pitch || "";
     const sections = sectionsFromModel(model, complete) as Array<{ id: string; title: string; lines: string[] }>;
+    const storyboard = view.storyboard || [];
     this._markdown = markdown;
     this._model = model;
     this._complete = complete;
@@ -310,11 +364,27 @@ Page({
       draft: draftBar,
       sections,
       expandedId: sections.length ? sections[0].id : "",
+      coverUrl: "",
+      coverPending: false,
+      dna: view.dna || [],
+      dnaOpen: "",
+      dnaFull: "",
+      storyboard,
+      storyIndex: 0,
+      frameTitle: storyboard[0] ? storyboard[0].title : "",
+      frameText: storyboard[0] ? storyboard[0].text : "",
+      loopNodes: view.loopNodes || [],
+      loopOpen: "",
+      loopText: "",
     });
-    if (!this._fromShare) {
-      void this.startShare();
-      void this.makeShareCard(title, pitch);
+    if (this._fromShare) {
+      const shareCover = payload && payload.coverImageUrl ? String(payload.coverImageUrl) : "";
+      if (shareCover) this.revealCover(shareCover);
+      return;
     }
+    void this.startShare();
+    void this.makeShareCard(title, pitch);
+    this.startCoverWatch();
   },
 
   startShare(): Promise<{ id: string; title: string }> {
@@ -328,6 +398,7 @@ Page({
     this._sharePromise = createShare(markdown, title, {
       model: this._model || undefined,
       complete: this._complete === true,
+      sessionId: this._sessionId || undefined,
     })
       .then((res) => {
         this._shareId = res.id;
@@ -413,8 +484,107 @@ Page({
     };
   },
 
-  onCoverTap() {
-    wx.showToast({ title: "封面生图稍后接入", icon: "none" });
+  onCoverError() {
+    this.setData({ coverUrl: "", coverPending: false });
+  },
+
+  revealCover(remote: string) {
+    const url = absUrl(remote);
+    if (!url) {
+      this.setData({ coverPending: false });
+      return;
+    }
+    this.setData({ coverPending: true });
+    void downloadCover(url)
+      .then((local) => {
+        this.setData({ coverUrl: local, coverPending: false });
+      })
+      .catch(() => {
+        this.setData({ coverUrl: url, coverPending: false });
+      });
+  },
+
+  stopCoverWatch() {
+    if (this._coverTimer) {
+      clearTimeout(this._coverTimer);
+      this._coverTimer = 0;
+    }
+    this._coverTries = 0;
+  },
+
+  startCoverWatch() {
+    if (this._fromShare || !this._sessionId) return;
+    this.setData({ coverPending: true });
+    void requestCover(this._sessionId)
+      .then((meta) => this.applyCoverMeta(meta))
+      .catch(() => this.scheduleCoverPoll());
+  },
+
+  scheduleCoverPoll() {
+    if (this._fromShare || !this._sessionId) return;
+    if (this._coverTimer) return;
+    if (this._coverTries >= COVER_POLL_MAX) {
+      this.setData({ coverPending: false });
+      return;
+    }
+    this._coverTimer = setTimeout(() => {
+      this._coverTimer = 0;
+      this._coverTries += 1;
+      void getCoverMeta(this._sessionId)
+        .then((meta) => this.applyCoverMeta(meta))
+        .catch(() => this.scheduleCoverPoll());
+    }, COVER_POLL_MS) as unknown as number;
+  },
+
+  applyCoverMeta(meta: { status: string; imageUrl?: string }) {
+    if (meta.status === "ready" && meta.imageUrl) {
+      this.stopCoverWatch();
+      this.revealCover(meta.imageUrl);
+      if (this._shareId && this._sessionId) {
+        void attachShareCover(this._shareId, this._sessionId).catch(() => "");
+      }
+      return;
+    }
+    if (meta.status === "failed") {
+      this.stopCoverWatch();
+      this.setData({ coverUrl: "", coverPending: false });
+      return;
+    }
+    this.setData({ coverPending: true });
+    this.scheduleCoverPoll();
+  },
+
+  onDnaTap(e: { currentTarget: { dataset: { id?: string } } }) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    if (this.data.dnaOpen === id) {
+      this.setData({ dnaOpen: "", dnaFull: "" });
+      return;
+    }
+    const chip = (this.data.dna || []).find((c) => c.id === id);
+    this.setData({ dnaOpen: id, dnaFull: chip ? chip.text : "" });
+  },
+
+  onNextFrame() {
+    const frames = this.data.storyboard || [];
+    if (frames.length < 2) return;
+    const next = (this.data.storyIndex + 1) % frames.length;
+    this.setData({
+      storyIndex: next,
+      frameTitle: frames[next].title,
+      frameText: frames[next].text,
+    });
+  },
+
+  onLoopTap(e: { currentTarget: { dataset: { id?: string } } }) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    if (this.data.loopOpen === id) {
+      this.setData({ loopOpen: "", loopText: "" });
+      return;
+    }
+    const node = (this.data.loopNodes || []).find((n) => n.id === id);
+    this.setData({ loopOpen: id, loopText: node ? node.text : "" });
   },
 
   onToggleSection(e: { currentTarget: { dataset: { id?: string } } }) {

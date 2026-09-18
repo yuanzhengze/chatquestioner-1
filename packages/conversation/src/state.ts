@@ -126,6 +126,13 @@ export interface ConversationState {
   optionPhase?: OptionPhase;
   /** 第一次到达收敛节时的历史下标；此前的 📌 不算合格总结 */
   summaryEligibleFrom?: number;
+  /** 封面生图元数据。字节在 data/covers，不进 JSON。 */
+  cover?: {
+    fingerprint: string;
+    prompt: string;
+    status: "pending" | "ready" | "failed";
+    mime?: string;
+  };
 }
 
 export function createInitialState(): ConversationState {
@@ -202,6 +209,11 @@ export function normalizeConversationState(state: ConversationState): Conversati
     state.engineering = {
       platform: [], modalities: [], mechanics: [], intentTerms: [], signatureTerms: [],
     };
+  }
+  if (state.cover) {
+    const c = state.cover;
+    const okStatus = c.status === "pending" || c.status === "ready" || c.status === "failed";
+    if (!c.fingerprint || !okStatus) delete state.cover;
   }
   return state;
 }

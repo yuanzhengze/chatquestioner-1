@@ -22,6 +22,7 @@ function dispatch(ev: { event: string; data: unknown }, h: SseHandlers): void {
       h.onSynthesis?.({
         gddMarkdown: String(data.gddMarkdown ?? ""),
         gddModel: data.gddModel,
+        gddView: data.gddView,
         complete: data.complete === true,
         draftBar: data.draftBar === true,
       });
@@ -105,8 +106,8 @@ export function deleteSession(id: string): Promise<void> {
 export function createShare(
   markdown: string,
   title?: string,
-  extra?: { model?: unknown; complete?: boolean },
-): Promise<{ id: string; title: string }> {
+  extra?: { model?: unknown; complete?: boolean; sessionId?: string },
+): Promise<{ id: string; title: string; coverImageUrl?: string }> {
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${API_BASE}/api/share`,
@@ -117,12 +118,13 @@ export function createShare(
         title: title || "",
         model: extra && extra.model ? extra.model : undefined,
         complete: extra && extra.complete === true,
+        sessionId: extra && extra.sessionId ? extra.sessionId : undefined,
       },
       timeout: 20000,
       success(res: { statusCode: number; data: unknown }) {
         if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
-          const body = res.data as { id?: string; title?: string };
-          if (body.id) resolve({ id: body.id, title: String(body.title || title || "") });
+          const body = res.data as { id?: string; title?: string; coverImageUrl?: string };
+          if (body.id) resolve({ id: body.id, title: String(body.title || title || ""), coverImageUrl: body.coverImageUrl });
           else reject(new Error("createShare: missing id"));
         } else {
           reject(new Error(`createShare failed: ${res.statusCode}`));
@@ -142,6 +144,7 @@ export function getShare(id: string): Promise<{
   model?: unknown;
   complete?: boolean;
   v?: number;
+  coverImageUrl?: string;
 }> {
   return new Promise((resolve, reject) => {
     wx.request({
@@ -157,6 +160,7 @@ export function getShare(id: string): Promise<{
             model?: unknown;
             complete?: boolean;
             v?: number;
+            coverImageUrl?: string;
           };
           resolve({
             id: String(body.id || id),
@@ -165,6 +169,7 @@ export function getShare(id: string): Promise<{
             model: body.model,
             complete: body.complete === true,
             v: typeof body.v === "number" ? body.v : 1,
+            coverImageUrl: body.coverImageUrl,
           });
         } else {
           reject(new Error(`getShare failed: ${res.statusCode}`));
@@ -172,6 +177,94 @@ export function getShare(id: string): Promise<{
       },
       fail(err: { errMsg?: string }) {
         reject(new Error(err.errMsg || "getShare network error"));
+      },
+    });
+  });
+}
+
+export function getCoverMeta(sessionId: string): Promise<{ status: string; imageUrl?: string }> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${sessionId}/cover?meta=1`,
+      method: "GET",
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.data && typeof res.data === "object") {
+          const body = res.data as { status?: string; imageUrl?: string };
+          resolve({ status: String(body.status || "idle"), imageUrl: body.imageUrl });
+          return;
+        }
+        reject(new Error(`getCoverMeta failed: ${res.statusCode}`));
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "getCoverMeta network error"));
+      },
+    });
+  });
+}
+
+export function requestCover(sessionId: string): Promise<{ status: string; imageUrl?: string }> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${sessionId}/cover`,
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: {},
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          const body = res.data as { status?: string; imageUrl?: string };
+          resolve({ status: String(body.status || "idle"), imageUrl: body.imageUrl });
+        } else {
+          reject(new Error(`requestCover failed: ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "requestCover network error"));
+      },
+    });
+  });
+}
+
+/** 微信 <image> 直连本机 HTTP 大图经常不显示；先 downloadFile 再喂本地路径。 */
+export function downloadCover(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!url) {
+      reject(new Error("empty cover url"));
+      return;
+    }
+    wx.downloadFile({
+      url,
+      timeout: 60000,
+      success(res: { statusCode: number; tempFilePath?: string }) {
+        if (res.statusCode === 200 && res.tempFilePath) resolve(res.tempFilePath);
+        else reject(new Error(`downloadCover ${res.statusCode}`));
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "downloadCover network error"));
+      },
+    });
+  });
+}
+
+export function attachShareCover(shareId: string, sessionId: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/share/${shareId}/cover`,
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: { sessionId },
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          const body = res.data as { imageUrl?: string };
+          resolve(String(body.imageUrl || ""));
+        } else {
+          resolve("");
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "attachShareCover network error"));
       },
     });
   });

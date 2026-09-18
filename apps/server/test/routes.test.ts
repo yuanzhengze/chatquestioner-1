@@ -171,6 +171,8 @@ describe("routes", () => {
     expect(body.gddMarkdown).toContain("搜刮");
     expect(body.gddMarkdown).toContain("冰室");
     expect(body.gddModel.title).toBe("城寨幽鸣");
+    expect(body.gddView.title).toBe("城寨幽鸣");
+    expect(body.gddView.cover.status).toBe("idle");
     await app.close();
   });
 

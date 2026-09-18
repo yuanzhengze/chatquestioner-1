@@ -13,19 +13,65 @@
 
 <view wx:if="{{ready && !empty}}" class="wrap">
   <view wx:if="{{fromShare}}" class="share-banner">来自分享的游戏文档</view>
-  <view class="cover" bindtap="onCoverTap">
-    <view class="cover-top">
-      <view class="cover-badge">封面位 · 点按看说明</view>
-      <image class="cover-logo" src="{{logoSrc}}" mode="aspectFit" />
+  <view class="cover">
+    <image wx:if="{{coverUrl}}" class="cover-img" src="{{coverUrl}}" mode="aspectFill" binderror="onCoverError" />
+    <view class="cover-shade">
+      <view class="cover-top">
+        <view class="cover-badge">{{coverUrl ? '封面' : (coverPending ? '封面生成中' : '封面')}}</view>
+        <image class="cover-logo" src="{{logoSrc}}" mode="aspectFit" />
+      </view>
+      <view class="cover-title">{{title}}</view>
+      <view wx:if="{{pitch}}" class="cover-pitch">{{pitch}}</view>
+      <view class="cover-brand">NewBee × ForgeaX</view>
     </view>
-    <view class="cover-title">{{title}}</view>
-    <view wx:if="{{pitch}}" class="cover-pitch">{{pitch}}</view>
-    <view class="cover-brand">NewBee × ForgeaX</view>
   </view>
 
   <view wx:if="{{draft}}" class="draft-bar">这是草稿，还有没写全的部分。可以分享，也可以回去继续聊。</view>
 
-  <button wx:if="{{!fromShare}}" class="share-btn" open-type="share" hover-class="none">分享给朋友</button>
+  <view wx:if="{{dna.length}}" class="block dna-block">
+    <view class="label">游戏基因</view>
+    <scroll-view scroll-x class="dna-row" enable-flex>
+      <view
+        wx:for="{{dna}}"
+        wx:key="id"
+        class="dna-chip {{dnaOpen === item.id ? 'on' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onDnaTap"
+      >
+        <view class="dna-kicker">{{item.label}}</view>
+        <view class="dna-short">{{item.text}}</view>
+      </view>
+    </scroll-view>
+    <view wx:if="{{dnaFull}}" class="dna-full">{{dnaFull}}</view>
+  </view>
+
+  <view wx:if="{{storyboard.length}}" class="block">
+    <view class="label">你怎么玩</view>
+    <view class="frame">
+      <view class="frame-kicker">{{frameTitle}}</view>
+      <view class="frame-text">{{frameText}}</view>
+      <view class="frame-nav">
+        <view class="frame-dots">
+          <view wx:for="{{storyboard}}" wx:key="index" class="dot {{index === storyIndex ? 'on' : ''}}"></view>
+        </view>
+        <view wx:if="{{storyboard.length > 1}}" class="next" bindtap="onNextFrame">下一步</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loopNodes.length}}" class="block">
+    <view class="label">一局怎么转</view>
+    <view class="rings">
+      <view
+        wx:for="{{loopNodes}}"
+        wx:key="id"
+        class="ring {{loopOpen === item.id ? 'on' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onLoopTap"
+      >{{item.label}}</view>
+    </view>
+    <view wx:if="{{loopText}}" class="loop-text">{{loopText}}</view>
+  </view>
 
   <view
     wx:for="{{sections}}"
@@ -51,6 +97,8 @@
     <rich-text wx:if="{{html}}" nodes="{{html}}"></rich-text>
     <text wx:if="{{!html}}" class="doc-plain">{{plain}}</text>
   </view>
+
+  <button wx:if="{{!fromShare}}" class="share-btn" open-type="share" hover-class="none">分享给朋友</button>
 
   <view wx:if="{{fromShare}}" class="share-footer">
     <button class="try-btn ghost" hover-class="none" bindtap="onTryCoCreate">我也来共创</button>

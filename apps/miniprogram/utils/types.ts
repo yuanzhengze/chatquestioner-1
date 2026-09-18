@@ -20,7 +20,7 @@ export interface SseHandlers {
   onState?: (state: Record<string, unknown>) => void;
   onStage?: (info: StageInfo) => void;
   onOptions?: (options: TurnOption[]) => void;
-  onSynthesis?: (payload: { gddMarkdown: string; gddModel?: unknown; complete?: boolean; draftBar?: boolean }) => void;
+  onSynthesis?: (payload: { gddMarkdown: string; gddModel?: unknown; gddView?: unknown; complete?: boolean; draftBar?: boolean }) => void;
   onWarning?: () => void;
   onError?: (message: string) => void;
   onDone?: (readyForSynthesis: boolean) => void;

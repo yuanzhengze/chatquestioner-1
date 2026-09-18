@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -15,6 +15,9 @@ import type { SessionStore } from "./sessionStore.js";
 import { FileShareStore, type ShareStore, type ResultShare } from "./shareStore.js";
 import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
+import { CoverStore, coverDirFromData } from "./coverStore.js";
+import { CoverPipeline, coverImagePath } from "./coverPipeline.js";
+import type { ImageGenerator } from "./imageClient.js";
 
 export interface ServerDeps {
   llm: LlmClient;
@@ -34,6 +37,10 @@ export interface ServerDeps {
   avatarDir?: string;
   /** 结果页分享快照目录的父目录（其下 shares/）。缺省 ./data */
   shareDir?: string;
+  /** 封面落盘目录。缺省 shareDir/covers */
+  coverDir?: string;
+  /** 封面生图。未配置则封面保持色块。 */
+  image?: ImageGenerator;
 }
 
 interface Synthesis {
@@ -73,26 +80,35 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
 
-function publicShare(row: ResultShare) {
-  const out: {
-    v: 1 | 2;
-    id: string;
-    title: string;
-    markdown: string;
-    model?: unknown;
-    complete?: boolean;
-  } = { v: row.v === 2 ? 2 : 1, id: row.id, title: row.title, markdown: row.markdown };
-  if (out.v === 2 && row.model != null) {
-    out.model = row.model;
-    out.complete = row.complete === true;
-  }
-  return out;
-}
-
 export function buildServer(deps: ServerDeps): FastifyInstance {
   const app = Fastify({ logger: false });
   const exportRoot = deps.exportDir ?? resolve(process.cwd(), "data", "exports");
-  const shareStore: ShareStore = new FileShareStore(deps.shareDir ?? resolve(process.cwd(), "data"));
+  const dataRoot = deps.shareDir ?? resolve(process.cwd(), "data");
+  const shareStore: ShareStore = new FileShareStore(dataRoot);
+  const covers = new CoverStore(deps.coverDir ?? coverDirFromData(dataRoot));
+  const coverPipeline = new CoverPipeline(deps.store, covers, deps.image ?? null);
+
+  function publicShare(row: ResultShare) {
+    const out: {
+      v: 1 | 2;
+      id: string;
+      title: string;
+      markdown: string;
+      model?: unknown;
+      complete?: boolean;
+      coverImageUrl?: string;
+    } = { v: row.v === 2 ? 2 : 1, id: row.id, title: row.title, markdown: row.markdown };
+    if (out.v === 2 && row.model != null) {
+      out.model = row.model;
+      out.complete = row.complete === true;
+    }
+    if (covers.has("share", row.id)) out.coverImageUrl = coverImagePath("share", row.id);
+    return out;
+  }
+
+  function sendCover(reply: FastifyReply, bytes: Buffer) {
+    return reply.header("Cache-Control", "private, max-age=86400").type(covers.mimeOf(bytes)).send(bytes);
+  }
 
   // 微信小程序 wx.request POST 默认带 application/json 且 body 为空，
   // Fastify 默认会 400（FST_ERR_CTP_EMPTY_JSON_BODY）。空串按 {} 解析。
@@ -155,16 +171,23 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       }
     })();
     if (!syn) return state;
-    return { ...state, gddMarkdown: syn.gddMarkdown, gddModel: syn.gddModel, draftBar: syn.draftBar };
+    return {
+      ...state,
+      gddMarkdown: syn.gddMarkdown,
+      gddModel: syn.gddModel,
+      gddView: coverPipeline.viewFor(syn.gddModel, state, req.params.id),
+      draftBar: syn.draftBar,
+    };
   });
 
   app.delete<{ Params: { id: string } }>("/api/session/:id", async (req, reply) => {
     if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
     await deps.store.remove(req.params.id);
+    covers.removeSession(req.params.id);
     return reply.code(204).send();
   });
 
-  app.post<{ Body: { markdown?: string; title?: string; history?: unknown; model?: unknown; complete?: boolean } }>(
+  app.post<{ Body: { markdown?: string; title?: string; history?: unknown; model?: unknown; complete?: boolean; sessionId?: string } }>(
     "/api/share",
     async (req, reply) => {
       const markdown = typeof req.body?.markdown === "string" ? req.body.markdown.trim() : "";
@@ -178,6 +201,8 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
         model,
         complete: req.body?.complete === true,
       });
+      const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : "";
+      if (SAFE_ID.test(sessionId)) coverPipeline.copyToShare(sessionId, row.id);
       return publicShare(row);
     },
   );
@@ -187,6 +212,55 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     const row = await shareStore.load(req.params.id);
     if (!row) return reply.code(404).send({ error: "share not found" });
     return publicShare(row);
+  });
+
+  app.get<{ Params: { id: string } }>("/api/share/:id/cover", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid share id" });
+    const bytes = covers.read("share", req.params.id);
+    if (!bytes) return reply.code(404).send({ error: "cover not found" });
+    return sendCover(reply, bytes);
+  });
+
+  app.post<{ Params: { id: string }; Body: { sessionId?: string } }>(
+    "/api/share/:id/cover",
+    async (req, reply) => {
+      if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid share id" });
+      const row = await shareStore.load(req.params.id);
+      if (!row) return reply.code(404).send({ error: "share not found" });
+      const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : "";
+      if (!SAFE_ID.test(sessionId)) return reply.code(400).send({ error: "sessionId required" });
+      const imageUrl = coverPipeline.copyToShare(sessionId, req.params.id);
+      if (!imageUrl) return reply.code(409).send({ error: "session cover not ready" });
+      return { imageUrl };
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { meta?: string } }>(
+    "/api/session/:id/cover",
+    async (req, reply) => {
+      if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
+      const loaded = await deps.store.load(req.params.id);
+      if (!loaded) return reply.code(404).send({ error: "session not found" });
+      const state = normalizeConversationState(loaded);
+      const pub = coverPipeline.publicCover(state, req.params.id);
+      const wantMeta = req.query.meta === "1" || req.query.meta === "true";
+      if (wantMeta) return pub;
+      if (pub.status === "ready") {
+        const bytes = covers.read("session", req.params.id);
+        if (bytes) return sendCover(reply, bytes);
+      }
+      if (pub.status === "pending") return reply.code(202).send(pub);
+      return reply.code(404).send(pub);
+    },
+  );
+
+  app.post<{ Params: { id: string } }>("/api/session/:id/cover", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
+    const loaded = await deps.store.load(req.params.id);
+    if (!loaded) return reply.code(404).send({ error: "session not found" });
+    const state = normalizeConversationState(loaded);
+    if (!buildSynthesis(state)) return reply.code(409).send({ error: "GDD 尚无实质内容" });
+    return coverPipeline.ensure(req.params.id);
   });
 
   app.post<{ Params: { id: string }; Body: { message: string } }>(
@@ -245,7 +319,13 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
             });
           }
         }
-        if (synthesis) sendEvent(reply, SSE_EVENTS.synthesis, synthesis);
+        if (synthesis) {
+          sendEvent(reply, SSE_EVENTS.synthesis, {
+            ...synthesis,
+            gddView: coverPipeline.viewFor(synthesis.gddModel, res.state, req.params.id),
+          });
+          coverPipeline.schedule(req.params.id);
+        }
         sendEvent(reply, SSE_EVENTS.done, { readyForSynthesis: res.readyForSynthesis });
       } catch (err) {
         console.error("[server] turn failed:", err);

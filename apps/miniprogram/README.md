@@ -20,7 +20,9 @@ pnpm dev:server
 
 3. AppID 可用测试号 / 游客。详情里勾选 **不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书**。
 
-4. 模拟器默认请求 `http://127.0.0.1:8420`。真机预览时把 [config.ts](config.ts) 改成电脑局域网 IP，例如 `http://192.168.1.8:8420`，并保证手机和电脑同一 Wi-Fi。
+4. 模拟器默认请求 `http://127.0.0.1:8420`。真机预览时把 [config.ts](config.ts) 改成电脑局域网 IP，例如 `http://192.168.1.8:8420`，并保证手机和电脑同一 Wi-Fi。封面图也走这个地址，真机还要允许 **downloadFile**。
+
+结果页是 Interactive GDD：打开预览后封面会异步出现（角标「封面生成中」），不要点封面重生图。产品规则见 [docs/PRODUCT.md](../../docs/PRODUCT.md) §5.6。
 
 ## 改完共享逻辑后
 
