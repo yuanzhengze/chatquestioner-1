@@ -8,8 +8,20 @@ import type { TurnOption } from "./turn.js";
 
 export type Guidance = "pending" | "accepted" | "declined";
 
-/** 引导轮选项由宿主推进：采访 → 收敛三选 → 补一块 → 再回到三选。 */
-export type OptionPhase = "interview" | "convergence" | "supplement" | "awaitingEdit";
+/** 引导轮选项由宿主推进：采访 → 收敛三选 → 补一块 → 再回到三选；预览点行是独立的 patch。 */
+export type OptionPhase = "interview" | "convergence" | "supplement" | "awaitingEdit" | "patch";
+
+export interface PatchContext {
+  lineId: string;
+  lineText: string;
+  sectionId?: string;
+  sectionTitle?: string;
+  resumePhase: Exclude<OptionPhase, "patch">;
+  resumeOptions: TurnOption[];
+  pendingDelta?: Record<string, unknown>;
+  affectedLineIds?: string[];
+  awaitingConfirm?: boolean;
+}
 
 /** 四级核心循环（30s / 5min / 30min / 长线） */
 export interface LoopState {
@@ -124,14 +136,17 @@ export interface ConversationState {
   askedStages: number[];
   /** 当前该弹采访选项、收敛三选，还是补一块的设计选项 */
   optionPhase?: OptionPhase;
+  /** 手风琴单点修改。点应用/取消后删掉，并恢复 resumePhase。 */
+  patchContext?: PatchContext;
   /** 第一次到达收敛节时的历史下标；此前的 📌 不算合格总结 */
   summaryEligibleFrom?: number;
-  /** 封面生图元数据。字节在 data/covers，不进 JSON。 */
+    /** 封面生图元数据。字节在 data/covers，不进 JSON。 */
   cover?: {
     fingerprint: string;
     prompt: string;
     status: "pending" | "ready" | "failed";
     mime?: string;
+    generatedAt?: number;
   };
 }
 
@@ -202,8 +217,18 @@ export function normalizeConversationState(state: ConversationState): Conversati
     && state.optionPhase !== "convergence"
     && state.optionPhase !== "supplement"
     && state.optionPhase !== "awaitingEdit"
+    && state.optionPhase !== "patch"
   ) {
     delete state.optionPhase;
+  }
+  if (state.optionPhase === "patch") {
+    const ctx = state.patchContext;
+    if (!ctx || typeof ctx !== "object" || !String(ctx.lineId || "").trim()) {
+      delete state.optionPhase;
+      delete state.patchContext;
+    }
+  } else if (state.patchContext) {
+    delete state.patchContext;
   }
   if (!state.engineering) {
     state.engineering = {

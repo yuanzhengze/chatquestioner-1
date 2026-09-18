@@ -7,6 +7,7 @@ import { FileSessionStore } from "../src/sessionStore.js";
 import { createInitialState } from "@cq/conversation";
 import { fakeLlm } from "./fixtures/fakeLlm.js";
 import type { ImageGenerator } from "../src/imageClient.js";
+import { shouldAutoEnsureCover } from "../src/coverPipeline.js";
 
 const TINY_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -163,6 +164,28 @@ describe("cover pipeline", () => {
     await app.close();
   });
 
+  it("已有封面后 POST cover 仍可强制再生成", async () => {
+    const store = new FileSessionStore(dir);
+    const image = countingImage();
+    const app = buildServer({
+      llm: fakeLlm([]),
+      store,
+      systemPrompt: "SYS",
+      exportDir: join(dir, "exports"),
+      shareDir: dir,
+      image,
+    });
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    await seedReady(store, created.id);
+    await app.inject({ method: "POST", url: `/api/session/${created.id}/cover` });
+    await waitCover(app, created.id);
+    expect(image.calls).toBe(1);
+    await app.inject({ method: "POST", url: `/api/session/${created.id}/cover` });
+    await waitCover(app, created.id);
+    expect(image.calls).toBe(2);
+    await app.close();
+  });
+
   it("分享快照可带上封面图", async () => {
     const store = new FileSessionStore(dir);
     const image = countingImage();
@@ -195,5 +218,16 @@ describe("cover pipeline", () => {
     expect(cover.statusCode).toBe(200);
     expect(cover.rawPayload.length).toBeGreaterThan(20);
     await app.close();
+  });
+
+  it("shouldAutoEnsureCover：有过封面后不再自动生图", () => {
+    const s = createInitialState();
+    expect(shouldAutoEnsureCover(s, false)).toBe(true);
+    s.cover = { fingerprint: "x", prompt: "p", status: "ready" };
+    expect(shouldAutoEnsureCover(s, false)).toBe(false);
+    const failed = createInitialState();
+    failed.cover = { fingerprint: "x", prompt: "p", status: "failed" };
+    expect(shouldAutoEnsureCover(failed, false)).toBe(false);
+    expect(shouldAutoEnsureCover(createInitialState(), true)).toBe(false);
   });
 });

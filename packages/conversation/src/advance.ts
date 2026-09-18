@@ -5,8 +5,10 @@ import {
   CONSENT_AFTER_IDEA,
   DECLINED_ACK,
   CONVERGENCE_OPTIONS,
+  PATCH_OPTIONS,
   interpretGuidance,
   interpretConvergenceChoice,
+  interpretPatchChoice,
   historyWantsPreview,
   looksLikeConceptSummary,
 } from "./llm.js";
@@ -21,6 +23,17 @@ import { extractDiscussedIntoState, groundedDeltaWithReply, scrubUngroundedState
 import { toGddModel } from "./compile.js";
 import { isComplete, isSubstantive } from "@cq/gdd";
 import { canShowConvergence, canWriteSummary, formatSummaryEligibility, openSummaryWindow } from "./gates.js";
+import {
+  applyPendingPatch,
+  clearPatchProposal,
+  patchApplyReply,
+  patchCancelReply,
+  patchHostGuard,
+  patchProposalReply,
+  patchTweakReply,
+  restorePatchPhase,
+  stashPatchProposal,
+} from "./patch.js";
 
 export interface AdvanceDeps {
   llm: LlmClient;
@@ -37,6 +50,10 @@ export interface AdvanceResult {
   readyForSynthesis: boolean;
   warnings: string[];
   options?: TurnOption[];
+  /** 补丁应用/取消后，客户端回预览。 */
+  openPreview?: boolean;
+  /** 点「应用这些改动」并已写入清单字段。 */
+  patchCommitted?: boolean;
 }
 
 /** 缺合法 options 时只补 JSON。已流给用户的人话不准改，纠偏不进用户可见历史。宿主不代写方向。 */
@@ -52,6 +69,7 @@ const OPTION_REPAIR_LIMIT = 2;
 
 function hostTurnGuard(state: ConversationState, phase: OptionPhase, generating: boolean): string {
   if (state.guidance !== "accepted") return "";
+  if (phase === "patch") return patchHostGuard(state);
   const verdict = `\n\n${formatSummaryEligibility(state)}`;
   if (generating) {
     return `${verdict}\n\n[宿主硬约束] 用户这轮要出或更新设计文档。禁止 JSON options，禁止人话 A./B./C.。不要再问新的设计缺口。人话只确认已记下。`;
@@ -82,6 +100,7 @@ function resolveOptionPhase(
   convChoice: ReturnType<typeof interpretConvergenceChoice>,
   current: ConversationState,
 ): OptionPhase {
+  if (prev.optionPhase === "patch" || current.optionPhase === "patch") return "patch";
   const prevPhase = storedPhase(prev, alreadyHadDoc);
   const afterFinalize = alreadyHadDoc && canShowConvergence(current);
   if (generating) {
@@ -133,6 +152,9 @@ function cardsForReply(
   declined: boolean,
 ): { options?: TurnOption[]; phase: OptionPhase } {
   if (declined) return { options: undefined, phase };
+  if (phase === "patch") {
+    return { options: PATCH_OPTIONS, phase: "patch" };
+  }
   if (generating) {
     return { options: undefined, phase: phase === "awaitingEdit" ? "awaitingEdit" : "interview" };
   }
@@ -203,6 +225,11 @@ function resolveSystem(
   const promptStage = stage ?? (mode === "guide" ? askStageOf(state) : state.stage);
   const converging = phase === "convergence" || generating;
   const writingSummary = canWriteSummary(state) && phase === "interview" && !generating;
+  if (phase === "patch") {
+    const prompt = deps.systemPrompt
+      ?? `你是 NewBee。用户要点改文档里的一处。只问怎么改；他说明之后由系统列出将改的地方。不要说手风琴，不要定稿三选，不要采访下一节。`;
+    return `${prompt}\n\n[宿主] 正在改文档里的一处。禁止再问要不要走引导。禁止对照旧稿写「不再需要 / 而是」。`;
+  }
   const prompt = buildClarifySystemPrompt({
     skillDir: deps.skillDir,
     mode,
@@ -281,6 +308,104 @@ async function finish(
   return { reply: visible, state, readyForSynthesis, warnings, options: outOptions };
 }
 
+async function advancePatch(
+  prev: ConversationState,
+  state: ConversationState,
+  userInput: string,
+  deps: AdvanceDeps,
+): Promise<AdvanceResult> {
+  const choice = interpretPatchChoice(userInput, prev.lastOptions);
+  const hadDoc = Boolean(prev.readyForSynthesis);
+
+  if (choice === "apply") {
+    applyPendingPatch(state);
+    restorePatchPhase(state);
+    const reply = patchApplyReply();
+    deps.onToken?.(reply);
+    state.history.push({ role: "assistant", content: reply });
+    const model = toGddModel(state);
+    state.gddComplete = isComplete(model);
+    state.readyForSynthesis = isSubstantive(model) || hadDoc;
+    if (isSubstantive(model)) state.readyForSynthesis = true;
+    state.gddDraftBar = showDraftBar(state);
+    return {
+      reply,
+      state,
+      readyForSynthesis: state.readyForSynthesis === true,
+      warnings: [],
+      options: state.lastOptions,
+      openPreview: true,
+      patchCommitted: true,
+    };
+  }
+
+  if (choice === "cancel") {
+    restorePatchPhase(state);
+    const reply = patchCancelReply();
+    deps.onToken?.(reply);
+    state.history.push({ role: "assistant", content: reply });
+    state.readyForSynthesis = hadDoc;
+    state.gddDraftBar = showDraftBar(state);
+    return {
+      reply,
+      state,
+      readyForSynthesis: hadDoc,
+      warnings: [],
+      options: state.lastOptions,
+      openPreview: true,
+    };
+  }
+
+  if (choice === "tweak") {
+    clearPatchProposal(state);
+    const reply = patchTweakReply();
+    deps.onToken?.(reply);
+    state.history.push({ role: "assistant", content: reply });
+    state.readyForSynthesis = hadDoc;
+    state.gddDraftBar = showDraftBar(state);
+    return {
+      reply,
+      state,
+      readyForSynthesis: hadDoc,
+      warnings: [],
+      options: [],
+    };
+  }
+
+  const promptedStage = state.guidance === "accepted" ? askStageOf(state) : state.stage;
+  const systemPrompt = resolveSystem(state, deps, promptedStage, "patch", false);
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content: `${systemPrompt}\n\n${buildTurnDirective(false)}${hostTurnGuard(state, "patch", false)}`,
+    },
+    ...state.history,
+  ];
+  let streamed = "";
+  const raw = await collectStream(deps.llm, messages, (t) => {
+    streamed += t;
+  });
+  let parsed = parseTurnOutput(raw);
+  if (streamed.trim()) parsed = { ...parsed, reply: streamed.trim() };
+  stashPatchProposal(
+    state,
+    parsed.control.stateDelta as Record<string, unknown>,
+    parsed.control.affectedLines,
+  );
+  const reply = patchProposalReply(state);
+  deps.onToken?.(reply);
+  state.history.push({ role: "assistant", content: reply });
+  state.readyForSynthesis = hadDoc;
+  state.gddDraftBar = showDraftBar(state);
+  return {
+    reply,
+    state,
+    readyForSynthesis: hadDoc,
+    warnings: parsed.warnings,
+    options: PATCH_OPTIONS,
+  };
+}
+
 export async function advance(
   prev: ConversationState,
   userInput: string,
@@ -305,6 +430,10 @@ export async function advance(
 
   if (state.guidance === "accepted" || state.guidance === "declined") {
     seedSparkFromHistory(state);
+  }
+
+  if (prev.optionPhase === "patch" || state.optionPhase === "patch") {
+    return advancePatch(prev, state, userInput, deps);
   }
 
   let knowledgeBlock = "";
@@ -349,6 +478,7 @@ export async function advance(
   const requireOptions = state.guidance === "accepted"
     && !generating
     && !summaryTurn
+    && phase !== "patch"
     && (
       phase === "supplement"
       || (phase === "interview" && !writingSummary)

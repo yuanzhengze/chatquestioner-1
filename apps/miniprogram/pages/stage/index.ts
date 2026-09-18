@@ -1,6 +1,6 @@
-import { createSession, getSession, deleteSession, sendMessage } from "../../utils/api";
+import { createSession, getSession, deleteSession, sendMessage, startLinePatch } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
-import { GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
+import { GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
 
 const { gddFromState } = require("../../utils/gdd.js");
@@ -10,6 +10,11 @@ const bridge = require("../../utils/bridge.js");
 const legal = require("../../utils/legal.js");
 
 const WAKING = "正在唤醒 NewBee…";
+
+function optionsArePatch(opts: TurnOption[]): boolean {
+  const blob = (opts || []).map((o) => `${o.label}\n${o.detail}`).join("\n");
+  return /应用这些改动/.test(blob) && /再改改说法/.test(blob);
+}
 
 Page({
   data: {
@@ -177,8 +182,8 @@ Page({
       label: "",
       readyForSynthesis: ready,
     };
-    this._synthesisMd = ready ? (md || gddFromState(state)) : "";
-    this._synthesisModel = ready ? model : null;
+    this._synthesisMd = ready ? (md || gddFromState(state) || this._synthesisMd) : "";
+    this._synthesisModel = ready ? (model || this._synthesisModel) : null;
     this._synthesisComplete = gddComplete;
     this._synthesisDraftBar = state.gddDraftBar === true || state.draftBar === true;
     this.setData({
@@ -189,7 +194,7 @@ Page({
       pendingId: "",
       expandedId: "",
     });
-    this.refreshResult(ready);
+    this.refreshResult(ready, options);
     this.rememberSession();
     this.refreshIndexHint();
     this.syncAvatar();
@@ -265,6 +270,8 @@ Page({
         await this.boot();
       }
 
+      await this.consumePatchIntent();
+
       const prompt = bridge.takePendingPrompt();
       if (prompt) {
         if (this.data.done) {
@@ -276,6 +283,64 @@ Page({
       this.refreshIndexHint();
     } finally {
       this._handlingShow = false;
+    }
+  },
+
+  takePatchIntent(): {
+    sessionId: string;
+    lineId: string;
+    lineText: string;
+    sectionId: string;
+    sectionTitle: string;
+  } | null {
+    try {
+      const raw = wx.getStorageSync(GDD_PATCH_KEY) as {
+        sessionId?: string;
+        lineId?: string;
+        lineText?: string;
+        sectionId?: string;
+        sectionTitle?: string;
+      } | "";
+      wx.removeStorageSync(GDD_PATCH_KEY);
+      if (!raw || typeof raw !== "object" || !raw.lineId) return null;
+      return {
+        sessionId: String(raw.sessionId || ""),
+        lineId: String(raw.lineId || ""),
+        lineText: String(raw.lineText || ""),
+        sectionId: String(raw.sectionId || ""),
+        sectionTitle: String(raw.sectionTitle || ""),
+      };
+    } catch (_e) {
+      return null;
+    }
+  },
+
+  async consumePatchIntent() {
+    const intent = this.takePatchIntent();
+    if (!intent || !intent.lineId) return;
+    if (intent.sessionId && intent.sessionId !== this._sessionId) {
+      await this.openSession(intent.sessionId);
+    }
+    if (!this._sessionId || (intent.sessionId && intent.sessionId !== this._sessionId)) {
+      wx.showToast({ title: "这条共创打不开了", icon: "none" });
+      return;
+    }
+    this.setData({ busy: true, error: "", options: [] });
+    try {
+      const res = await startLinePatch(this._sessionId, intent);
+      if (res.state && Object.keys(res.state).length) {
+        this.hydrateFromState(this._sessionId, {
+          ...res.state,
+          gddMarkdown: res.gddMarkdown || res.state.gddMarkdown,
+          gddModel: res.gddModel || res.state.gddModel,
+          gddComplete: res.complete === true || res.state.gddComplete === true,
+          gddDraftBar: res.draftBar === true || res.state.gddDraftBar === true || res.state.draftBar === true,
+        });
+      }
+      this.setData({ busy: false, options: [] });
+    } catch (_e) {
+      this.setData({ busy: false });
+      wx.showToast({ title: "这一行还进不去", icon: "none" });
     }
   },
 
@@ -402,6 +467,7 @@ Page({
           const opts = this.asOptions(s.lastOptions);
           this._lastOptions = opts;
           this.setData({ options: opts, expandedId: "" });
+          this.refreshResult(this._stage?.readyForSynthesis === true, opts);
         }
         const hist = Array.isArray(s.history) ? s.history : [];
         for (let i = hist.length - 1; i >= 0; i--) {
@@ -425,12 +491,13 @@ Page({
         this.flushNow();
         this._lastOptions = opts || [];
         this.setData({ options: opts || [], expandedId: "" });
+        this.refreshResult(this._stage?.readyForSynthesis === true, this._lastOptions);
         this.syncAvatar();
       },
       onSynthesis: (payload) => {
         if (payload.gddMarkdown) {
           this._synthesisMd = payload.gddMarkdown;
-          this._synthesisModel = payload.gddModel || null;
+          if (payload.gddModel) this._synthesisModel = payload.gddModel;
           this._synthesisComplete = payload.complete === true;
           this._synthesisDraftBar = payload.draftBar === true;
         }
@@ -440,13 +507,14 @@ Page({
         this.syncAvatar();
       },
       onError: (msg) => this.setData({ error: msg }),
-      onDone: (ready) => {
+      onDone: (ready, extra) => {
         this.flushNow();
         if (this._stage) this._stage.readyForSynthesis = ready;
         this.setData({ busy: false }, () => {
-          this.refreshResult(ready);
+          this.refreshResult(ready, this._lastOptions);
           this.rememberSession();
           this.refreshIndexHint();
+          if (extra && extra.openPreview) this.onOpenGdd();
         });
         this.syncAvatar();
       },
@@ -575,13 +643,14 @@ Page({
 
   noop() {},
 
-  refreshResult(readyFromDone?: boolean) {
+  refreshResult(readyFromDone?: boolean, optionList?: TurnOption[]) {
     const ready = readyFromDone === true || this._stage?.readyForSynthesis === true;
     if (this._stage) this._stage.readyForSynthesis = ready;
     const hasUser = this.data.messages.some((m) => m.role === "user");
     const markdown = ready ? (this._synthesisMd || gddFromState(this._state)) : "";
     const hasDoc = Boolean(markdown && markdown.trim());
-    const showGdd = hasUser && ready && hasDoc;
+    const opts = optionList || this.data.options || [];
+    const showGdd = hasUser && ready && hasDoc && !optionsArePatch(opts);
     const gddTitle = showGdd ? parseGddPreview(markdown).title : "";
     this.setData({
       gddMarkdown: markdown,
@@ -602,9 +671,9 @@ Page({
   },
 
   onOpenGdd() {
-    const markdown = this.data.gddMarkdown || "";
+    const markdown = this.data.gddMarkdown || this._synthesisMd || "";
     if (this.data.openingGdd) return;
-    if (!markdown.trim()) {
+    if (!markdown.trim() && !this._sessionId) {
       wx.showToast({ title: "文档还没写好", icon: "none" });
       return;
     }
@@ -616,36 +685,69 @@ Page({
         wx.showToast({ title: "打开有点慢，请再点一次", icon: "none" });
       }, 3500) as unknown as number;
 
-      wx.setStorage({
-        key: GDD_DRAFT_KEY,
-        data: {
-          markdown,
-          model: this._synthesisModel || null,
-          complete: this._synthesisComplete === true,
-          draftBar: this._synthesisDraftBar === true,
-          sessionId: this._sessionId || "",
-        },
-        complete: () => {
-          wx.navigateTo({
-            url: "/pages/gdd/index",
-            success: (res) => {
-              if (res.eventChannel) {
-                res.eventChannel.emit("gddDraft", {
-                  markdown,
-                  model: this._synthesisModel || null,
-                  complete: this._synthesisComplete === true,
-                  draftBar: this._synthesisDraftBar === true,
-                  sessionId: this._sessionId || "",
-                });
-              }
-            },
-            fail: () => {
-              this.clearOpenGdd();
-              wx.showToast({ title: "打不开文档页", icon: "none" });
-            },
+      const go = (payload: {
+        markdown: string;
+        model: unknown;
+        complete: boolean;
+        draftBar: boolean;
+        sessionId: string;
+      }) => {
+        if (!payload.markdown.trim()) {
+          this.clearOpenGdd();
+          wx.showToast({ title: "文档还没写好", icon: "none" });
+          return;
+        }
+        wx.setStorage({
+          key: GDD_DRAFT_KEY,
+          data: payload,
+          complete: () => {
+            wx.navigateTo({
+              url: "/pages/gdd/index",
+              success: (res) => {
+                if (res.eventChannel) res.eventChannel.emit("gddDraft", payload);
+              },
+              fail: () => {
+                this.clearOpenGdd();
+                wx.showToast({ title: "打不开文档页", icon: "none" });
+              },
+            });
+          },
+        });
+      };
+
+      const local = {
+        markdown,
+        model: this._synthesisModel || null,
+        complete: this._synthesisComplete === true,
+        draftBar: this._synthesisDraftBar === true,
+        sessionId: this._sessionId || "",
+      };
+      if (!this._sessionId) {
+        go(local);
+        return;
+      }
+      void getSession(this._sessionId)
+        .then((state) => {
+          const md = typeof state.gddMarkdown === "string" && state.gddMarkdown.trim()
+            ? String(state.gddMarkdown)
+            : local.markdown;
+          const model = state.gddModel && typeof state.gddModel === "object"
+            ? state.gddModel
+            : local.model;
+          if (md) this._synthesisMd = md;
+          if (model) this._synthesisModel = model;
+          if (typeof state.gddComplete === "boolean") this._synthesisComplete = state.gddComplete === true;
+          if (typeof state.gddDraftBar === "boolean") this._synthesisDraftBar = state.gddDraftBar === true;
+          else if (typeof state.draftBar === "boolean") this._synthesisDraftBar = state.draftBar === true;
+          go({
+            markdown: md,
+            model,
+            complete: this._synthesisComplete === true,
+            draftBar: this._synthesisDraftBar === true,
+            sessionId: this._sessionId || "",
           });
-        },
-      });
+        })
+        .catch(() => go(local));
     });
   },
 

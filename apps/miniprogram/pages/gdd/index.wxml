@@ -25,6 +25,9 @@
       <view class="cover-brand">NewBee × ForgeaX</view>
     </view>
   </view>
+  <view wx:if="{{!fromShare}}" class="cover-actions">
+    <view class="regen {{coverPending ? 'off' : ''}}" bindtap="onRegenCover">{{coverPending ? '封面生成中' : '重新生成封面'}}</view>
+  </view>
 
   <view wx:if="{{draft}}" class="draft-bar">这是草稿，还有没写全的部分。可以分享，也可以回去继续聊。</view>
 
@@ -73,19 +76,37 @@
     <view wx:if="{{loopText}}" class="loop-text">{{loopText}}</view>
   </view>
 
+  <view wx:if="{{!fromShare && sections.length}}" class="patch-hint">点一句选中，右侧出现 ✎ 再去改。</view>
   <view
     wx:for="{{sections}}"
     wx:key="id"
     class="card {{expandedId === item.id ? 'on' : ''}}"
-    data-id="{{item.id}}"
-    bindtap="onToggleSection"
   >
-    <view class="card-h">
+    <view class="card-h" data-id="{{item.id}}" catchtap="onToggleSection">
       <view class="card-title">{{item.title}}</view>
       <view class="card-chevron">{{expandedId === item.id ? '▾' : '▸'}}</view>
     </view>
     <view wx:if="{{expandedId === item.id}}" class="card-body">
-      <view wx:for="{{item.lines}}" wx:for-item="line" wx:key="index" class="card-line">{{line}}</view>
+      <view
+        wx:for="{{item.lines}}"
+        wx:for-item="line"
+        wx:key="id"
+        class="card-line {{fromShare ? '' : 'tap'}} {{selectedLineId === line.id ? 'on' : ''}}"
+        data-id="{{line.id}}"
+        catchtap="onSelectLine"
+      >
+        <text class="card-line-text">{{line.text}}</text>
+        <text
+          wx:if="{{!fromShare && selectedLineId === line.id}}"
+          class="line-edit"
+          data-id="{{line.id}}"
+          data-text="{{line.text}}"
+          data-section="{{item.id}}"
+          data-title="{{item.title}}"
+          catchtap="onPatchLine"
+        >✎</text>
+        <text wx:elif="{{!fromShare}}" class="line-edit-slot"></text>
+      </view>
     </view>
   </view>
 

@@ -40,6 +40,24 @@ page { background: #0d0d0d; color: #ffffff; }
   overflow: hidden;
 }
 
+.cover-actions {
+  margin-top: 16rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+.regen {
+  padding: 12rpx 24rpx;
+  border-radius: 999rpx;
+  border: 1px solid #d4ff48;
+  color: #d4ff48;
+  font-size: 24rpx;
+}
+.regen.off {
+  opacity: 0.4;
+  border-color: #666666;
+  color: #999999;
+}
+
 .cover-img {
   position: absolute;
   left: 0;
@@ -209,13 +227,47 @@ page { background: #0d0d0d; color: #ffffff; }
   margin-top: 16rpx;
 }
 .card-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8rpx;
   font-size: 26rpx;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.86);
-  padding: 8rpx 0;
+  padding: 16rpx 8rpx;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
+.card-line.tap:active {
+  color: #d4ff48;
+}
+.card-line.on {
+  background: rgba(212, 255, 72, 0.10);
+  border-radius: 12rpx;
+  color: #ffffff;
+}
+.card-line-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+.line-edit,
+.line-edit-slot {
+  flex-shrink: 0;
+  width: 32rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+  text-align: right;
+}
+.line-edit {
+  color: #d4ff48;
+}
 .card-line:last-child { border-bottom: none; }
+
+.patch-hint {
+  margin-top: 28rpx;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.45);
+}
 
 .block {
   margin-top: 36rpx;

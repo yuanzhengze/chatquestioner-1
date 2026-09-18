@@ -64,6 +64,56 @@ export function lastOptionsAreConvergence(last?: TurnOption[]): boolean {
 
 export type ConvergenceChoice = "finalize" | "revise" | "explore";
 
+/** 手风琴补丁三选。不是定稿三选，点应用不走出稿闸。 */
+export const PATCH_OPTIONS: TurnOption[] = [
+  {
+    id: "A",
+    label: "应用这些改动",
+    detail: "应用这些改动。按上面列出的行写入文档，然后回到预览。",
+  },
+  {
+    id: "B",
+    label: "再改改说法",
+    detail: "再改改说法。先不写进文档，继续改这一处。",
+  },
+  {
+    id: "C",
+    label: "取消",
+    detail: "取消。不改文档，回到预览。",
+  },
+];
+
+export type PatchChoice = "apply" | "tweak" | "cancel";
+
+export function lastOptionsArePatch(last?: TurnOption[]): boolean {
+  if (!last?.length) return false;
+  const blob = last.map((o) => `${o.label}\n${o.detail}`).join("\n");
+  return /应用这些改动/.test(blob) && /再改改说法/.test(blob) && /取消/.test(blob);
+}
+
+export function interpretPatchChoice(
+  text: string,
+  lastOptions?: TurnOption[],
+): PatchChoice | null {
+  if (!lastOptionsArePatch(lastOptions)) return null;
+  const t = (text || "").trim();
+  if (!t) return null;
+  const list = lastOptions!.length >= 3 ? lastOptions! : PATCH_OPTIONS;
+  const hit = list.find((o) => o.detail === t || o.label === t);
+  if (hit) {
+    if (hit.id === "A" || hit === list[0]) return "apply";
+    if (hit.id === "B" || hit === list[1]) return "tweak";
+    if (hit.id === "C" || hit === list[2]) return "cancel";
+  }
+  if (t === PATCH_OPTIONS[0].label || t === PATCH_OPTIONS[0].detail) return "apply";
+  if (t === PATCH_OPTIONS[1].label || t === PATCH_OPTIONS[1].detail) return "tweak";
+  if (t === PATCH_OPTIONS[2].label || t === PATCH_OPTIONS[2].detail) return "cancel";
+  if (/^[Aa]$/.test(t)) return "apply";
+  if (/^[Bb]$/.test(t)) return "tweak";
+  if (/^[Cc]$/.test(t)) return "cancel";
+  return null;
+}
+
 export function interpretConvergenceChoice(
   text: string,
   lastOptions?: TurnOption[],

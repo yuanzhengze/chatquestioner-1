@@ -46,4 +46,21 @@ describe("createInitialState", () => {
     expect(n.interaction).toEqual({});
     expect(n.growth).toEqual({});
   });
+
+  it("normalize 保留 patch 相，乱码 optionPhase 丢掉", () => {
+    const s = createInitialState();
+    s.optionPhase = "patch";
+    s.patchContext = {
+      lineId: "coreAction",
+      lineText: "x",
+      resumePhase: "interview",
+      resumeOptions: [],
+    };
+    const n = normalizeConversationState(s);
+    expect(n.optionPhase).toBe("patch");
+    expect(n.patchContext?.lineId).toBe("coreAction");
+    const bad = createInitialState();
+    (bad as { optionPhase?: string }).optionPhase = "nope";
+    expect(normalizeConversationState(bad).optionPhase).toBeUndefined();
+  });
 });

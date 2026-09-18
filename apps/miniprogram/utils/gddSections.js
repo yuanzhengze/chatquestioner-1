@@ -8,14 +8,23 @@ function line(s, complete) {
   return complete ? "" : "（未写）";
 }
 
-function pushLabeled(arr, label, value) {
-  var t = String(value == null ? "" : value).trim();
-  if (!t || t === "（未写）" || t === "本游戏无此项，不单列。") return;
-  arr.push(label + "：" + t);
+function push(lines, id, text) {
+  if (!text) return;
+  lines.push({ id: id, text: text });
 }
 
-function push(lines, text) {
-  if (text) lines.push(text);
+function labeled(id, label, value, complete) {
+  var t = String(value == null ? "" : value).trim();
+  if (t && t !== "（未写）" && t !== "本游戏无此项，不单列。") {
+    return { id: id, text: label + "：" + t };
+  }
+  if (complete) return null;
+  return { id: id, text: label + "：" + "（未写）" };
+}
+
+function pushLabeled(arr, id, label, value, complete) {
+  var row = labeled(id, label, value, complete);
+  if (row) arr.push(row);
 }
 
 function asList(v) {
@@ -34,7 +43,7 @@ function poolLines(pools) {
   var p = pools && typeof pools === "object" ? pools : {};
   return labels.map(function (pair) {
     var words = Array.isArray(p[pair[0]]) ? p[pair[0]].filter(Boolean) : [];
-    return words.length ? pair[1] + "：" + words.join("、") : "";
+    return words.length ? { id: "keywordPools." + pair[0], text: pair[1] + "：" + words.join("、") } : null;
   }).filter(Boolean);
 }
 
@@ -57,7 +66,7 @@ function joinFantasy(model) {
   return uniq.join("。");
 }
 
-/** 把 GddModel 收成结果页章节卡。 */
+/** 把 GddModel 收成结果页章节卡。lines 为 {id,text}，供点行修改。 */
 function sectionsFromModel(model, complete) {
   if (!model || typeof model !== "object") return [];
   var c = model.constitution && typeof model.constitution === "object" ? model.constitution : {};
@@ -68,97 +77,99 @@ function sectionsFromModel(model, complete) {
   var mechanics = Array.isArray(model.mechanics) ? model.mechanics.filter(Boolean) : [];
 
   var constitution = [];
-  pushLabeled(constitution, "核心幻想", c.coreFantasy || model.coreFantasy);
-  pushLabeled(constitution, "核心循环", c.coreLoop || loop.micro);
-  pushLabeled(constitution, "美术规则", c.artRule || model.aesthetic);
-  pushLabeled(constitution, "内容边界", c.contentBoundary);
-  pushLabeled(constitution, "呈现边界", c.presentationBoundary || pres.dimension);
-  pushLabeled(constitution, "成长规则", c.growthRule);
-  pushLabeled(constitution, "世界观规则", c.worldRule);
-  pushLabeled(constitution, "UI 规则", c.uiRule);
+  pushLabeled(constitution, "constitution.coreFantasy", "核心幻想", c.coreFantasy || model.coreFantasy, complete);
+  pushLabeled(constitution, "constitution.coreLoop", "核心循环", c.coreLoop || loop.micro, complete);
+  pushLabeled(constitution, "constitution.artRule", "美术规则", c.artRule || model.aesthetic, complete);
+  pushLabeled(constitution, "constitution.contentBoundary", "内容边界", c.contentBoundary, complete);
+  pushLabeled(constitution, "constitution.presentationBoundary", "呈现边界", c.presentationBoundary || pres.dimension, complete);
+  pushLabeled(constitution, "constitution.growthRule", "成长规则", c.growthRule, complete);
+  pushLabeled(constitution, "constitution.worldRule", "世界观规则", c.worldRule, complete);
+  pushLabeled(constitution, "constitution.uiRule", "UI 规则", c.uiRule, complete);
 
   var what = [];
-  push(what, line(model.coreExperience, complete));
-  push(what, "主情感：" + line(model.coreEmotion, complete));
-  if (filled(model.forbiddenEmotion)) push(what, "禁止情感：" + String(model.forbiddenEmotion).trim());
-  push(what, line(joinFantasy(model), complete));
-  push(what, "差异化：" + line(model.differentiator, complete));
+  push(what, "coreExperience", line(model.coreExperience, complete));
+  push(what, "coreEmotion", "主情感：" + line(model.coreEmotion, complete));
+  if (filled(model.forbiddenEmotion)) {
+    push(what, "forbiddenEmotion", "禁止情感：" + String(model.forbiddenEmotion).trim());
+  }
+  push(what, "coreFantasy", line(joinFantasy(model), complete));
+  push(what, "differentiator", "差异化：" + line(model.differentiator, complete));
   var borrow = Array.isArray(refs.borrow) ? refs.borrow.filter(Boolean) : [];
   var avoid = Array.isArray(refs.avoid) ? refs.avoid.filter(Boolean) : [];
-  if (borrow.length) push(what, "借鉴：" + borrow.join("、"));
-  if (avoid.length) push(what, "刻意避开：" + avoid.join("、"));
+  if (borrow.length) push(what, "references.borrow", "借鉴：" + borrow.join("、"));
+  if (avoid.length) push(what, "references.avoid", "刻意避开：" + avoid.join("、"));
 
   var how = [];
-  push(how, "核心动作：" + line(model.coreAction, complete));
+  push(how, "coreAction", "核心动作：" + line(model.coreAction, complete));
   var inter = model.interaction && typeof model.interaction === "object" ? model.interaction : {};
-  push(how, "主要操作：" + line(inter.verb, complete));
-  push(how, "操作对象：" + line(inter.target, complete));
-  push(how, "交互链路：" + line(inter.chain, complete));
-  push(how, "即时反馈：" + line(inter.feedback, complete));
+  push(how, "interaction.verb", "主要操作：" + line(inter.verb, complete));
+  push(how, "interaction.target", "操作对象：" + line(inter.target, complete));
+  push(how, "interaction.chain", "交互链路：" + line(inter.chain, complete));
+  push(how, "interaction.feedback", "即时反馈：" + line(inter.feedback, complete));
   if (mechanics.length) {
-    mechanics.forEach(function (m, i) { how.push((i + 1) + ". " + m); });
+    mechanics.forEach(function (m, i) { how.push({ id: "mechanics." + i, text: (i + 1) + ". " + m }); });
   } else {
-    push(how, "机制：" + line("", complete));
+    push(how, "mechanics", "机制：" + line("", complete));
   }
 
   var whyCard = [];
-  push(whyCard, "微循环：" + line(loop.micro, complete));
-  push(whyCard, "中循环：" + line(loop.mid, complete));
-  push(whyCard, "宏循环：" + line(loop.macro, complete));
+  push(whyCard, "loop.micro", "微循环：" + line(loop.micro, complete));
+  push(whyCard, "loop.mid", "中循环：" + line(loop.mid, complete));
+  push(whyCard, "loop.macro", "宏循环：" + line(loop.macro, complete));
   var longTerm = String(loop.longTerm || "").trim();
   if (longTerm && longTerm !== String(loop.macro || "").trim()) {
-    push(whyCard, "长线：" + longTerm);
+    push(whyCard, "loop.longTerm", "长线：" + longTerm);
   }
-  push(whyCard, "核心爽点：" + line(model.coreDelight, complete));
-  push(whyCard, "奖励：" + line(model.reward, complete));
+  push(whyCard, "coreDelight", "核心爽点：" + line(model.coreDelight, complete));
+  push(whyCard, "reward", "奖励：" + line(model.reward, complete));
   var growth = model.growth && typeof model.growth === "object" ? model.growth : {};
   var unlocks = String(growth.unlocks || "").trim();
   var nearGoal = String(growth.nearGoal || "").trim();
   var afterTen = String(growth.afterTenMin || "").trim();
   if (growth.none && !unlocks && !nearGoal && !afterTen) {
-    push(whyCard, "成长与变化：本游戏无独立成长");
+    push(whyCard, "growth.none", "成长与变化：本游戏无独立成长");
   } else if (unlocks || nearGoal || afterTen) {
-    if (unlocks) push(whyCard, "越玩越多：" + unlocks);
-    if (nearGoal) push(whyCard, "眼前目标：" + nearGoal);
-    if (afterTen) push(whyCard, "玩一阵之后：" + afterTen);
+    if (unlocks) push(whyCard, "growth.unlocks", "越玩越多：" + unlocks);
+    if (nearGoal) push(whyCard, "growth.nearGoal", "眼前目标：" + nearGoal);
+    if (afterTen) push(whyCard, "growth.afterTenMin", "玩一阵之后：" + afterTen);
   }
 
   var win = [];
-  push(win, "胜利：" + line(model.winRule, complete));
-  push(win, "失败：" + line(model.loseRule, complete));
-  push(win, "重玩：" + line(model.replayMotivation, complete));
+  push(win, "winRule", "胜利：" + line(model.winRule, complete));
+  push(win, "loseRule", "失败：" + line(model.loseRule, complete));
+  push(win, "replayMotivation", "重玩：" + line(model.replayMotivation, complete));
 
   var world = [];
-  push(world, line(model.world, complete));
-  push(world, "叙事：" + line(model.narrative, complete));
-  push(world, "视听：" + line(model.aesthetic, complete));
-  push(world, "手感：" + line(model.gameFeel, complete));
+  push(world, "world", line(model.world, complete));
+  push(world, "narrative", "叙事：" + line(model.narrative, complete));
+  push(world, "aesthetic", "视听：" + line(model.aesthetic, complete));
+  push(world, "gameFeel", "手感：" + line(model.gameFeel, complete));
   var highs = asList(model.highlights);
   if (highs.length) {
-    highs.forEach(function (h) { push(world, h); });
+    highs.forEach(function (h, i) { push(world, "highlights." + i, h); });
   } else if (filled(model.highlight)) {
-    push(world, String(model.highlight).trim());
+    push(world, "highlights.0", String(model.highlight).trim());
   }
 
   var present = [];
-  push(present, "在哪玩：" + line(pres.where, complete));
-  push(present, "画面维度：" + line(pres.dimension, complete));
-  push(present, "屏幕方向：" + line(pres.orientation, complete));
-  push(present, "人数：" + line(pres.players, complete));
-  push(present, "主要资产：" + line(pres.assets, complete));
+  push(present, "presentation.where", "在哪玩：" + line(pres.where, complete));
+  push(present, "presentation.dimension", "画面维度：" + line(pres.dimension, complete));
+  push(present, "presentation.orientation", "屏幕方向：" + line(pres.orientation, complete));
+  push(present, "presentation.players", "人数：" + line(pres.players, complete));
+  push(present, "presentation.assets", "主要资产：" + line(pres.assets, complete));
 
   var difficulty = [];
-  push(difficulty, "怎么上强度：" + line(diff.ramp, complete));
-  push(difficulty, "前几分钟：" + line(diff.firstMinutes, complete));
-  push(difficulty, "疲劳与缓解：" + line(diff.fatigue, complete));
+  push(difficulty, "difficulty.ramp", "怎么上强度：" + line(diff.ramp, complete));
+  push(difficulty, "difficulty.firstMinutes", "前几分钟：" + line(diff.firstMinutes, complete));
+  push(difficulty, "difficulty.fatigue", "疲劳与缓解：" + line(diff.fatigue, complete));
   var flags = model.contentFlags && typeof model.contentFlags === "object" ? model.contentFlags : {};
   var detail = model.contentDetail && typeof model.contentDetail === "object" ? model.contentDetail : {};
   var content = [];
-  if (filled(model.content)) push(content, String(model.content).trim());
-  if (flags.levels) push(content, "关卡：" + line(detail.levels, complete));
-  if (flags.boss) push(content, "Boss：" + line(detail.boss, complete));
-  if (flags.progression) push(content, "养成 / 长线：" + line(detail.progression, complete));
-  if (flags.multiplayer) push(content, "多人：" + line(detail.multiplayer, complete));
+  if (filled(model.content)) push(content, "content.overview", String(model.content).trim());
+  if (flags.levels) push(content, "content.levels", "关卡：" + line(detail.levels, complete));
+  if (flags.boss) push(content, "content.boss", "Boss：" + line(detail.boss, complete));
+  if (flags.progression) push(content, "content.progression", "养成 / 长线：" + line(detail.progression, complete));
+  if (flags.multiplayer) push(content, "content.multiplayer", "多人：" + line(detail.multiplayer, complete));
 
   var howLines = how.filter(Boolean);
   var whyLines = whyCard.filter(Boolean);

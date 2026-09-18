@@ -17,6 +17,12 @@ describe("parseTurnOutput", () => {
     expect(r.warnings).toEqual([]);
   });
 
+  it("读出 affected_lines", () => {
+    const raw = `将改核心动作。\n${STATE_SENTINEL}\n{ "state_delta": { "coreAction": "种菜" }, "affected_lines": ["coreAction", "nope"] }`;
+    const r = parseTurnOutput(raw);
+    expect(r.control.affectedLines).toEqual(["coreAction", "nope"]);
+  });
+
   it("容忍 JSON 外包 ```json 代码栅栏", () => {
     const raw = `回复正文\n${STATE_SENTINEL}\n\`\`\`json\n{ "state_delta": {}, "stage_complete": false }\n\`\`\``;
     const r = parseTurnOutput(raw);

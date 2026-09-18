@@ -5,6 +5,7 @@ export * from "./merge.js";
 export * from "./stages.js";
 export * from "./turn.js";
 export * from "./advance.js";
+export * from "./patch.js";
 export * from "./gates.js";
 export * from "./compile.js";
 export * from "./harvest.js";

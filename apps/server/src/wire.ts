@@ -25,7 +25,7 @@ export interface SynthesisEvent {
   draftBar?: boolean;
 }
 export interface ErrorEvent { message: string }
-export interface DoneEvent { readyForSynthesis: boolean }
+export interface DoneEvent { readyForSynthesis: boolean; openPreview?: boolean }
 
 /** POST /api/session 返回 */
 export interface CreateSessionResponse {

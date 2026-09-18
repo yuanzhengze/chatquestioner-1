@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildServer } from "../src/server.js";
 import { FileSessionStore } from "../src/sessionStore.js";
-import { createInitialState } from "@cq/conversation";
+import { createInitialState, PATCH_OPTIONS } from "@cq/conversation";
 import { fakeLlm } from "./fixtures/fakeLlm.js";
 
 let dir: string;
@@ -276,6 +276,90 @@ describe("routes", () => {
     expect(r.statusCode).toBe(200);
     expect(r.headers["content-type"]).toMatch(/image\/png/);
     expect(r.rawPayload.length).toBeGreaterThan(1000);
+    await app.close();
+  });
+
+  it("POST patch 开场不问 LLM；应用后重写带 sessionId 的分享，旧快照不动", async () => {
+    const { app, store } = makeApp();
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    const s = createInitialState();
+    s.guidance = "accepted";
+    s.spark = "九龙城寨开火焦虑";
+    s.coreEmotion = "开火焦虑";
+    s.coreAction = "点击空田播种";
+    s.reward = "废弃冰室补给";
+    s.failRule = "被抓惨死回冰室";
+    s.readyForSynthesis = true;
+    s.optionPhase = "convergence";
+    s.history = [
+      {
+        role: "assistant",
+        content: "> 📌 **暂定游戏名**：《城寨幽鸣》\n> 📌 **一句话亮点**：开火即逃亡。\n> 📌 **核心循环**：搜刮 ➔ 潜行 ➔ 开枪逃跑",
+      },
+      { role: "user", content: "确认当前的总结完美契合心中构想，直接生成最终的设计文档。" },
+    ];
+    await store.save(created.id, s);
+
+    const start = await app.inject({
+      method: "POST",
+      url: `/api/session/${created.id}/patch`,
+      payload: { lineId: "coreAction", lineText: "核心动作：点击空田播种", sectionTitle: "怎么玩" },
+    });
+    expect(start.statusCode).toBe(200);
+    expect(start.json().state.optionPhase).toBe("patch");
+    expect(start.json().reply).toContain("点击空田播种");
+    expect(start.json().gddModel).toBeTruthy();
+    expect(start.json().gddMarkdown).toBeTruthy();
+
+    const live = await app.inject({
+      method: "POST",
+      url: "/api/share",
+      payload: {
+        markdown: "# 城寨幽鸣\n\n核心动作：点击空田播种\n",
+        title: "城寨幽鸣",
+        model: { title: "城寨幽鸣", coreAction: "点击空田播种" },
+        sessionId: created.id,
+      },
+    });
+    const stale = await app.inject({
+      method: "POST",
+      url: "/api/share",
+      payload: {
+        markdown: "# 旧快照\n\n核心动作：点击空田播种\n",
+        title: "旧快照",
+      },
+    });
+    expect(live.statusCode).toBe(200);
+    expect(stale.statusCode).toBe(200);
+
+    const loaded = await store.load(created.id);
+    expect(loaded?.optionPhase).toBe("patch");
+    if (loaded?.patchContext) {
+      loaded.patchContext.pendingDelta = { coreAction: "点击空田种菜", workingTitle: "偷改名" };
+      loaded.patchContext.affectedLineIds = ["coreAction"];
+      loaded.lastOptions = PATCH_OPTIONS.map((o) => ({ ...o }));
+      await store.save(created.id, loaded);
+    }
+
+    const applied = await app.inject({
+      method: "POST",
+      url: `/api/session/${created.id}/message`,
+      payload: { message: PATCH_OPTIONS[0].detail },
+    });
+    expect(applied.statusCode).toBe(200);
+    expect(applied.body).toContain("openPreview");
+
+    const after = await store.load(created.id);
+    expect(after?.coreAction).toBe("点击空田种菜");
+    expect(after?.workingTitle).toBeUndefined();
+    expect(after?.optionPhase).toBe("awaitingEdit");
+    expect(after?.lastOptions || []).toEqual([]);
+
+    const liveGot = await app.inject({ method: "GET", url: `/api/share/${live.json().id}` });
+    expect(liveGot.json().markdown).toContain("种菜");
+    const staleGot = await app.inject({ method: "GET", url: `/api/share/${stale.json().id}` });
+    expect(staleGot.json().markdown).toContain("旧快照");
+    expect(staleGot.json().markdown).not.toContain("种菜");
     await app.close();
   });
 });

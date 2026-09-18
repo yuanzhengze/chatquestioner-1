@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { OPENING_MESSAGE, TURN_DIRECTIVE, buildTurnDirective, interpretGuidance, interpretConvergenceChoice, wantsDocument, wantsFinalize, looksLikeConceptSummary, stripFollowUpAsksAfterSummary, CONSENT_OPTIONS, CONSENT_AFTER_IDEA, CONVERGENCE_OPTIONS } from "../src/llm.js";
+import { OPENING_MESSAGE, TURN_DIRECTIVE, buildTurnDirective, interpretGuidance, interpretConvergenceChoice, interpretPatchChoice, wantsDocument, wantsFinalize, looksLikeConceptSummary, stripFollowUpAsksAfterSummary, CONSENT_OPTIONS, CONSENT_AFTER_IDEA, CONVERGENCE_OPTIONS, PATCH_OPTIONS } from "../src/llm.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 
 describe("提示词常量", () => {
@@ -70,6 +70,14 @@ describe("提示词常量", () => {
       { id: "A", label: "信号找同伴", detail: "找回失联的同伴" },
       { id: "B", label: "回声拼真相", detail: "拼出真相" },
     ])).toBeNull();
+  });
+
+  it("interpretPatchChoice 只在上一轮是补丁三选时认 A/B/C", () => {
+    expect(interpretPatchChoice("A", PATCH_OPTIONS)).toBe("apply");
+    expect(interpretPatchChoice(PATCH_OPTIONS[1].detail, PATCH_OPTIONS)).toBe("tweak");
+    expect(interpretPatchChoice("C", PATCH_OPTIONS)).toBe("cancel");
+    expect(interpretPatchChoice("A", CONVERGENCE_OPTIONS)).toBeNull();
+    expect(interpretConvergenceChoice("A", PATCH_OPTIONS)).toBeNull();
   });
 
   it("looksLikeConceptSummary 认 📌 标题总结块，不认同意门和共情里的成型", () => {

@@ -3,7 +3,7 @@ import { createInitialState } from "../src/state.js";
 import { advance } from "../src/advance.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 import { scriptedLlm } from "./fixtures/scriptedLlm.js";
-import { CONSENT_OPTIONS, CONSENT_AFTER_IDEA, DECLINED_ACK, CONVERGENCE_OPTIONS } from "../src/llm.js";
+import { CONSENT_OPTIONS, CONSENT_AFTER_IDEA, DECLINED_ACK, CONVERGENCE_OPTIONS, PATCH_OPTIONS } from "../src/llm.js";
 import { isComplete, isSubstantive, renderGdd } from "@cq/gdd";
 import { toGddModel } from "../src/compile.js";
 
@@ -876,5 +876,81 @@ describe("advance", () => {
     expect(edit.readyForSynthesis).toBe(true);
     expect(edit.options).toHaveLength(2);
     expect(edit.state.optionPhase).toBe("supplement");
+  });
+
+  it("补丁轮不写字段，点应用才写且不出定稿三选", async () => {
+    let calls = 0;
+    const llm = {
+      async *stream() {
+        calls += 1;
+        yield turn("将改：核心动作 → 点击空田种菜。", {
+          state_delta: { coreAction: "点击空田种菜", workingTitle: "偷改名", coreEmotion: "不该动" },
+          affected_lines: ["coreAction"],
+        });
+      },
+    };
+    const s = accepted();
+    s.coreAction = "点击空田播种";
+    s.coreEmotion = "开火焦虑";
+    s.readyForSynthesis = true;
+    s.optionPhase = "convergence";
+    s.lastOptions = CONVERGENCE_OPTIONS.map((o) => ({ ...o }));
+    s.history = [{ role: "assistant", content: "先看文档。" }];
+    const { beginLinePatch } = await import("../src/patch.js");
+    beginLinePatch(s, { lineId: "coreAction", lineText: "核心动作：点击空田播种", sectionTitle: "怎么玩" });
+
+    const asked = await advance(s, "改成种菜", { llm, systemPrompt: SYS });
+    expect(calls).toBe(1);
+    expect(asked.state.coreAction).toBe("点击空田播种");
+    expect(asked.state.workingTitle).toBeUndefined();
+    expect(asked.options).toEqual(PATCH_OPTIONS);
+    expect(asked.state.optionPhase).toBe("patch");
+    expect(asked.openPreview).toBeUndefined();
+    expect(asked.reply).toContain("文档里会改这些地方");
+    expect(asked.reply).toContain("核心动作");
+    expect(asked.reply).not.toMatch(/手风琴/);
+
+    const applied = await advance(asked.state, PATCH_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(calls).toBe(1);
+    expect(applied.state.coreAction).toBe("点击空田种菜");
+    expect(applied.state.workingTitle).toBeUndefined();
+    expect(applied.state.coreEmotion).toBe("开火焦虑");
+    expect(applied.patchCommitted).toBe(true);
+    expect(applied.openPreview).toBe(true);
+    expect(applied.state.optionPhase).toBe("awaitingEdit");
+    expect(applied.options || []).toEqual([]);
+    expect(applied.state.lastOptions || []).toEqual([]);
+  });
+
+  it("取消不写；再改改仍停在补丁相", async () => {
+    const llm = scriptedLlm([
+      turn("将改核心动作。", { state_delta: { coreAction: "种菜" }, affected_lines: ["coreAction"] }),
+    ]);
+    const s = accepted();
+    s.coreAction = "播种";
+    s.optionPhase = "interview";
+    s.history = [{ role: "assistant", content: "继续问。" }];
+    const { beginLinePatch } = await import("../src/patch.js");
+    beginLinePatch(s, { lineId: "coreAction", lineText: "核心动作：播种", sectionTitle: "怎么玩" });
+    const listed = await advance(s, "改成种菜", { llm, systemPrompt: SYS });
+    expect(listed.state.coreAction).toBe("播种");
+
+    const tweaked = await advance(listed.state, PATCH_OPTIONS[1].detail, { llm, systemPrompt: SYS });
+    expect(tweaked.state.coreAction).toBe("播种");
+    expect(tweaked.state.optionPhase).toBe("patch");
+    expect(tweaked.openPreview).toBeUndefined();
+    expect(tweaked.options || []).toEqual([]);
+
+    const listed2 = {
+      ...listed.state,
+      lastOptions: PATCH_OPTIONS.map((o) => ({ ...o })),
+      optionPhase: "patch" as const,
+      patchContext: listed.state.patchContext,
+    };
+    const cancelled = await advance(listed2, PATCH_OPTIONS[2].detail, { llm, systemPrompt: SYS });
+    expect(cancelled.state.coreAction).toBe("播种");
+    expect(cancelled.openPreview).toBe(true);
+    expect(cancelled.patchCommitted).toBeUndefined();
+    expect(cancelled.state.optionPhase).toBe("interview");
   });
 });

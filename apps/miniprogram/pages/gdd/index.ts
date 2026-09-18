@@ -1,4 +1,4 @@
-import { API_BASE, GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
+import { API_BASE, GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../../config";
 import { attachShareCover, createShare, downloadCover, getCoverMeta, getShare, requestCover } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
@@ -186,7 +186,7 @@ Page({
     fromShare: false,
     logoSrc: LOGO_SRC,
     draft: false,
-    sections: [] as Array<{ id: string; title: string; lines: string[] }>,
+    sections: [] as Array<{ id: string; title: string; lines: Array<{ id: string; text: string }> }>,
     expandedId: "constitution",
     coverUrl: "",
     coverPending: false,
@@ -200,6 +200,7 @@ Page({
     loopNodes: [] as Array<{ id: string; label: string; text: string }>,
     loopOpen: "",
     loopText: "",
+    selectedLineId: "",
   },
 
   _markdown: "",
@@ -215,6 +216,7 @@ Page({
   _sessionId: "",
   _coverTimer: 0 as number,
   _coverTries: 0,
+  _coverRegen: false,
 
   onLoad(query: { s?: string }) {
     try {
@@ -335,6 +337,7 @@ Page({
         loopNodes: [],
         loopOpen: "",
         loopText: "",
+        selectedLineId: "",
       });
       return;
     }
@@ -348,9 +351,9 @@ Page({
     const view = toGddView(model || {});
     const title = view.title || meta.title || "未命名游戏";
     const pitch = view.pitch || meta.pitch || "";
-    let sections: Array<{ id: string; title: string; lines: string[] }> = [];
+    let sections: Array<{ id: string; title: string; lines: Array<{ id: string; text: string }> }> = [];
     try {
-      sections = sectionsFromModel(model, complete) as Array<{ id: string; title: string; lines: string[] }>;
+      sections = sectionsFromModel(model, complete) as Array<{ id: string; title: string; lines: Array<{ id: string; text: string }> }>;
     } catch (_e) {
       sections = [];
     }
@@ -381,6 +384,7 @@ Page({
       loopNodes: view.loopNodes || [],
       loopOpen: "",
       loopText: "",
+      selectedLineId: "",
     });
     if (this._fromShare) {
       const shareCover = payload && payload.coverImageUrl ? String(payload.coverImageUrl) : "";
@@ -519,8 +523,9 @@ Page({
 
   startCoverWatch() {
     if (this._fromShare || !this._sessionId) return;
+    this._coverRegen = false;
     this.setData({ coverPending: true });
-    void requestCover(this._sessionId)
+    void getCoverMeta(this._sessionId)
       .then((meta) => this.applyCoverMeta(meta))
       .catch(() => this.scheduleCoverPoll());
   },
@@ -544,6 +549,7 @@ Page({
   applyCoverMeta(meta: { status: string; imageUrl?: string }) {
     if (meta.status === "ready" && meta.imageUrl) {
       this.stopCoverWatch();
+      this._coverRegen = false;
       this.revealCover(meta.imageUrl);
       if (this._shareId && this._sessionId) {
         void attachShareCover(this._shareId, this._sessionId).catch(() => "");
@@ -552,11 +558,40 @@ Page({
     }
     if (meta.status === "failed") {
       this.stopCoverWatch();
-      this.setData({ coverUrl: "", coverPending: false });
+      if (this._coverRegen) {
+        wx.showToast({ title: "封面没生成，文档还在", icon: "none" });
+      }
+      this._coverRegen = false;
+      this.setData({ coverPending: false });
+      return;
+    }
+    if (meta.status === "idle" && !this._coverRegen) {
+      if (this._coverTries >= 8) {
+        this.stopCoverWatch();
+        this.setData({ coverPending: false });
+        return;
+      }
+      this.setData({ coverPending: false });
+      this.scheduleCoverPoll();
       return;
     }
     this.setData({ coverPending: true });
     this.scheduleCoverPoll();
+  },
+
+  onRegenCover() {
+    if (this.data.fromShare || this.data.coverPending || !this._sessionId) return;
+    this._coverRegen = true;
+    this.stopCoverWatch();
+    this._coverTries = 0;
+    this.setData({ coverPending: true });
+    void requestCover(this._sessionId)
+      .then((meta) => this.applyCoverMeta(meta))
+      .catch(() => {
+        this._coverRegen = false;
+        this.setData({ coverPending: false });
+        wx.showToast({ title: "封面没生成，文档还在", icon: "none" });
+      });
   },
 
   onDnaTap(e: { currentTarget: { dataset: { id?: string } } }) {
@@ -596,6 +631,40 @@ Page({
     const id = e.currentTarget.dataset.id;
     if (!id) return;
     this.setData({ expandedId: this.data.expandedId === id ? "" : id });
+  },
+
+  onSelectLine(e: { currentTarget: { dataset: { id?: string } } }) {
+    if (this.data.fromShare) return;
+    const id = String((e.currentTarget.dataset && e.currentTarget.dataset.id) || "").trim();
+    if (!id) return;
+    this.setData({ selectedLineId: this.data.selectedLineId === id ? "" : id });
+  },
+
+  onPatchLine(e: {
+    currentTarget: {
+      dataset: { id?: string; text?: string; section?: string; title?: string };
+    };
+  }) {
+    if (this.data.fromShare) return;
+    const lineId = String((e.currentTarget.dataset && e.currentTarget.dataset.id) || "").trim();
+    if (!lineId || !this._sessionId) return;
+    try {
+      wx.setStorageSync(GDD_PATCH_KEY, {
+        sessionId: this._sessionId,
+        lineId,
+        lineText: String((e.currentTarget.dataset && e.currentTarget.dataset.text) || ""),
+        sectionId: String((e.currentTarget.dataset && e.currentTarget.dataset.section) || ""),
+        sectionTitle: String((e.currentTarget.dataset && e.currentTarget.dataset.title) || ""),
+      });
+    } catch (_err) {
+      wx.showToast({ title: "这一行还进不去", icon: "none" });
+      return;
+    }
+    wx.navigateBack({
+      fail: () => {
+        wx.switchTab({ url: "/pages/stage/index" });
+      },
+    });
   },
 
   onCopy() {

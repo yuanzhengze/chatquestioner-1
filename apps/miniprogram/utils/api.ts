@@ -34,7 +34,7 @@ function dispatch(ev: { event: string; data: unknown }, h: SseHandlers): void {
       h.onError?.(String(data.message ?? "unknown error"));
       break;
     case "done":
-      h.onDone?.(Boolean(data.readyForSynthesis));
+      h.onDone?.(Boolean(data.readyForSynthesis), { openPreview: data.openPreview === true });
       break;
     default:
       break;
@@ -78,6 +78,53 @@ export function getSession(id: string): Promise<Record<string, unknown>> {
       },
       fail(err: { errMsg?: string }) {
         reject(new Error(err.errMsg || "getSession network error"));
+      },
+    });
+  });
+}
+
+export function startLinePatch(
+  id: string,
+  intent: { lineId: string; lineText?: string; sectionId?: string; sectionTitle?: string },
+): Promise<{
+  reply: string;
+  state: Record<string, unknown>;
+  gddMarkdown?: string;
+  gddModel?: unknown;
+  complete?: boolean;
+  draftBar?: boolean;
+}> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${id}/patch`,
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: intent,
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          const body = res.data as {
+            reply?: string;
+            state?: Record<string, unknown>;
+            gddMarkdown?: string;
+            gddModel?: unknown;
+            complete?: boolean;
+            draftBar?: boolean;
+          };
+          resolve({
+            reply: String(body.reply || ""),
+            state: (body.state && typeof body.state === "object" ? body.state : {}) as Record<string, unknown>,
+            gddMarkdown: body.gddMarkdown,
+            gddModel: body.gddModel,
+            complete: body.complete === true,
+            draftBar: body.draftBar === true,
+          });
+        } else {
+          reject(new Error(`startLinePatch failed: ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "startLinePatch network error"));
       },
     });
   });
@@ -278,9 +325,9 @@ export function sendMessage(
   const decoder = new Utf8StreamDecoder();
   let buffer = "";
   let gotDone = false;
-  const onDone = (ready: boolean) => {
+  const onDone = (ready: boolean, extra?: { openPreview?: boolean }) => {
     gotDone = true;
-    handlers.onDone?.(ready);
+    handlers.onDone?.(ready, extra);
   };
 
   const task = wx.request({

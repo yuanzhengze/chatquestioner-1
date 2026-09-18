@@ -6,6 +6,7 @@ export interface TurnControl {
   stateDelta: StateDelta;
   stageComplete: boolean;
   readyForSynthesis: boolean;
+  affectedLines?: string[];
 }
 
 export interface TurnOption {
@@ -23,6 +24,14 @@ export interface ParsedTurn {
 
 function emptyControl(): TurnControl {
   return { stateDelta: {}, stageComplete: false, readyForSynthesis: false };
+}
+
+function parseAffectedLines(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .map((x) => (typeof x === "string" ? x.trim() : ""))
+    .filter(Boolean);
+  return out.length ? out : undefined;
 }
 
 /** 从文本中抽出 JSON 对象并解析；失败返回 null。 */
@@ -59,7 +68,7 @@ export function isOpenEndedOption(label: string, detail: string): boolean {
 /** 收敛三选：定稿 / 改一块 / 再挖挖。采访轮要从模型选项里剔掉。 */
 export function isMetaForkOption(label: string, detail: string): boolean {
   const t = `${label}\n${detail}`;
-  return /就按这个定稿|写成设计文档|确认总结.*生成|生成设计文档|核心对.*改|再挖挖|改某一块|改一块/.test(t);
+  return /就按这个定稿|写成设计文档|确认总结.*生成|生成设计文档|核心对.*改|再挖挖|改某一块|改一块|应用这些改动|再改改说法/.test(t);
 }
 
 /** 只留实质设计方向，去掉定稿/再挖这类收敛选项。 */
@@ -219,6 +228,7 @@ export function parseTurnOutput(raw: string): ParsedTurn {
       stateDelta: (json.state_delta ?? {}) as StateDelta,
       stageComplete: json.stage_complete === true,
       readyForSynthesis: json.ready_for_synthesis === true,
+      affectedLines: parseAffectedLines(json.affected_lines ?? json.affectedLines),
     },
     [],
     json.options,

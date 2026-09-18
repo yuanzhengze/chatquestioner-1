@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import {
   advance, createInitialState, toGddModel, normalizeConversationState,
   harvestIntoState, scrubUngroundedState, OPENING_MESSAGE, STAGE_ASKS_TITLE, STAGE_LABELS, historyWantsPreview,
-  showDraftBar,
+  showDraftBar, beginLinePatch, isKnownLineId,
   type ConversationState, type LlmClient, type Retriever,
 } from "@cq/conversation";
 import { renderGdd, isSubstantive, isComplete, type GddModel } from "@cq/gdd";
@@ -16,7 +16,7 @@ import { FileShareStore, type ShareStore, type ResultShare } from "./shareStore.
 import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
 import { CoverStore, coverDirFromData } from "./coverStore.js";
-import { CoverPipeline, coverImagePath } from "./coverPipeline.js";
+import { CoverPipeline, coverImagePath, shouldAutoEnsureCover } from "./coverPipeline.js";
 import type { ImageGenerator } from "./imageClient.js";
 
 export interface ServerDeps {
@@ -88,6 +88,30 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   const covers = new CoverStore(deps.coverDir ?? coverDirFromData(dataRoot));
   const coverPipeline = new CoverPipeline(deps.store, covers, deps.image ?? null);
 
+  async function rewriteSessionShares(sessionId: string, state: ConversationState): Promise<void> {
+    const syn = buildSynthesis(state);
+    if (!syn) return;
+    const rows = await shareStore.listBySession(sessionId);
+    const title = titleFromMarkdown(syn.gddMarkdown, syn.gddModel.title);
+    for (const row of rows) {
+      await shareStore.update(row.id, {
+        title,
+        markdown: syn.gddMarkdown,
+        model: syn.gddModel,
+        complete: syn.complete,
+      });
+      coverPipeline.copyToShare(sessionId, row.id);
+    }
+  }
+
+  coverPipeline.onSessionCoverReady = (sessionId) => {
+    void shareStore.listBySession(sessionId).then((rows) => {
+      for (const row of rows) coverPipeline.copyToShare(sessionId, row.id);
+    }).catch((err) => {
+      console.error("[share] copy cover after regen failed:", err);
+    });
+  };
+
   function publicShare(row: ResultShare) {
     const out: {
       v: 1 | 2;
@@ -154,8 +178,11 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!loaded) return reply.code(404).send({ error: "session not found" });
     const state = normalizeConversationState(loaded);
     // GET 只做确定性回收，不调抽取 LLM（微信 20s）。抽取只在用户要文档的那一轮 advance 里跑并落盘。
-    harvestIntoState(state);
-    scrubUngroundedState(state);
+    // 补丁确认前不 harvest，避免空字段被对话提前写上。
+    if (state.optionPhase !== "patch") {
+      harvestIntoState(state);
+      scrubUngroundedState(state);
+    }
     const model = toGddModel(state);
     const complete = isComplete(model);
     state.gddComplete = complete;
@@ -200,6 +227,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
         markdown,
         model,
         complete: req.body?.complete === true,
+        sessionId: typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : undefined,
       });
       const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : "";
       if (SAFE_ID.test(sessionId)) coverPipeline.copyToShare(sessionId, row.id);
@@ -260,8 +288,44 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!loaded) return reply.code(404).send({ error: "session not found" });
     const state = normalizeConversationState(loaded);
     if (!buildSynthesis(state)) return reply.code(409).send({ error: "GDD 尚无实质内容" });
-    return coverPipeline.ensure(req.params.id);
+    return coverPipeline.ensure(req.params.id, { force: true });
   });
+
+  app.post<{ Params: { id: string }; Body: { lineId?: string; lineText?: string; sectionId?: string; sectionTitle?: string } }>(
+    "/api/session/:id/patch",
+    async (req, reply) => {
+      if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
+      const loaded = await deps.store.load(req.params.id);
+      if (!loaded) return reply.code(404).send({ error: "session not found" });
+      const lineId = typeof req.body?.lineId === "string" ? req.body.lineId.trim() : "";
+      if (!isKnownLineId(lineId)) return reply.code(400).send({ error: "unknown line" });
+      const state = normalizeConversationState(loaded);
+      beginLinePatch(state, {
+        lineId,
+        lineText: typeof req.body?.lineText === "string" ? req.body.lineText : "",
+        sectionId: typeof req.body?.sectionId === "string" ? req.body.sectionId : undefined,
+        sectionTitle: typeof req.body?.sectionTitle === "string" ? req.body.sectionTitle : undefined,
+      });
+      await deps.store.save(req.params.id, state);
+      const replyText = state.history[state.history.length - 1]?.content || "";
+      const syn = (() => {
+        try {
+          return buildSynthesis(state);
+        } catch {
+          return null;
+        }
+      })();
+      return {
+        reply: replyText,
+        state,
+        options: [],
+        gddMarkdown: syn?.gddMarkdown,
+        gddModel: syn?.gddModel,
+        complete: syn?.complete,
+        draftBar: syn?.draftBar,
+      };
+    },
+  );
 
   app.post<{ Params: { id: string }; Body: { message: string } }>(
     "/api/session/:id/message",
@@ -324,9 +388,30 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
             ...synthesis,
             gddView: coverPipeline.viewFor(synthesis.gddModel, res.state, req.params.id),
           });
-          coverPipeline.schedule(req.params.id);
+          if (shouldAutoEnsureCover(res.state, covers.has("session", req.params.id))) {
+            coverPipeline.schedule(req.params.id);
+          }
         }
-        sendEvent(reply, SSE_EVENTS.done, { readyForSynthesis: res.readyForSynthesis });
+        if (res.patchCommitted) {
+          await rewriteSessionShares(req.params.id, res.state);
+        }
+        if (res.openPreview && !synthesis && res.readyForSynthesis) {
+          try {
+            const extra = buildSynthesis(res.state);
+            if (extra) {
+              sendEvent(reply, SSE_EVENTS.synthesis, {
+                ...extra,
+                gddView: coverPipeline.viewFor(extra.gddModel, res.state, req.params.id),
+              });
+            }
+          } catch (err) {
+            console.error("[server] patch preview compile failed:", err);
+          }
+        }
+        sendEvent(reply, SSE_EVENTS.done, {
+          readyForSynthesis: res.readyForSynthesis,
+          openPreview: res.openPreview === true,
+        });
       } catch (err) {
         console.error("[server] turn failed:", err);
         sendEvent(reply, SSE_EVENTS.error, {

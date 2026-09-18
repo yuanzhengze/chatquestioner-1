@@ -29,8 +29,20 @@ export function coverImagePath(kind: "session" | "share", id: string, fingerprin
   return kind === "session" ? `/api/session/${id}/cover${q}` : `/api/share/${id}/cover${q}`;
 }
 
+/** 会话里一旦有过封面（成功/失败/已有文件），compile 不再自动生图。 */
+export function shouldAutoEnsureCover(
+  state: ConversationState,
+  hasFile: boolean,
+): boolean {
+  const status = state.cover?.status;
+  if (status === "ready" || status === "failed") return false;
+  if (hasFile) return false;
+  return true;
+}
+
 export class CoverPipeline {
   private readonly inflight = new Map<string, Promise<void>>();
+  onSessionCoverReady?: (sessionId: string) => void;
 
   constructor(
     private readonly store: SessionStore,
@@ -49,7 +61,8 @@ export class CoverPipeline {
       && meta.fingerprint === fingerprint
       && this.covers.has("session", sessionId)
     ) {
-      return { status: "ready", fingerprint, imageUrl: coverImagePath("session", sessionId, fingerprint) };
+      const stamp = meta.generatedAt ? `${fingerprint}.${meta.generatedAt}` : fingerprint;
+      return { status: "ready", fingerprint, imageUrl: coverImagePath("session", sessionId, stamp) };
     }
     if (meta?.status === "pending" && meta.fingerprint === fingerprint) {
       return { status: "pending", fingerprint };
@@ -71,7 +84,7 @@ export class CoverPipeline {
     });
   }
 
-  async ensure(sessionId: string): Promise<PublicCover> {
+  async ensure(sessionId: string, opts?: { force?: boolean }): Promise<PublicCover> {
     const loaded = await this.store.load(sessionId);
     if (!loaded) return { status: "idle", fingerprint: "" };
     const state = normalizeConversationState(structuredClone(loaded) as ConversationState);
@@ -83,11 +96,13 @@ export class CoverPipeline {
     const fingerprint = coverFingerprint(model);
     const prompt = coverPromptFromModel(model);
     if (
-      loaded.cover?.status === "ready"
+      !opts?.force
+      && loaded.cover?.status === "ready"
       && loaded.cover.fingerprint === fingerprint
       && this.covers.has("session", sessionId)
     ) {
-      return { status: "ready", fingerprint, imageUrl: coverImagePath("session", sessionId, fingerprint) };
+      const stamp = loaded.cover.generatedAt ? `${fingerprint}.${loaded.cover.generatedAt}` : fingerprint;
+      return { status: "ready", fingerprint, imageUrl: coverImagePath("session", sessionId, stamp) };
     }
 
     if (!this.image) {
@@ -124,9 +139,10 @@ export class CoverPipeline {
       harvestIntoState(live);
       scrubUngroundedState(live);
       if (coverFingerprint(toGddModel(live)) !== fingerprint) return;
-      latest.cover = { fingerprint, prompt, status: "ready", mime: img.mime };
+      latest.cover = { fingerprint, prompt, status: "ready", mime: img.mime, generatedAt: Date.now() };
       await this.store.save(sessionId, latest);
       console.log(`[cover] ready session=${sessionId} bytes=${img.bytes.length} mime=${img.mime}`);
+      this.onSessionCoverReady?.(sessionId);
     } catch (err) {
       console.error("[cover] generate failed:", err);
       const latest = await this.store.load(sessionId);

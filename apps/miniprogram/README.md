@@ -22,7 +22,7 @@ pnpm dev:server
 
 4. 模拟器默认请求 `http://127.0.0.1:8420`。真机预览时把 [config.ts](config.ts) 改成电脑局域网 IP，例如 `http://192.168.1.8:8420`，并保证手机和电脑同一 Wi-Fi。封面图也走这个地址，真机还要允许 **downloadFile**。
 
-结果页是 Interactive GDD：打开预览后封面会异步出现（角标「封面生成中」），不要点封面重生图。产品规则见 [docs/PRODUCT.md](../../docs/PRODUCT.md) §5.6。
+结果页是 Interactive GDD：打开预览后封面会异步出现（角标「封面生成中」），不要点封面重生图，用「重新生成封面」。自己的预览里，点手风琴一句会高亮，右侧出现 ✎ 再去改。产品规则见 [docs/PRODUCT.md](../../docs/PRODUCT.md) §3.7、§5.6。
 
 ## 改完共享逻辑后
 

@@ -10,7 +10,7 @@
 
 ## 现在做什么、不做什么
 
-做：微信小程序 + 网页的引导对话 → Interactive GDD 预览（真封面、游戏基因、交互分镜、循环三环）/ 分享。Markdown 仍可复制、交给 ForgeaX。
+做：微信小程序 + 网页的引导对话 → Interactive GDD 预览（真封面、游戏基因、交互分镜、循环三环）/ 分享。出文档后可在预览里点一句改。Markdown 仍可复制、交给 ForgeaX。
 
 不做（对用户不承诺）：按 DSL 自动选型、match-3 可玩原型、在 ForgeaX 里一键开工。仓库里还留着 `packages/dsl`、`resolver`、`playground` 等历史代码，以及 `docs/01`–`12` 旧设计稿，只作考古，不要当成当前产品。
 

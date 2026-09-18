@@ -23,5 +23,5 @@ export interface SseHandlers {
   onSynthesis?: (payload: { gddMarkdown: string; gddModel?: unknown; gddView?: unknown; complete?: boolean; draftBar?: boolean }) => void;
   onWarning?: () => void;
   onError?: (message: string) => void;
-  onDone?: (readyForSynthesis: boolean) => void;
+  onDone?: (readyForSynthesis: boolean, extra?: { openPreview?: boolean }) => void;
 }

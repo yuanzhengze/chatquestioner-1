@@ -5,8 +5,16 @@ import { toGddModel } from "../src/compile.js";
 import { renderGdd } from "@cq/gdd";
 
 const { sectionsFromModel } = createRequire(import.meta.url)("../../../apps/miniprogram/utils/gddSections.js") as {
-  sectionsFromModel: (model: unknown, complete: boolean) => Array<{ id: string; title: string; lines: string[] }>;
+  sectionsFromModel: (model: unknown, complete: boolean) => Array<{
+    id: string;
+    title: string;
+    lines: Array<{ id: string; text: string } | string>;
+  }>;
 };
+
+function lineTexts(section?: { lines: Array<{ id?: string; text?: string } | string> }) {
+  return (section?.lines || []).map((l) => typeof l === "string" ? l : String(l.text || ""));
+}
 
 function readyState() {
   const s = createInitialState();
@@ -214,9 +222,9 @@ describe("toGddModel", () => {
     const how = sectionsFromModel(m, false).find((x) => x.id === "how");
     const why = sectionsFromModel(m, false).find((x) => x.id === "why");
     expect(why?.title).toBe("为什么继续玩");
-    expect(how?.lines.some((l) => l.includes("交互链路"))).toBe(true);
-    expect(how?.lines.some((l) => l.includes("核心爽点"))).toBe(false);
-    expect(why?.lines.some((l) => l.includes("核心爽点"))).toBe(true);
+    expect(lineTexts(how).some((l) => l.includes("交互链路"))).toBe(true);
+    expect(lineTexts(how).some((l) => l.includes("核心爽点"))).toBe(false);
+    expect(lineTexts(why).some((l) => l.includes("核心爽点"))).toBe(true);
   });
 
   it("短局成长整节只留无独立成长", () => {
@@ -230,9 +238,9 @@ describe("toGddModel", () => {
     const how = sectionsFromModel(m, true).find((x) => x.id === "how");
     const why = sectionsFromModel(m, true).find((x) => x.id === "why");
     expect(why?.title).toBe("为什么继续玩");
-    expect(why?.lines.some((l) => l.includes("本游戏无独立成长"))).toBe(true);
-    expect(how?.lines.some((l) => l.includes("本游戏无独立成长"))).toBe(false);
-    expect(why?.lines.some((l) => l.includes("眼前目标"))).toBe(false);
+    expect(lineTexts(why).some((l) => l.includes("本游戏无独立成长"))).toBe(true);
+    expect(lineTexts(how).some((l) => l.includes("本游戏无独立成长"))).toBe(false);
+    expect(lineTexts(why).some((l) => l.includes("眼前目标"))).toBe(false);
   });
 
   it("宪法只印八项；extras 失败/爽点不进宪法；none 无证据不写成长规则", () => {
@@ -250,8 +258,8 @@ describe("toGddModel", () => {
     expect(md).not.toContain("难度节奏：越来越密");
     expect(md).not.toContain("成长规则");
     const card = sectionsFromModel(m, false).find((x) => x.id === "constitution");
-    expect(card?.lines.some((l) => l.includes("失败规则"))).toBe(false);
-    expect(card?.lines.some((l) => l.startsWith("成长规则"))).toBe(false);
+    expect(lineTexts(card).some((l) => l.includes("失败规则"))).toBe(false);
+    expect(lineTexts(card).some((l) => l.startsWith("成长规则"))).toBe(true);
   });
 
   it("用户或循环标明短局才把无独立成长写入成长规则", () => {
@@ -277,11 +285,13 @@ describe("sectionsFromModel", () => {
     const ids = sections.map((x) => x.id);
     expect(ids).not.toContain("pools");
     const world = sections.find((x) => x.id === "world");
-    expect(world?.lines.some((l) => l.includes("金色巨龙"))).toBe(true);
-    expect(world?.lines.join("、")).not.toMatch(/金色巨龙、金色巨龙/);
+    expect(lineTexts(world).some((l) => l.includes("金色巨龙"))).toBe(true);
+    expect(lineTexts(world).join("、")).not.toMatch(/金色巨龙、金色巨龙/);
     const content = sections.find((x) => x.id === "content");
-    expect(content?.lines.some((l) => l.includes("多人"))).toBe(true);
+    expect(lineTexts(content).some((l) => l.includes("多人"))).toBe(true);
     const what = sections.find((x) => x.id === "what");
-    expect(what?.lines.join("")).not.toContain("禁止情感");
+    expect(lineTexts(what).join("")).not.toContain("禁止情感");
+    const how = sections.find((x) => x.id === "how");
+    expect(how?.lines.some((l) => typeof l !== "string" && l.id === "coreAction")).toBe(true);
   });
 });
