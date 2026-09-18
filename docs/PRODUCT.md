@@ -4,7 +4,7 @@
 > 对照实现：`packages/conversation/`、`prompts/game-gdd-clarify/`、`apps/miniprogram/`。  
 > 任务书（范围与待定项）：仓库外 `D:\Newbee\Newbee小程序开发任务书.md`。  
 > 开发过程流水：仓库外 `D:\Newbee\docs\DEVELOPMENT_LOG.md`（不替代本文件）。  
-> 最后与代码对齐：Interactive GDD 第一阶段（真封面 + 游戏基因 + 交互分镜 + 循环三环；2026-09-18）。提交 SHA 以 `git log -1` 为准。
+> 最后与代码对齐：Interactive GDD 第一阶段（真封面 + 游戏基因 + 交互分镜 + 循环三环；2026-09-18，`d1d34d3`）。
 
 ---
 
