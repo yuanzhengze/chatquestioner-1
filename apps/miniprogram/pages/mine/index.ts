@@ -1,4 +1,4 @@
-import { FORGEAX_SITE_URL, GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
+import { FORGEAX_SITE_URL, FX_CHROME, GDD_DRAFT_KEY, LOGO_SRC } from "../../config";
 import { deleteSession } from "../../utils/api";
 
 const legal = require("../../utils/legal.js");
@@ -22,8 +22,8 @@ Page({
 
   onLoad() {
     try {
-      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: "#0D0D0D" });
-      wx.setBackgroundColor({ backgroundColor: "#0D0D0D", backgroundColorTop: "#0D0D0D", backgroundColorBottom: "#0D0D0D" });
+      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: FX_CHROME.canvas });
+      wx.setBackgroundColor({ backgroundColor: FX_CHROME.canvas, backgroundColorTop: FX_CHROME.canvas, backgroundColorBottom: FX_CHROME.canvas });
     } catch (_e) {
       // 导航栏着色失败不挡进入
     }
@@ -71,7 +71,7 @@ Page({
       title: "删除这条共创？",
       content: `「${name}」会从记录里去掉，不能再打开。已经分享出去的文档还在。`,
       confirmText: "删除",
-      confirmColor: "#F26A6A",
+      confirmColor: "#FFADB3",
       success: (res) => {
         if (res.confirm) void this.deleteRecord(id);
       },

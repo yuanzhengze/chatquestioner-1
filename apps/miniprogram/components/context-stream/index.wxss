@@ -6,7 +6,7 @@
 .bubble {
   max-width: 78%;
   padding: 12rpx 20rpx;
-  border-radius: 16rpx;
+  border-radius: var(--r-ctrl);
   margin-bottom: 12rpx;
   font-size: 26rpx;
   line-height: 1.5;

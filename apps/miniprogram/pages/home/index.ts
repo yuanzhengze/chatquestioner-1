@@ -1,4 +1,4 @@
-import { FORGEAX_SITE_URL, LOGO_SRC } from "../../config";
+import { FORGEAX_SITE_URL, FX_CHROME, LOGO_SRC } from "../../config";
 
 const legal = require("../../utils/legal.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
@@ -37,8 +37,8 @@ Page({
 
   onLoad() {
     try {
-      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: "#0D0D0D" });
-      wx.setBackgroundColor({ backgroundColor: "#0D0D0D", backgroundColorTop: "#0D0D0D", backgroundColorBottom: "#0D0D0D" });
+      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: FX_CHROME.canvas });
+      wx.setBackgroundColor({ backgroundColor: FX_CHROME.canvas, backgroundColorTop: FX_CHROME.canvas, backgroundColorBottom: FX_CHROME.canvas });
     } catch (_e) {
       // 导航栏着色失败不挡进入
     }

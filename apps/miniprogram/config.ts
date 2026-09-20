@@ -8,6 +8,19 @@
  */
 export const API_BASE = "http://127.0.0.1:8420";
 
+/** 导航栏 / Tab / canvas 不能写 CSS 变量。对照 forgeax-codex-design-system.html 的 dark 语义。 */
+export const FX_CHROME = {
+  canvas: "#1A1C1F",
+  sidebar: "#222326",
+  raised: "#292A2D",
+  brand: "#C5DD78",
+  brandOn: "#1A1C1F",
+  text: "#EDEDED",
+  textSecondary: "#C7C7C8",
+  primaryBg: "#EDEDED",
+  primaryFg: "#1A1C1F",
+} as const;
+
 /** ForgeaX 开源组织入口。小程序未配业务域名时不能 web-view，阶段 1 用复制链接。 */
 export const FORGEAX_SITE_URL = "https://github.com/ForgeaX-Games";
 

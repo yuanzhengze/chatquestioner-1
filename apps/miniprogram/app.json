@@ -7,16 +7,16 @@
   ],
   "window": {
     "navigationBarTitleText": "NewBee · 游戏共创",
-    "navigationBarBackgroundColor": "#0D0D0D",
+    "navigationBarBackgroundColor": "#1A1C1F",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#0D0D0D",
+    "backgroundColor": "#1A1C1F",
     "backgroundTextStyle": "light",
     "pageOrientation": "portrait"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#D4FF48",
-    "backgroundColor": "#191919",
+    "color": "#A0A0A2",
+    "selectedColor": "#C5DD78",
+    "backgroundColor": "#222326",
     "borderStyle": "black",
     "list": [
       {

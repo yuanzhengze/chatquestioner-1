@@ -160,30 +160,34 @@ page {
   justify-content: center;
   box-sizing: border-box;
   text-align: center;
-  border-radius: 16rpx;
+  border-radius: var(--r-full);
   font-size: 28rpx;
   font-weight: 500;
 }
 .btn::after { border: none; }
 .btn.primary {
-  background: var(--brand);
-  color: var(--text-on-bright);
-  font-weight: 600;
+  background: var(--action-primary-bg);
+  color: var(--action-primary-fg);
+  font-weight: 500;
 }
-.btn.primary.off { opacity: 0.2; }
+.btn.primary.off {
+  background: var(--action-disabled-bg);
+  color: var(--action-disabled-fg);
+  opacity: 1;
+}
 .btn.ghost {
-  background: var(--bg-elevated);
-  color: var(--text);
+  background: var(--action-secondary-bg);
+  color: var(--action-secondary-fg);
   border: 1px solid var(--border);
 }
 .press { transform: scale(var(--press-scale)); }
 .btn.primary.press {
-  background: var(--brand-hover) !important;
-  color: var(--text-on-bright) !important;
-  border-color: var(--brand) !important;
+  background: var(--action-primary-pressed) !important;
+  color: var(--action-primary-fg) !important;
+  border-color: transparent !important;
 }
 .btn.ghost.press {
-  background: var(--bg-floating) !important;
+  background: var(--action-secondary-hover) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }
@@ -207,8 +211,9 @@ page {
   text-align: center;
 }
 .box.on {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: var(--choice);
+  border-color: var(--choice);
+  color: var(--text);
 }
 .consent-text {
   flex: 1;
@@ -216,7 +221,7 @@ page {
   line-height: 1.5;
   color: var(--text-3);
 }
-.link { color: var(--brand); }
+.link { color: var(--text-link); }
 
 .hint {
   flex-shrink: 0;
@@ -346,7 +351,7 @@ page {
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   font-size: 22rpx;
-  color: var(--brand);
+  color: var(--text-link);
   word-break: break-all;
 }
 .sheet-btn { margin-top: 12rpx; }

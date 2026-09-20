@@ -73,7 +73,7 @@ page { background: var(--bg-canvas); color: var(--text); }
   z-index: 1;
   height: 560rpx;
   padding: 36rpx 32rpx 28rpx;
-  background: linear-gradient(180deg, rgba(13, 13, 13, 0.12) 0%, rgba(13, 13, 13, 0.55) 48%, rgba(13, 13, 13, 0.88) 100%);
+  background: linear-gradient(180deg, rgba(26, 28, 31, 0.12) 0%, rgba(26, 28, 31, 0.55) 48%, rgba(26, 28, 31, 0.88) 100%);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -153,34 +153,34 @@ page { background: var(--bg-canvas); color: var(--text); }
   justify-content: center;
   box-sizing: border-box;
   text-align: center;
-  border-radius: 16rpx;
+  border-radius: var(--r-full);
   font-size: 30rpx;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .share-btn {
-  background: var(--brand);
-  color: var(--text-on-bright);
+  background: var(--action-primary-bg);
+  color: var(--action-primary-fg);
 }
 .share-btn::after,
 .export-btn::after,
 .try-btn::after { border: none; }
 .share-btn.press,
 .try-btn.press {
-  background: var(--brand-hover) !important;
-  color: var(--text-on-bright) !important;
+  background: var(--action-primary-pressed) !important;
+  color: var(--action-primary-fg) !important;
   transform: scale(var(--press-scale));
 }
 .export-btn.press,
 .try-btn.ghost.press {
-  background: var(--bg-floating) !important;
+  background: var(--action-secondary-hover) !important;
   color: var(--text) !important;
   transform: scale(var(--press-scale));
 }
 
 .export-btn {
-  background: var(--bg-elevated);
-  color: var(--text);
+  background: var(--action-secondary-bg);
+  color: var(--action-secondary-fg);
   border: 1px solid var(--border);
 }
 
@@ -207,15 +207,15 @@ page { background: var(--bg-canvas); color: var(--text); }
   justify-content: center;
   box-sizing: border-box;
   text-align: center;
-  border-radius: 16rpx;
+  border-radius: var(--r-full);
   font-size: 30rpx;
-  font-weight: 600;
-  background: var(--brand);
-  color: var(--text-on-bright);
+  font-weight: 500;
+  background: var(--action-primary-bg);
+  color: var(--action-primary-fg);
 }
 .try-btn.ghost {
-  background: var(--bg-elevated);
-  color: var(--text);
+  background: var(--action-secondary-bg);
+  color: var(--action-secondary-fg);
   border: 1px solid var(--border);
 }
 
@@ -256,7 +256,7 @@ page { background: var(--bg-canvas); color: var(--text); }
   font-size: 28rpx;
   line-height: 1;
   transform: rotate(0deg);
-  transition: transform var(--dur-panel) var(--ease-out);
+  transition: transform var(--dur-smooth) var(--ease-out);
 }
 .card.on .card-chevron {
   transform: rotate(90deg);
@@ -267,7 +267,7 @@ page { background: var(--bg-canvas); color: var(--text); }
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  transition: grid-template-rows var(--dur-panel) var(--ease-out), max-height var(--dur-panel) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+  transition: grid-template-rows var(--dur-smooth) var(--ease-out), max-height var(--dur-smooth) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
 }
 .card.on .card-fold {
   grid-template-rows: 1fr;

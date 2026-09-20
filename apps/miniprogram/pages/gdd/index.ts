@@ -1,4 +1,4 @@
-import { API_BASE, GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../../config";
+import { API_BASE, FX_CHROME, GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../../config";
 import { attachShareCover, createShare, downloadCover, getCoverMeta, getShare, requestCover } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
@@ -10,7 +10,7 @@ const { shareGddMarkdown } = require("../../utils/gddExport.js");
 /** 微信分享图建议 5:4，避免不设 imageUrl 时退回整页截屏。 */
 const SHARE_W = 500;
 const SHARE_H = 400;
-const ACCORDION_MS = 220;
+const ACCORDION_MS = 200;
 
 function absUrl(path: string): string {
   const p = String(path || "").trim();
@@ -110,15 +110,15 @@ function drawShareCard(
   pitch: string,
   logo: unknown | null,
 ) {
-  ctx.fillStyle = "#0D0D0D";
+  ctx.fillStyle = FX_CHROME.canvas;
   ctx.fillRect(0, 0, SHARE_W, SHARE_H);
 
-  ctx.fillStyle = "#D4FF48";
+  ctx.fillStyle = FX_CHROME.brand;
   ctx.fillRect(0, 0, SHARE_W, 6);
 
-  ctx.fillStyle = "#D4FF48";
+  ctx.fillStyle = FX_CHROME.brand;
   fillRoundRect(ctx, 28, 28, 132, 36, 4);
-  ctx.fillStyle = "#000000";
+  ctx.fillStyle = FX_CHROME.brandOn;
   ctx.font = "20px sans-serif";
   ctx.fillText("游戏文档", 48, 53);
 
@@ -126,7 +126,7 @@ function drawShareCard(
     ctx.drawImage(logo, SHARE_W - 116, 20, 88, 88);
   }
 
-  ctx.fillStyle = "#FFFFFF";
+  ctx.fillStyle = FX_CHROME.text;
   ctx.font = "bold 40px sans-serif";
   const titleLines = wrapText(ctx, title || "未命名游戏", SHARE_W - 56, 3);
   let y = 128;
@@ -136,7 +136,7 @@ function drawShareCard(
   }
 
   if (pitch) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.60)";
+    ctx.fillStyle = FX_CHROME.textSecondary;
     ctx.font = "22px sans-serif";
     const pitchLines = wrapText(ctx, pitch, SHARE_W - 56, 2);
     y += 8;
@@ -146,7 +146,7 @@ function drawShareCard(
     }
   }
 
-  ctx.fillStyle = "#D4FF48";
+  ctx.fillStyle = FX_CHROME.brand;
   ctx.font = "20px sans-serif";
   ctx.fillText("NewBee × ForgeaX", 28, SHARE_H - 36);
 }
@@ -222,8 +222,8 @@ Page({
 
   onLoad(query: { s?: string }) {
     try {
-      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: "#0D0D0D" });
-      wx.setBackgroundColor({ backgroundColor: "#0D0D0D", backgroundColorTop: "#0D0D0D", backgroundColorBottom: "#0D0D0D" });
+      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: FX_CHROME.canvas });
+      wx.setBackgroundColor({ backgroundColor: FX_CHROME.canvas, backgroundColorTop: FX_CHROME.canvas, backgroundColorBottom: FX_CHROME.canvas });
     } catch (_e) {
       // 导航栏着色失败不挡打开
     }

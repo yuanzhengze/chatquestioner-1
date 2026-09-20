@@ -2,17 +2,17 @@ function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** 行内重点：主色 #D4FF48 底、黑字。半截 `**` 不匹配，流式时保持原文。 */
+/** 行内重点：品牌强调 #C5DD78 底、字 #1A1C1F。半截 `**` 不匹配，流式时保持原文。 */
 function inline(s) {
   return escapeHtml(s).replace(
     /\*\*(.+?)\*\*/g,
-    '<strong style="color:#000000;background:#D4FF48;padding:0 4px;border-radius:4px;font-weight:600">$1</strong>',
+    '<strong style="color:#1A1C1F;background:#C5DD78;padding:0 4px;border-radius:8px;font-weight:600">$1</strong>',
   );
 }
 
 function quoteHtml(inner) {
   return (
-    '<div style="background:#191919;border-left:3px solid #D4FF48;padding:8px 12px;border-radius:8px;margin:8px 0;color:#FFFFFF;line-height:1.6;font-size:14px">' +
+    '<div style="background:#222326;border-left:3px solid #C5DD78;padding:8px 12px;border-radius:12px;margin:8px 0;color:#EDEDED;line-height:1.65;font-size:14px">' +
     inner +
     "</div>"
   );
@@ -52,12 +52,12 @@ function mdToHtml(md) {
     }
     if (line.indexOf("# ") === 0) {
       closeList();
-      out.push('<div style="font-size:18px;font-weight:700;color:#FFFFFF;margin:0 0 12px">' + inline(line.slice(2)) + "</div>");
+      out.push('<div style="font-size:16px;font-weight:500;color:#EDEDED;margin:0 0 12px">' + inline(line.slice(2)) + "</div>");
       continue;
     }
     if (line.indexOf("## ") === 0) {
       closeList();
-      out.push('<div style="font-size:15px;font-weight:600;color:#D4FF48;margin:16px 0 8px">' + inline(line.slice(3)) + "</div>");
+      out.push('<div style="font-size:15px;font-weight:500;color:#C5DD78;margin:16px 0 8px">' + inline(line.slice(3)) + "</div>");
       continue;
     }
     if (line.indexOf("- ") === 0) {
@@ -65,11 +65,11 @@ function mdToHtml(md) {
         out.push('<div style="padding-left:4px;margin:4px 0">');
         inList = true;
       }
-      out.push('<div style="font-size:14px;line-height:1.65;color:#FFFFFF;margin:2px 0">· ' + inline(line.slice(2)) + "</div>");
+      out.push('<div style="font-size:14px;line-height:1.65;color:#EDEDED;margin:2px 0">· ' + inline(line.slice(2)) + "</div>");
       continue;
     }
     closeList();
-    out.push('<div style="font-size:14px;line-height:1.65;color:#FFFFFF;margin:8px 0">' + inline(line) + "</div>");
+    out.push('<div style="font-size:15px;line-height:1.65;color:#EDEDED;margin:8px 0">' + inline(line) + "</div>");
   }
   flushQuote();
   closeList();

@@ -326,8 +326,9 @@ page { height: 100%; background: var(--bg-canvas); }
   text-align: center;
 }
 .box.on {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: var(--choice);
+  border-color: var(--choice);
+  color: var(--text);
 }
 .consent-text {
   flex: 1;
@@ -335,7 +336,7 @@ page { height: 100%; background: var(--bg-canvas); }
   line-height: 1.5;
   color: var(--text-3);
 }
-.link { color: var(--brand); }
+.link { color: var(--text-link); }
 .consent-actions {
   display: flex;
   gap: 16rpx;
@@ -347,27 +348,31 @@ page { height: 100%; background: var(--bg-canvas); }
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16rpx;
+  border-radius: var(--r-full);
   font-size: 28rpx;
-  font-weight: 600;
+  font-weight: 500;
 }
 .btn.primary {
-  background: var(--brand);
-  color: var(--text-on-bright);
+  background: var(--action-primary-bg);
+  color: var(--action-primary-fg);
 }
-.btn.primary.off { opacity: 0.2; }
+.btn.primary.off {
+  background: var(--action-disabled-bg);
+  color: var(--action-disabled-fg);
+  opacity: 1;
+}
 .btn.ghost {
-  background: var(--bg-elevated);
-  color: var(--text);
+  background: var(--action-secondary-bg);
+  color: var(--action-secondary-fg);
   border: 1px solid var(--border);
 }
 .btn.primary:active {
-  background: var(--brand-hover);
-  color: var(--text-on-bright);
+  background: var(--action-primary-pressed);
+  color: var(--action-primary-fg);
   transform: scale(var(--press-scale));
 }
 .btn.ghost:active {
-  background: var(--bg-floating);
+  background: var(--action-secondary-hover);
   transform: scale(var(--press-scale));
 }
 .sheet {

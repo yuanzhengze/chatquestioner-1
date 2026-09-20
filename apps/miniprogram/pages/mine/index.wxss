@@ -185,7 +185,7 @@ page { background: var(--bg-canvas); color: var(--text); }
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   font-size: 22rpx;
-  color: var(--brand);
+  color: var(--text-link);
   word-break: break-all;
 }
 .btn {
@@ -197,27 +197,27 @@ page { background: var(--bg-canvas); color: var(--text); }
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: 16rpx;
+  border-radius: var(--r-full);
   font-size: 28rpx;
-  font-weight: 600;
+  font-weight: 500;
 }
 .btn::after { border: none; }
 .btn.primary {
-  background: var(--brand);
-  color: var(--text-on-bright);
+  background: var(--action-primary-bg);
+  color: var(--action-primary-fg);
 }
 .btn.ghost {
-  background: var(--bg-elevated);
-  color: var(--text);
+  background: var(--action-secondary-bg);
+  color: var(--action-secondary-fg);
   border: 1px solid var(--border);
 }
 .press { transform: scale(var(--press-scale)); }
 .btn.primary.press {
-  background: var(--brand-hover) !important;
-  color: var(--text-on-bright) !important;
+  background: var(--action-primary-pressed) !important;
+  color: var(--action-primary-fg) !important;
 }
 .btn.ghost.press {
-  background: var(--bg-floating) !important;
+  background: var(--action-secondary-hover) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }

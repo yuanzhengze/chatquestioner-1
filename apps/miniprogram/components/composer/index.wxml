@@ -4,7 +4,7 @@
     value="{{value}}"
     placeholder="说说你的脑洞…"
     placeholder-class="ph"
-    placeholder-style="color:rgba(255,255,255,0.30)"
+    placeholder-style="color:#A0A0A2"
     maxlength="2000"
     auto-height
     disable-default-padding

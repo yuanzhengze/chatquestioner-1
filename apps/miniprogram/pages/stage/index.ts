@@ -1,6 +1,6 @@
 import { createSession, getSession, deleteSession, sendMessage, startLinePatch } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
-import { GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../../config";
+import { GDD_DRAFT_KEY, GDD_PATCH_KEY, FX_CHROME, LOGO_SRC } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
 
 const { gddFromState } = require("../../utils/gdd.js");
@@ -83,8 +83,8 @@ Page({
 
   paintChrome() {
     try {
-      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: "#242424" });
-      wx.setBackgroundColor({ backgroundColor: "#0D0D0D", backgroundColorTop: "#242424", backgroundColorBottom: "#0D0D0D" });
+      wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: FX_CHROME.raised });
+      wx.setBackgroundColor({ backgroundColor: FX_CHROME.canvas, backgroundColorTop: FX_CHROME.raised, backgroundColorBottom: FX_CHROME.canvas });
     } catch (_e) {
       // 导航栏着色失败不挡进入
     }
@@ -558,7 +558,7 @@ Page({
       title: "删除这条共创？",
       content: `「${name}」会从记录里去掉，不能再打开。已经分享出去的文档还在。`,
       confirmText: "删除",
-      confirmColor: "#F26A6A",
+      confirmColor: "#FFADB3",
       success: (res) => {
         if (res.confirm) void this.deleteRecord(id);
       },

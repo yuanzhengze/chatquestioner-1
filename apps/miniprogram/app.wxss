@@ -1,76 +1,103 @@
-/* ForgeaX Design Tokens · 对照工作区根目录《ForgeaX界面设计规范.html》
-   小程序用 rpx：桌面 1px ≈ 2rpx。不把 Studio 桌面壳搬过来，只搬令牌与组件约定。 */
+/* ForgeaX Codex Design Tokens · 对照工作区根目录《forgeax-codex-design-system.html》
+   小程序走规范的 dark 语义，不搬文档站默认的 light 壳，不搬 Studio 三栏。
+   rpx：桌面 1px ≈ 2rpx。 */
 
 page {
-  --lime-300: #DFFF78;
-  --lime-400: #D4FF48;
-  --lime-500: #B1D43C;
-  --lime-700: #6A7F24;
   --neutral-0: #FFFFFF;
-  --neutral-400: #999999;
-  --neutral-600: #666666;
-  --neutral-750: #404040;
-  --neutral-800: #333333;
-  --neutral-850: #242424;
-  --neutral-900: #191919;
-  --neutral-950: #0D0D0D;
-  --neutral-1000: #000000;
-  --red-400: #F26A6A;
-  --red-600: #BE3636;
-  --orange-400: #FFB056;
-  --green-600: #1B9D4B;
-  --yellow-600: #BA8E06;
+  --neutral-100: #EDEDED;
+  --neutral-200: #E6E6E7;
+  --neutral-300: #C7C7C8;
+  --neutral-400: #A0A0A2;
+  --neutral-500: #77777A;
+  --neutral-600: #626366;
+  --neutral-700: #48494C;
+  --neutral-800: #333438;
+  --neutral-850: #292A2D;
+  --neutral-900: #222326;
+  --neutral-950: #1A1C1F;
+  --neutral-1000: #111214;
+  --brand-50: #EFF5DB;
+  --brand-400: #C5DD78;
+  --brand-700: #50631F;
+  --brand-950: #29351D;
+  --blue-300: #8CB7E8;
+  --blue-400: #0A84FF;
+  --blue-950: #1C2A3A;
+  --green-300: #8ED6A7;
+  --green-950: #173327;
+  --amber-300: #FFD387;
+  --amber-950: #382B13;
+  --red-300: #FFADB3;
+  --red-700: #B53440;
+  --red-950: #3C2027;
 
   --bg-canvas: var(--neutral-950);
   --bg-base: var(--neutral-900);
   --bg-elevated: var(--neutral-850);
   --bg-floating: var(--neutral-800);
-  --text: var(--neutral-0);
-  --text-2: rgba(255, 255, 255, 0.60);
-  --text-3: rgba(255, 255, 255, 0.30);
-  --text-disabled: rgba(255, 255, 255, 0.20);
-  --text-on-bright: var(--neutral-1000);
-  --text-on-bright-2: rgba(0, 0, 0, 0.60);
-  --text-on-bright-3: rgba(0, 0, 0, 0.30);
+  --bg-inset: var(--neutral-1000);
+  --text: var(--neutral-100);
+  --text-2: var(--neutral-300);
+  --text-3: var(--neutral-400);
+  --text-disabled: var(--neutral-600);
+  --text-link: var(--blue-300);
+  --text-on-bright: var(--neutral-950);
+  --text-on-bright-2: var(--neutral-700);
+  --text-on-bright-3: var(--neutral-500);
   --border-subtle: var(--neutral-800);
-  --border: var(--neutral-750);
-  --border-strong: #737373;
-  --divider-subtle: rgba(255, 255, 255, 0.05);
-  --divider: rgba(255, 255, 255, 0.10);
-  --divider-strong: rgba(255, 255, 255, 0.15);
-  --brand: var(--lime-400);
-  --brand-light: var(--lime-300);
-  --brand-hover: #C5F038;
-  --brand-tint: rgba(212, 255, 72, 0.10);
-  --brand-stroke: rgba(212, 255, 72, 0.34);
-  --brand-ring: rgba(212, 255, 72, 0.30);
-  --hover: rgba(255, 255, 255, 0.05);
-  --selected-neutral: rgba(255, 255, 255, 0.10);
-  --error: var(--red-400);
-  --error-strong: var(--red-600);
-  --overlay: rgba(0, 0, 0, 0.55);
+  --border: var(--neutral-700);
+  --border-strong: var(--neutral-300);
+  --border-focus: var(--neutral-300);
+  --border-essential: var(--neutral-400);
+  --divider-subtle: var(--neutral-800);
+  --divider: var(--neutral-700);
+  --divider-strong: var(--neutral-600);
+  --brand: var(--brand-400);
+  --brand-light: var(--brand-50);
+  --brand-hover: var(--brand-400);
+  --brand-tint: var(--brand-950);
+  --brand-stroke: var(--brand-700);
+  --brand-ring: var(--brand-400);
+  --action-primary-bg: var(--neutral-100);
+  --action-primary-fg: var(--neutral-950);
+  --action-primary-hover: var(--neutral-0);
+  --action-primary-pressed: var(--neutral-200);
+  --action-secondary-bg: var(--neutral-850);
+  --action-secondary-fg: var(--neutral-100);
+  --action-secondary-hover: var(--neutral-800);
+  --action-disabled-bg: var(--neutral-800);
+  --action-disabled-fg: var(--neutral-500);
+  --hover: var(--neutral-800);
+  --selected-neutral: var(--neutral-800);
+  --choice: var(--blue-400);
+  --error: var(--red-300);
+  --error-strong: var(--red-700);
+  --error-bg: var(--red-950);
+  --overlay: #00000099;
 
-  --r-tag: 8rpx;
-  --r-compact: 12rpx;
+  --r-tag: 16rpx;
+  --r-compact: 16rpx;
   --r-ctrl: 16rpx;
   --r-panel: 24rpx;
-  --r-card: 32rpx;
+  --r-card: 24rpx;
+  --r-dialog: 32rpx;
+  --r-composer: 48rpx;
   --r-full: 9999rpx;
 
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
   --dur-instant: 80ms;
-  --dur-fast: 110ms;
-  --dur-base: 150ms;
-  --dur-smooth: 190ms;
-  --dur-panel: 220ms;
-  --press-scale: 0.996;
+  --dur-fast: 140ms;
+  --dur-base: 140ms;
+  --dur-smooth: 200ms;
+  --dur-panel: 280ms;
+  --press-scale: 1;
 
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   background: var(--bg-canvas);
   color: var(--text);
   font-size: 28rpx;
   font-weight: 400;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .muted { color: var(--text-2); }

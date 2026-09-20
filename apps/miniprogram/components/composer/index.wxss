@@ -14,13 +14,13 @@
   background: var(--bg-elevated);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 16rpx;
+  border-radius: var(--r-composer);
   padding: 18rpx 24rpx;
   font-size: 30rpx;
   line-height: 1.5;
 }
 .input.on {
-  border-color: var(--brand);
+  border-color: var(--border-focus);
 }
 .ph { color: var(--text-3); }
 .send {
@@ -29,14 +29,17 @@
   height: 72rpx;
   margin-bottom: 2rpx;
   border-radius: 50%;
-  background: var(--brand);
+  background: var(--action-primary-bg);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.send.off { opacity: 0.22; }
+.send.off {
+  background: var(--action-disabled-bg);
+  opacity: 1;
+}
 .send-press {
-  background: var(--brand-hover);
+  background: var(--action-primary-pressed);
   transform: scale(var(--press-scale));
 }
 .send-arrow {
@@ -44,14 +47,14 @@
   height: 0;
   border-left: 12rpx solid transparent;
   border-right: 12rpx solid transparent;
-  border-bottom: 18rpx solid var(--text-on-bright);
+  border-bottom: 18rpx solid var(--action-primary-fg);
   margin-top: -4rpx;
 }
 .send-spin {
   width: 28rpx;
   height: 28rpx;
   border: 4rpx solid var(--text-on-bright-3);
-  border-top-color: var(--text-on-bright);
+  border-top-color: var(--action-primary-fg);
   border-radius: 50%;
   animation: sendSpin 0.7s linear infinite;
 }
