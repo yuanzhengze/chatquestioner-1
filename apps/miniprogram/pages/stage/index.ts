@@ -41,7 +41,6 @@ Page({
     error: "",
     stageLabel: "",
     poster: LOGO_SRC,
-    compact: false,
     keyboardHeight: 0,
     /** 变形进行中：锁输入，但不等于 busy。 */
     picking: false,
@@ -103,7 +102,7 @@ Page({
     this._freeze = -1;
 
     this._onKeyboard = (res: { height: number }) => {
-      this.setData({ keyboardHeight: res.height || 0, compact: (res.height || 0) > 0 });
+      this.setData({ keyboardHeight: res.height || 0 });
       this.syncAvatar();
     };
     try {
@@ -155,7 +154,8 @@ Page({
   ensureDriver() {
     if (this._driver) return;
     try {
-      this._driver = new AvatarDriver((poster, compact) => this.setData({ poster, compact }));
+      /** 收进顶栏后尺寸固定，状态机只再驱动画面本身。 */
+      this._driver = new AvatarDriver((poster) => this.setData({ poster }));
     } catch (_e) {
       this._driver = null;
     }

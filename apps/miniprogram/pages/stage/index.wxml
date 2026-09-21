@@ -12,7 +12,9 @@
           </view>
         </view>
       </view>
-      <image class="header-logo" src="{{logoSrc}}" mode="aspectFit" />
+      <view class="header-mark">
+        <nb-avatar src="{{poster}}" mark="{{true}}"></nb-avatar>
+      </view>
       <view class="title">NewBee · 游戏共创</view>
       <view class="new-chat" bindtap="onNewSession">新共创</view>
     </view>
@@ -33,16 +35,11 @@
     ></nb-context-stream>
   </view>
 
-  <view class="stage">
-    <view class="avatar-row">
-      <nb-avatar src="{{poster}}" compact="{{compact || showGdd}}"></nb-avatar>
-    </view>
-    <view wx:if="{{showGdd}}" class="stage-panel">
-      <view class="gdd-entry" bindtap="onOpenGdd">
-        <view class="gdd-kicker">{{gddKicker}}</view>
-        <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
-        <view class="gdd-go">{{gddGo}}</view>
-      </view>
+  <view wx:if="{{showGdd}}" class="stage">
+    <view class="gdd-entry" bindtap="onOpenGdd">
+      <view class="gdd-kicker">{{gddKicker}}</view>
+      <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
+      <view class="gdd-go">{{gddGo}}</view>
     </view>
   </view>
 

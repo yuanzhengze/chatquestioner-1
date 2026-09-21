@@ -11,6 +11,14 @@
   width: 240rpx;
   height: 240rpx;
 }
+/** 收进顶栏后只有一个图标大，投影这个尺寸看不清，去掉。 */
+.halo.mark {
+  width: 56rpx;
+  height: 56rpx;
+}
+.halo.mark .shadow {
+  display: none;
+}
 .glow {
   position: absolute;
   inset: -8%;

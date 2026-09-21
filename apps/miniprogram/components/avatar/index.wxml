@@ -1,4 +1,4 @@
-<view class="halo {{compact ? 'compact' : ''}}">
+<view class="halo {{mark ? 'mark' : (compact ? 'compact' : '')}}">
   <view class="glow"></view>
   <image class="face" src="{{src}}" mode="aspectFit" />
   <view class="shadow"></view>
