@@ -1,13 +1,73 @@
 <scroll-view
   class="stream"
   scroll-y
-  scroll-into-view="{{anchor}}"
-  scroll-with-animation
+  scroll-top="{{scrollTop}}"
+  scroll-with-animation="{{scrollAnim}}"
 >
-  <view wx:for="{{items}}" wx:key="index" class="bubble {{item.role}}">
-    <view class="role">{{item.who}}</view>
-    <rich-text wx:if="{{item.html}}" nodes="{{item.html}}"></rich-text>
-    <view wx:if="{{!item.html}}" class="text">{{item.content}}</view>
+  <block wx:for="{{items}}" wx:key="key">
+    <view
+      wx:if="{{item.user}}"
+      id="{{item.slot ? 'user-slot' : ''}}"
+      class="bubble user {{item.ghost ? 'ghost' : ''}}"
+    >
+      <view class="role">你</view>
+      <view class="text">{{item.text}}</view>
+    </view>
+
+    <view wx:else class="bubble assistant {{item.appear ? 'appear' : ''}}">
+      <view class="role">NewBee</view>
+      <rich-text wx:if="{{item.html}}" nodes="{{item.html}}"></rich-text>
+      <block wx:else>
+        <rich-text wx:if="{{item.leadHtml}}" nodes="{{item.leadHtml}}"></rich-text>
+        <view wx:if="{{item.question}}" class="qbox">{{item.question}}</view>
+        <rich-text wx:if="{{item.tailHtml}}" nodes="{{item.tailHtml}}"></rich-text>
+        <view wx:if="{{item.dots}}" class="text">…</view>
+      </block>
+    </view>
+  </block>
+
+  <!--
+    三选：最后一句问话之后的第二段气泡。
+    变形期间高度被就地压掉、内容反向平移，所以卡片留在原地，而下方腾出的空间正好给真实气泡占。
+  -->
+  <view
+    wx:if="{{opts.length}}"
+    id="opts-box"
+    class="opts {{optsFreeze >= 0 ? 'frozen' : ''}}"
+    style="{{optsFreeze >= 0 ? 'height:' + optsFreeze + 'px;' : ''}}"
+  >
+    <view class="opts-inner" style="{{optsShift ? 'transform: translateY(-' + optsShift + 'px);' : ''}}">
+      <view
+        wx:for="{{opts}}"
+        wx:for-item="opt"
+        wx:key="id"
+        id="opt-{{opt.id}}"
+        class="opt {{optsPending === opt.id ? 'taken' : (optsPending ? 'dropped' : '')}}"
+        hover-class="{{optsLive ? 'opt-press' : 'none'}}"
+        hover-stay-time="80"
+        data-id="{{opt.id}}"
+        bindtap="onPick"
+      >
+        <view class="opt-label">{{opt.label}}</view>
+        <view wx:if="{{opt.detail && opt.detail !== opt.label}}" class="opt-detail">{{opt.detail}}</view>
+      </view>
+    </view>
   </view>
+
+  <!-- 量高用：脱离文档流，只为算出插进来的两条气泡有多高。 -->
+  <view wx:if="{{probeText}}" id="probe-wrap" class="probe">
+    <view class="bubble user">
+      <view class="role">你</view>
+      <view class="text">{{probeText}}</view>
+    </view>
+    <view class="bubble assistant">
+      <view class="role">NewBee</view>
+      <view class="text">…</view>
+    </view>
+  </view>
+
+  <!-- 选项撤场后接手它剩下的高度，收到 0，对话顺着滚落。 -->
+  <view wx:if="{{tailSpace >= 0}}" class="tail-space" style="height: {{tailSpace}}px;"></view>
+
   <view id="stream-end" class="end"></view>
 </scroll-view>

@@ -1,9 +1,11 @@
 .stream {
+  position: relative;
   height: 100%;
   box-sizing: border-box;
   padding: 8rpx 32rpx 16rpx;
 }
 .bubble {
+  box-sizing: border-box;
   max-width: 78%;
   padding: 12rpx 20rpx;
   border-radius: var(--r-ctrl);
@@ -24,13 +26,101 @@
   white-space: pre-wrap;
 }
 .bubble.user .role { color: var(--text-on-bright); }
+/** 变形飞行期间先占位不显形，落点因此是真实的。 */
+.bubble.user.ghost {
+  opacity: 0;
+  pointer-events: none;
+}
 .bubble.assistant {
   background: var(--bg-base);
   border: 1px solid var(--border-subtle);
   color: var(--text);
 }
+.bubble.appear {
+  animation: bubbleIn var(--dur-panel) var(--ease-out) both;
+}
+@keyframes bubbleIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .md {
   display: block;
   width: 100%;
+}
+/** 问方向的那一句单独衬底，一眼看到在问什么。 */
+.qbox {
+  margin-top: 8rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 12rpx;
+  background: var(--brand-tint);
+  border: 1px solid var(--brand-stroke);
+  color: var(--text);
+  line-height: 1.55;
+}
+.opts {
+  box-sizing: border-box;
+  max-width: 86%;
+  margin-bottom: 12rpx;
+}
+/** 高度被压掉时卡片照常溢出显示，靠 .opts-inner 反向平移留在原地，视觉上什么都没动。 */
+.opts.frozen {
+  overflow: visible;
+}
+.opts-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+/** 这四项要和 pages/stage 的 .chip.from-opt 完全一致，否则接手那一帧会跳。 */
+.opt {
+  box-sizing: border-box;
+  padding: 16rpx 18rpx;
+  border-radius: 12rpx;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.opt-press {
+  background: var(--hover);
+  transform: scale(0.98);
+}
+/** 被选中的那张交给固定层演，原地必须立刻让位，不能有交叉淡化。 */
+.opt.taken {
+  opacity: 0;
+  transition: none;
+  pointer-events: none;
+}
+.opt.dropped {
+  opacity: 0;
+  transform: translateY(6rpx);
+  pointer-events: none;
+}
+.opt-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+.opt-detail {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.tail-space {
+  width: 100%;
+  pointer-events: none;
+  transition: height var(--dur-panel) var(--ease-out);
+}
+.probe {
+  position: absolute;
+  left: 32rpx;
+  right: 32rpx;
+  top: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
 }
 .end { height: 4rpx; }

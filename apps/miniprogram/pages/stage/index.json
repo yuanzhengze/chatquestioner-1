@@ -1,7 +1,6 @@
 {
   "usingComponents": {
     "nb-avatar": "../../components/avatar/index",
-    "nb-option-card": "../../components/option-card/index",
     "nb-context-stream": "../../components/context-stream/index",
     "nb-composer": "../../components/composer/index"
   },

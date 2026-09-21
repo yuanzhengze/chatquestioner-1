@@ -8,8 +8,26 @@ const { parseGddPreview } = require("../../utils/gddPreview.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
 const legal = require("../../utils/legal.js");
+const {
+  attachLiveOptions,
+  freezeLiveOptions,
+  liveOptions,
+  markPending,
+  placeGhosts,
+  revealGhosts,
+  wakeThinking,
+  preserveAssistantMeta,
+  morphDelta,
+  frozenSpacer,
+} = require("../../utils/messageOptions.js");
 
 const WAKING = "正在唤醒 NewBee…";
+
+/** 和 app.wxss 的 --dur-fly / --dur-panel 对齐。 */
+const FLY_MS = 320;
+const SETTLE_MS = 280;
+
+type Rect = { left: number; top: number; width: number; height: number } | null;
 
 function optionsArePatch(opts: TurnOption[]): boolean {
   const blob = (opts || []).map((o) => `${o.label}\n${o.detail}`).join("\n");
@@ -19,15 +37,27 @@ function optionsArePatch(opts: TurnOption[]): boolean {
 Page({
   data: {
     messages: [{ role: "assistant", content: WAKING }] as ChatMessage[],
-    options: [] as TurnOption[],
     busy: false,
     error: "",
     stageLabel: "",
     poster: LOGO_SRC,
     compact: false,
-    pendingId: "",
-    expandedId: "",
     keyboardHeight: 0,
+    /** 变形进行中：锁输入，但不等于 busy。 */
+    picking: false,
+    optsFreeze: -1,
+    probeText: "",
+    chipShow: false,
+    chipOn: false,
+    chipLabel: "",
+    chipDetail: "",
+    chipLeft: 0,
+    chipTop: 0,
+    chipW: 0,
+    chipH: 0,
+    chipDx: 0,
+    chipDy: 0,
+    chipScale: 1,
     gddMarkdown: "",
     gddTitle: "",
     gddKicker: "游戏文档已成型",
@@ -66,6 +96,11 @@ Page({
     this._handlingShow = false;
     this._afterConsent = null as null | (() => void);
     this._deleting = false;
+    this._choosing = false;
+    this._flyTimer = 0 as number;
+    this._settleTimer = 0 as number;
+    this._fromRect = null as Rect;
+    this._freeze = -1;
 
     this._onKeyboard = (res: { height: number }) => {
       this.setData({ keyboardHeight: res.height || 0, compact: (res.height || 0) > 0 });
@@ -110,7 +145,9 @@ Page({
       id,
       title: sessionIndex.titleFrom(this._state, this.data.messages),
       updatedAt: Date.now(),
-      lastOptions: this._lastOptions || this.data.options || [],
+      lastOptions: this._lastOptions && this._lastOptions.length
+        ? this._lastOptions
+        : liveOptions(this.data.messages),
       readyForSynthesis: this._stage?.readyForSynthesis === true,
     });
   },
@@ -137,14 +174,12 @@ Page({
     this._lastOptions = [] as TurnOption[];
     this._warnTick = 0;
     this._typing = false;
+    this.clearMorph();
     this.setData({
       messages: [{ role: "assistant", content: WAKING }],
-      options: [],
       busy: false,
       error: "",
       stageLabel: "",
-      pendingId: "",
-      expandedId: "",
       gddMarkdown: "",
       gddTitle: "",
       gddKicker: "游戏文档已成型",
@@ -186,13 +221,14 @@ Page({
     this._synthesisModel = ready ? (model || this._synthesisModel) : null;
     this._synthesisComplete = gddComplete;
     this._synthesisDraftBar = state.gddDraftBar === true || state.draftBar === true;
+    this.clearMorph();
     this.setData({
-      messages: messages.length ? messages : [{ role: "assistant", content: WAKING }],
-      options,
+      messages: attachLiveOptions(
+        messages.length ? messages : [{ role: "assistant", content: WAKING }],
+        options,
+      ),
       busy: false,
       error: "",
-      pendingId: "",
-      expandedId: "",
     });
     this.refreshResult(ready, options);
     this.rememberSession();
@@ -325,7 +361,7 @@ Page({
       wx.showToast({ title: "这条共创打不开了", icon: "none" });
       return;
     }
-    this.setData({ busy: true, error: "", options: [] });
+    this.setData({ busy: true, error: "" });
     try {
       const res = await startLinePatch(this._sessionId, intent);
       if (res.state && Object.keys(res.state).length) {
@@ -337,7 +373,7 @@ Page({
           gddDraftBar: res.draftBar === true || res.state.gddDraftBar === true || res.state.draftBar === true,
         });
       }
-      this.setData({ busy: false, options: [] });
+      this.setData({ busy: false });
     } catch (_e) {
       this.setData({ busy: false });
       wx.showToast({ title: "这一行还进不去", icon: "none" });
@@ -351,6 +387,8 @@ Page({
   onUnload() {
     this._abort?.();
     this._driver?.destroy();
+    if (this._flyTimer) clearTimeout(this._flyTimer);
+    if (this._settleTimer) clearTimeout(this._settleTimer);
     if (this._flushTimer) clearTimeout(this._flushTimer);
     if (this._openGddTimer) clearTimeout(this._openGddTimer);
     if (this._onKeyboard) wx.offKeyboardHeightChange(this._onKeyboard);
@@ -361,10 +399,9 @@ Page({
       const { id, opening } = await createSession();
       this._sessionId = id;
       this._lastOptions = [];
+      this.clearMorph();
       this.setData({
         messages: [{ role: "assistant", content: opening }],
-        options: [],
-        expandedId: "",
       });
       this.syncAvatar();
       return true;
@@ -383,75 +420,257 @@ Page({
     void this.send(e.detail.text);
   },
 
-  onToggleOption(e: { detail: { id?: string } }) {
-    const id = e.detail?.id;
-    if (!id || this.data.busy || this.data.pendingId) return;
-    if (this.data.expandedId === id) {
-      const opt = this.data.options.find((o) => o.id === id);
-      if (opt) this.onChoose({ detail: opt });
-      return;
+  stream() {
+    return this.selectComponent("#ctx-stream") as {
+      measureProbe?: (cb: (height: number) => void) => void;
+      measureSlot?: (cb: (rect: Rect) => void) => void;
+      stickBottom?: (animated: boolean) => void;
+    } | null;
+  },
+
+  asRect(raw: { left?: number; top?: number; width?: number; height?: number } | null | undefined): Rect {
+    if (!raw) return null;
+    const left = Number(raw.left);
+    const top = Number(raw.top);
+    const width = Number(raw.width);
+    const height = Number(raw.height);
+    if (![left, top, width, height].every((n) => isFinite(n)) || width <= 0 || height <= 0) return null;
+    return { left, top, width, height };
+  },
+
+  clearMorph() {
+    if (this._flyTimer) {
+      clearTimeout(this._flyTimer);
+      this._flyTimer = 0;
     }
-    this.setData({ expandedId: id });
+    if (this._settleTimer) {
+      clearTimeout(this._settleTimer);
+      this._settleTimer = 0;
+    }
+    this._choosing = false;
+    this._fromRect = null;
+    this._freeze = -1;
+    if (this.data.chipShow || this.data.picking || this.data.optsFreeze >= 0 || this.data.tailSpace >= 0) {
+      this.setData({
+        picking: false,
+        optsFreeze: -1,
+        optsShift: 0,
+        tailSpace: -1,
+        probeText: "",
+        chipShow: false,
+        chipOn: false,
+        chipDx: 0,
+        chipDy: 0,
+        chipScale: 1,
+      });
+    }
   },
 
-  onCollapseOption(e: { detail: { id?: string } }) {
-    const id = e.detail?.id;
-    if (!id || this.data.busy || this.data.pendingId) return;
-    if (this.data.expandedId === id) this.setData({ expandedId: "" });
-  },
-
-  onChoose(e: { detail: TurnOption }) {
-    const opt = e.detail;
-    if (this.data.busy || this.data.pendingId) return;
+  /**
+   * 点了方向。选中的这张卡交给固定层，从原位飞到真实用户气泡上；
+   * 其余就地淡出。量不到坐标就退回老路径直接发送，动画绝不能挡住说话。
+   */
+  onStreamChoose(e: { detail: { option?: TurnOption; from?: Rect; box?: Rect } }) {
+    const opt = e.detail && e.detail.option;
+    if (!opt || this.data.busy || this._choosing) return;
     if (!bridge.loadAgreed()) {
-      this.runAfterConsent(() => this.onChoose(e));
+      this.runAfterConsent(() => this.onStreamChoose(e));
       return;
     }
-    this.setData({ pendingId: opt.id, expandedId: opt.id });
-    setTimeout(() => {
-      this.setData({ pendingId: "", options: [], expandedId: "" });
-      void this.send(opt.detail);
-    }, 260);
+    /** 放进气泡的和发出去的必须是同一个串，否则防重复消息那一步会判失败。 */
+    const said = String(opt.detail || opt.label || "").trim();
+    if (!said) return;
+    this._choosing = true;
+
+    const from = this.asRect(e.detail.from);
+    const box = this.asRect(e.detail.box);
+    const stream = this.stream();
+    if (!from || !box || !stream || typeof stream.measureProbe !== "function") {
+      void this.send(said, { display: opt.label });
+      return;
+    }
+
+    this._fromRect = from;
+    this.setData(
+      {
+        picking: true,
+        messages: markPending(this.data.messages, opt.id),
+        probeText: opt.label,
+        chipShow: true,
+        chipOn: false,
+        chipLabel: opt.label,
+        chipDetail: opt.detail && opt.detail !== opt.label ? opt.detail : "",
+        chipLeft: from.left,
+        chipTop: from.top,
+        chipW: from.width,
+        chipH: from.height,
+        chipDx: 0,
+        chipDy: 0,
+        chipScale: 0.98,
+      },
+      () => {
+        stream.measureProbe!((insertH) => {
+          const freeze = frozenSpacer(box.height, insertH);
+          if (freeze < 0) {
+            void this.send(said, { display: opt.label });
+            return;
+          }
+          this._freeze = freeze;
+          this.placeGhost(said, opt.label, freeze, insertH);
+        });
+      },
+    );
   },
 
-  async send(text: string) {
+  /**
+   * 真实气泡先进列表但不显形，同一次 setData 里把选项块压掉同样的高度、内容反向平移。
+   * 内容总高不变 → scroll-view 不钳制 → 飞行期间列表一动不动，落点因此量一次就恒定。
+   */
+  placeGhost(said: string, display: string, freeze: number, shift: number) {
+    const stream = this.stream();
+    this.setData(
+      {
+        messages: placeGhosts(this.data.messages, said, display),
+        optsFreeze: freeze,
+        optsShift: shift,
+        probeText: "",
+      },
+      () => {
+        if (!stream || typeof stream.measureSlot !== "function") {
+          this.land(said, display);
+          return;
+        }
+        stream.measureSlot!((slot) => {
+          const delta = morphDelta(this._fromRect, slot);
+          if (!delta) {
+            this.land(said, display);
+            return;
+          }
+          this.setData({
+            chipOn: true,
+            chipDx: delta.dx,
+            chipDy: delta.dy,
+            chipW: delta.width,
+            chipH: delta.height,
+            chipScale: 1,
+          });
+          this._flyTimer = setTimeout(() => {
+            this._flyTimer = 0;
+            this.land(said, display);
+          }, FLY_MS) as unknown as number;
+        });
+      },
+    );
+  },
+
+  /** 落地：同一帧关掉固定层、让真实气泡显形，位置分毫不差。 */
+  land(said: string, display: string) {
+    this.setData(
+      {
+        messages: revealGhosts(this.data.messages),
+        chipShow: false,
+        chipOn: false,
+      },
+      () => {
+        this._flyTimer = setTimeout(() => {
+          this._flyTimer = 0;
+          void this.send(said, { preplaced: true, display });
+        }, 60) as unknown as number;
+      },
+    );
+  },
+
+  async send(text: string, morph?: { preplaced?: boolean; display?: string }) {
     const trimmed = (text || "").trim();
-    if (!trimmed || this.data.busy) return;
+    if (!trimmed || this.data.busy) {
+      this.clearMorph();
+      return;
+    }
     if (!bridge.loadAgreed()) {
+      this.clearMorph();
       this.setData({ composerSeed: trimmed, seedSeq: this.data.seedSeq + 1 });
       this.runAfterConsent(() => {
-        void this.send(trimmed);
+        void this.send(trimmed, morph);
       });
       return;
     }
     if (!this._sessionId) {
       const ok = await this.boot();
-      if (!ok || !this._sessionId) return;
+      if (!ok || !this._sessionId) {
+        this.clearMorph();
+        return;
+      }
     }
     const id = this._sessionId;
-    if (!id) return;
+    if (!id) {
+      this.clearMorph();
+      return;
+    }
 
     this._abort?.();
     this._stream = "";
     this._typing = false;
+    this._choosing = false;
+    this._fromRect = null;
+    if (this._flyTimer) {
+      clearTimeout(this._flyTimer);
+      this._flyTimer = 0;
+    }
 
-    const messages = [
-      ...this.data.messages,
-      { role: "user" as const, content: trimmed },
-      { role: "assistant" as const, content: "" },
-    ];
+    const list = this.data.messages;
+    const last = list[list.length - 1];
+    const prior = list[list.length - 2];
+    /** 变形已经把这两条放进列表了，再插一遍就成了重复消息。 */
+    const preplaced = morph?.preplaced === true
+      && Boolean(last) && last.role === "assistant" && !last.content
+      && Boolean(prior) && prior.role === "user" && prior.content === trimmed;
+
+    const spoken: ChatMessage = { role: "user", content: trimmed };
+    if (morph && morph.display) spoken.display = morph.display;
+
+    const messages = preplaced
+      ? freezeLiveOptions(wakeThinking(list))
+      : [
+        ...freezeLiveOptions(list),
+        spoken,
+        { role: "assistant" as const, content: "", appear: true },
+      ];
+
+    /** 选项块撤场，它让出的高度交给尾部占位，下一帧再收 0，对话顺着滚落。 */
+    const tail = preplaced && this._freeze > 0 ? this._freeze : -1;
+    this._freeze = -1;
     this._lastOptions = [];
-    this.setData({
-      busy: true,
-      error: "",
-      options: [],
-      expandedId: "",
-      messages,
-      showGdd: false,
-      done: false,
-      composerSeed: "",
-      seedSeq: this.data.seedSeq + 1,
-    });
+    this.setData(
+      {
+        busy: true,
+        picking: false,
+        error: "",
+        messages,
+        optsFreeze: -1,
+        optsShift: 0,
+        tailSpace: tail,
+        probeText: "",
+        chipShow: false,
+        chipOn: false,
+        showGdd: false,
+        done: false,
+        composerSeed: "",
+        seedSeq: this.data.seedSeq + 1,
+      },
+      () => {
+        if (tail <= 0) return;
+        this._settleTimer = setTimeout(() => {
+          this.setData({ tailSpace: 0 });
+          this._settleTimer = setTimeout(() => {
+            this._settleTimer = 0;
+            this.setData({ tailSpace: -1 }, () => {
+              const stream = this.stream();
+              if (stream && typeof stream.stickBottom === "function") stream.stickBottom(true);
+            });
+          }, SETTLE_MS) as unknown as number;
+        }, 16) as unknown as number;
+      },
+    );
     this.syncAvatar();
 
     const { abort } = sendMessage(id, trimmed, {
@@ -464,10 +683,7 @@ Page({
         if (typeof s.gddDraftBar === "boolean") this._synthesisDraftBar = s.gddDraftBar === true;
         else if (typeof s.draftBar === "boolean") this._synthesisDraftBar = s.draftBar === true;
         if (Array.isArray(s.lastOptions)) {
-          const opts = this.asOptions(s.lastOptions);
-          this._lastOptions = opts;
-          this.setData({ options: opts, expandedId: "" });
-          this.refreshResult(this._stage?.readyForSynthesis === true, opts);
+          this._lastOptions = this.asOptions(s.lastOptions);
         }
         const hist = Array.isArray(s.history) ? s.history : [];
         for (let i = hist.length - 1; i >= 0; i--) {
@@ -478,7 +694,11 @@ Page({
             break;
           }
         }
-        this.flushNow();
+        const flushed = this.flushNow();
+        if (Array.isArray(s.lastOptions)) {
+          this.setData({ messages: attachLiveOptions(flushed, this._lastOptions) });
+          this.refreshResult(this._stage?.readyForSynthesis === true, this._lastOptions);
+        }
         this.rememberSession();
         this.syncAvatar();
       },
@@ -488,9 +708,9 @@ Page({
         this.syncAvatar();
       },
       onOptions: (opts) => {
-        this.flushNow();
+        const flushed = this.flushNow();
         this._lastOptions = opts || [];
-        this.setData({ options: opts || [], expandedId: "" });
+        this.setData({ messages: attachLiveOptions(flushed, this._lastOptions) });
         this.refreshResult(this._stage?.readyForSynthesis === true, this._lastOptions);
         this.syncAvatar();
       },
@@ -508,9 +728,12 @@ Page({
       },
       onError: (msg) => this.setData({ error: msg }),
       onDone: (ready, extra) => {
-        this.flushNow();
+        const flushed = this.flushNow();
         if (this._stage) this._stage.readyForSynthesis = ready;
-        this.setData({ busy: false }, () => {
+        const withOpts = this._lastOptions.length
+          ? attachLiveOptions(flushed, this._lastOptions)
+          : flushed;
+        this.setData({ busy: false, messages: withOpts }, () => {
           this.refreshResult(ready, this._lastOptions);
           this.rememberSession();
           this.refreshIndexHint();
@@ -649,7 +872,7 @@ Page({
     const hasUser = this.data.messages.some((m) => m.role === "user");
     const markdown = ready ? (this._synthesisMd || gddFromState(this._state)) : "";
     const hasDoc = Boolean(markdown && markdown.trim());
-    const opts = optionList || this.data.options || [];
+    const opts = optionList || this._lastOptions || liveOptions(this.data.messages) || [];
     const showGdd = hasUser && ready && hasDoc && !optionsArePatch(opts);
     const gddTitle = showGdd ? parseGddPreview(markdown).title : "";
     this.setData({
@@ -759,16 +982,20 @@ Page({
     }, 40) as unknown as number;
   },
 
-  flushNow() {
+  flushNow(): ChatMessage[] {
     if (this._flushTimer) {
       clearTimeout(this._flushTimer);
       this._flushTimer = 0;
     }
     const messages = this.data.messages.slice();
-    if (messages.length === 0) return;
-    messages[messages.length - 1] = { role: "assistant", content: this._stream };
+    if (messages.length === 0) return messages;
+    const last = messages[messages.length - 1];
+    /** 末条是用户刚说的那句时不能覆盖，否则这句会被回复吃掉。 */
+    if (last.role === "user") messages.push({ role: "assistant", content: this._stream });
+    else messages[messages.length - 1] = preserveAssistantMeta(last, this._stream);
     this.setData({ messages });
     this.syncAvatar();
+    return messages;
   },
 
   syncAvatar() {
@@ -783,7 +1010,7 @@ Page({
       stage: this._stage,
       error: this.data.error || null,
       warnTick: this._warnTick,
-      hasOptions: (this.data.options?.length ?? 0) > 0,
+      hasOptions: liveOptions(this.data.messages).length > 0,
       keyboardUp: this.data.keyboardHeight > 0,
     });
   },

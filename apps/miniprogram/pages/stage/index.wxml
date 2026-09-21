@@ -21,28 +21,24 @@
   </view>
 
   <view class="stream-wrap">
-    <nb-context-stream messages="{{messages}}" busy="{{busy}}"></nb-context-stream>
+    <nb-context-stream
+      id="ctx-stream"
+      messages="{{messages}}"
+      busy="{{busy}}"
+      opts-freeze="{{optsFreeze}}"
+      opts-shift="{{optsShift}}"
+      tail-space="{{tailSpace}}"
+      probe-text="{{probeText}}"
+      bind:choose="onStreamChoose"
+    ></nb-context-stream>
   </view>
 
   <view class="stage">
     <view class="avatar-row">
-      <nb-avatar src="{{poster}}" compact="{{compact || showGdd || options.length > 0}}"></nb-avatar>
+      <nb-avatar src="{{poster}}" compact="{{compact || showGdd}}"></nb-avatar>
     </view>
-    <view wx:if="{{options.length > 0 || showGdd}}" class="stage-panel">
-      <view wx:if="{{options.length > 0}}" class="options">
-        <nb-option-card
-          wx:for="{{options}}"
-          wx:key="id"
-          option="{{item}}"
-          index="{{index}}"
-          expanded="{{expandedId === item.id}}"
-          phase="{{pendingId === item.id ? 'chosen' : pendingId ? 'dismissed' : ''}}"
-          disabled="{{busy}}"
-          bind:toggle="onToggleOption"
-          bind:collapse="onCollapseOption"
-        />
-      </view>
-      <view wx:if="{{showGdd}}" class="gdd-entry" bindtap="onOpenGdd">
+    <view wx:if="{{showGdd}}" class="stage-panel">
+      <view class="gdd-entry" bindtap="onOpenGdd">
         <view class="gdd-kicker">{{gddKicker}}</view>
         <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
         <view class="gdd-go">{{gddGo}}</view>
@@ -50,9 +46,23 @@
     </view>
   </view>
 
+  <!--
+    变形层：选中的那张卡脱离列表飞到真实用户气泡上。
+    只有这一个节点在动，列表零回流。样式起点必须和 context-stream 的 .opt 一致。
+  -->
+  <view
+    wx:if="{{chipShow}}"
+    class="chip {{chipOn ? 'to-user' : 'from-opt'}}"
+    style="left: {{chipLeft}}px; top: {{chipTop}}px; width: {{chipW}}px; height: {{chipH}}px; transform: translate({{chipDx}}px, {{chipDy}}px) scale({{chipScale}});"
+  >
+    <view class="chip-role">你</view>
+    <view class="chip-label">{{chipLabel}}</view>
+    <view class="chip-detail">{{chipDetail}}</view>
+  </view>
+
   <nb-composer
     busy="{{busy}}"
-    disabled="{{busy}}"
+    disabled="{{busy || picking}}"
     safe-bottom="{{0}}"
     keyboard-height="{{keyboardHeight}}"
     seed="{{composerSeed}}"
