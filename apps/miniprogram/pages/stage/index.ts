@@ -42,6 +42,8 @@ Page({
     stageLabel: "",
     poster: LOGO_SRC,
     keyboardHeight: 0,
+    /** 底部安全区（px）。原先写死 0，有 home 指示条的机型会贴到底。 */
+    safeBottom: 0,
     /** 变形进行中：锁输入，但不等于 busy。 */
     picking: false,
     /** think：回答中。gdd：正在编文档。空：可以打字。 */
@@ -103,9 +105,15 @@ Page({
     this._fromRect = null as Rect;
     this._freeze = -1;
     this._settleTop = -1;
+    /** 当前卡片占了多高。变了才需要重新让空间。 */
+    this._dockH = 0;
 
     this._onKeyboard = (res: { height: number }) => {
-      this.setData({ keyboardHeight: res.height || 0 });
+      /** 键盘把输入框顶高，滚动区又矮一截；排完版再贴底，最后一条消息才跟得上。 */
+      this.setData({ keyboardHeight: res.height || 0 }, () => {
+        const stream = this.stream();
+        if (stream && typeof stream.stickBottom === "function") stream.stickBottom(true);
+      });
       this.syncAvatar();
     };
     try {
@@ -116,6 +124,22 @@ Page({
 
     this.ensureDriver();
     this.paintChrome();
+    this.measureSafeBottom();
+  },
+
+  measureSafeBottom() {
+    try {
+      const info = (wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()) as {
+        screenHeight?: number;
+        safeArea?: { bottom?: number };
+      };
+      const screen = Number(info.screenHeight);
+      const bottom = Number(info.safeArea?.bottom);
+      const gap = isFinite(screen) && isFinite(bottom) ? Math.max(0, Math.round(screen - bottom)) : 0;
+      if (gap > 0) this.setData({ safeBottom: gap });
+    } catch (_e) {
+      // 取不到就沿用默认留白
+    }
   },
 
   paintChrome() {
@@ -901,6 +925,36 @@ Page({
       done: false,
       gddKicker: "游戏文档已成型",
       gddGo: "打开预览",
+    }, () => this.dockGdd(showGdd));
+  },
+
+  /**
+   * 卡片占掉的那截高度要由滚动区让出来。
+   *
+   * 微信在可视高度变矮时**不会**自己收 scrollTop，所以卡片一出现，最后一条消息
+   * 就会落到它后面。这里先量一次卡片矩形 —— 量到说明它已经排好版、滚动区已经变矮 ——
+   * 然后让对话平滑贴一次底。卡片是纯 view，排版同步，量一次就准，不用轮询补。
+   * 标题折行导致高度变化时走同一条路，所以后续改文档也是同一个入口，不会多出第二张卡。
+   */
+  dockGdd(showGdd: boolean) {
+    const stream = this.stream();
+    if (!stream || typeof stream.stickBottom !== "function") return;
+    if (!showGdd) {
+      if (this._dockH) {
+        this._dockH = 0;
+        stream.stickBottom(true);
+      }
+      return;
+    }
+    const q = this.createSelectorQuery();
+    q.select("#gdd-dock").boundingClientRect();
+    q.exec((res: Array<{ height?: number } | null>) => {
+      const r = res && res[0];
+      const h = r ? Math.round(Number(r.height)) : 0;
+      if (!isFinite(h) || h <= 0) return;
+      if (Math.abs(h - Number(this._dockH || 0)) <= 1) return;
+      this._dockH = h;
+      stream.stickBottom!(true);
     });
   },
 
