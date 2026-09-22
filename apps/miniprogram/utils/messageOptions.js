@@ -185,19 +185,55 @@ function frozenSpacer(optsHeight, insertHeight) {
 }
 
 /**
- * 收掉 freeze px 的选项块该怎么收场。
- *
- * 微信的 scroll-view 在内容变矮时不会自己收 scrollTop，所以这一段必须我们自己滚：
- * 往上滚同样多，选项块后面的气泡就停在原地，动的是它上面的对话。
- * 滚不动那么多时（内容本来就没滚出去），差额只能由气泡自己往上走，`drift` 就是这个量，
- * 芯片提前把它算进落点，落地之后不再动。
+ * 和 app.wxss 的 --ease-out（cubic-bezier(0.2, 0, 0, 1)）同一条曲线。
+ * 滚动必须跟选项飞行用同一条，否则气泡会在两段动画之间跳一下。
  */
-function settleDrift(scrollTop, freeze) {
+function flyEase(t) {
+  var x = Number(t);
+  if (!isFinite(x) || x <= 0) return 0;
+  if (x >= 1) return 1;
+  var u = x;
+  for (var i = 0; i < 6; i++) {
+    var cx = 3 * 0.2 * u * (1 - u) * (1 - u) + u * u * u;
+    var dx = 0.6 * (1 - u) * (1 - 3 * u) + 3 * u * u;
+    if (Math.abs(dx) < 1e-6) break;
+    u -= (cx - x) / dx;
+    if (u < 0) u = 0;
+    if (u > 1) u = 1;
+  }
+  return u * u * (3 - 2 * u);
+}
+
+/**
+ * 飞行这一段唯一的滚动计划。高度收起和「把尾巴带进屏幕」写在同一次 scrollTop 里，
+ * 芯片落点用同一个 shift，后面不许再量一次、再跳一次。
+ *
+ * collapse：这一段还要收掉的高度（选项块剩余高度 + 下边距）。后面的气泡会因此上移。
+ * tailGap：预留好的列表尾巴（用户气泡 + …）底边比可视区底边低多少。<= 0 表示已经在屏幕里。
+ * pad：尾巴露进屏幕时，和可视区底边留的空隙。
+ *
+ * 尾巴已经在屏幕里：只滚掉 collapse，气泡停在原地。
+ * 尾巴在屏幕下面：同一段里再往下滚，让它停在底边上方 pad 处，而不是飞完再跳到底。
+ * 滚不掉的部分进 shift（负数 = 气泡还要往上走），芯片提前算进落点。
+ */
+function followPlan(scrollTop, collapse, tailGap, pad) {
   var top = Math.max(0, Number(scrollTop) || 0);
-  var gone = Number(freeze);
-  if (!isFinite(gone) || gone <= 0) return { scrollTop: top, drift: 0 };
-  var next = Math.max(0, top - gone);
-  return { scrollTop: next, drift: (top - next) - gone };
+  var gone = Number(collapse);
+  if (!isFinite(gone) || gone < 0) gone = 0;
+  var gap = Number(tailGap);
+  if (!isFinite(gap) || gap < 0) gap = 0;
+  var slack = Number(pad);
+  if (!isFinite(slack) || slack < 0) slack = 0;
+  var extra = gap > 0 ? gap + slack : 0;
+  var want = top - gone + extra;
+  var next = Math.max(0, want);
+  return { scrollTop: next, shift: top - next - gone };
+}
+
+/** 尾巴已在屏幕内时的特例，和旧调用点保持同一形状。 */
+function settleDrift(scrollTop, freeze) {
+  var plan = followPlan(scrollTop, freeze, 0, 0);
+  return { scrollTop: plan.scrollTop, drift: plan.shift };
 }
 
 module.exports.isDirectionAsk = isDirectionAsk;
@@ -213,3 +249,5 @@ module.exports.preserveAssistantMeta = preserveAssistantMeta;
 module.exports.morphDelta = morphDelta;
 module.exports.frozenSpacer = frozenSpacer;
 module.exports.settleDrift = settleDrift;
+module.exports.followPlan = followPlan;
+module.exports.flyEase = flyEase;

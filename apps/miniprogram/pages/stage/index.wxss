@@ -118,10 +118,24 @@ page { height: 100%; background: var(--bg-canvas); }
   min-height: 0;
 }
 /**
+ * 输入框前景。组件内部的 z-index 出不了组件，叠层写在这一层。
+ * 高于飞行层（30），低于同意弹层（40）和菜单遮罩（60）。
+ * 不透明底盖住从下面穿过的飞行动画。
+ */
+.composer-dock {
+  position: relative;
+  z-index: 35;
+  flex: 0 0 auto;
+  background: var(--bg-base);
+}
+/**
  * 文档卡自己的一块，不属于对话空间：flex 兄弟，夹在滚动区和输入框之间。
  * 键盘弹出时输入框变高，这一块跟着被挤上去，不用另外处理。
+ * 高于飞行层、低于输入框，飞行动画也不会盖到卡片上。
  */
 .stage {
+  position: relative;
+  z-index: 32;
   flex: 0 0 auto;
   box-sizing: border-box;
   padding: 12rpx 32rpx 16rpx;
@@ -143,7 +157,8 @@ page { height: 100%; background: var(--bg-canvas); }
  */
 .chip {
   position: fixed;
-  z-index: 60;
+  /** 低于输入框：上滑后轨迹从输入框底下穿过去，不会画到它上面。 */
+  z-index: 30;
   box-sizing: border-box;
   pointer-events: none;
   overflow: hidden;
@@ -171,7 +186,7 @@ page { height: 100%; background: var(--bg-canvas); }
   padding: 12rpx 20rpx;
   border-radius: var(--r-ctrl);
   background: var(--brand);
-  border: 1px solid transparent;
+  border-width: 0;
   color: var(--text-on-bright);
 }
 .chip-label {

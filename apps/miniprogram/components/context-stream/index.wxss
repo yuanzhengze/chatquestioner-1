@@ -43,6 +43,14 @@
 .bubble.appear {
   animation: bubbleIn var(--dur-panel) var(--ease-out) both;
 }
+/** 思考中的点从下往上滑入，和选项出现是同一种语言，不是单纯淡出淡入。 */
+.bubble.thinking.appear {
+  animation: thinkIn var(--dur-panel) var(--ease-out) both;
+}
+@keyframes thinkIn {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to { opacity: 1; transform: none; }
+}
 /** 还没出字时只留一粒点，不要拉成和正式回复一样宽。 */
 .bubble.thinking {
   width: fit-content;
@@ -76,12 +84,18 @@
   gap: 12rpx;
 }
 /**
- * 高度被压掉时卡片照常溢出显示 —— 块的顶还在原处，所以卡片一格没动。
- * 收到 0 是一瞬间的事，不做 height 过渡：这一段的位移全交给同一条滚动动画去带，
- * 两个动画各管一半才是上一版「先飞到位、对话再跳下来」的病根。
+ * 收起时高度和滚动用同一段 --dur-fly / --ease-out。
+ * 两条一起走。尾巴已经在屏幕里时气泡停住；尾巴在屏幕外时，同一段把滚动加进去。
+ * ease 类先挂上，下一帧才收高度和下边距，避免微信不播过渡、高度瞬间塌掉。
  */
 .opts.frozen {
-  overflow: visible;
+  overflow: hidden;
+}
+.opts.frozen.ease {
+  transition: height var(--dur-fly) var(--ease-out), margin-bottom var(--dur-fly) var(--ease-out);
+}
+.opts.frozen.gone {
+  margin-bottom: 0;
 }
 /** 这四项要和 pages/stage 的 .chip.from-opt 完全一致，否则接手那一帧会跳。 */
 .opt {

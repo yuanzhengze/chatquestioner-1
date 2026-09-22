@@ -19,6 +19,8 @@ const {
   morphDelta,
   frozenSpacer,
   settleDrift,
+  followPlan,
+  flyEase,
 } = createRequire(import.meta.url)("../utils/messageOptions.js") as {
   isDirectionAsk: (options: unknown) => boolean;
   shouldTintAsk: (message: Msg | null, streaming: boolean) => boolean;
@@ -33,6 +35,13 @@ const {
   morphDelta: (from: Rect | null, to: Rect | null) => { dx: number; dy: number; width: number; height: number } | null;
   frozenSpacer: (optsHeight: unknown, insertHeight: unknown) => number;
   settleDrift: (scrollTop: unknown, freeze: unknown) => { scrollTop: number; drift: number };
+  followPlan: (
+    scrollTop: unknown,
+    collapse: unknown,
+    tailGap: unknown,
+    pad: unknown,
+  ) => { scrollTop: number; shift: number };
+  flyEase: (t: number) => number;
 };
 
 const DIRECTION: Opt[] = [
@@ -186,5 +195,28 @@ describe("messageOptions", () => {
   it("没有选项块要收就什么都不动", () => {
     expect(settleDrift(500, 0)).toEqual({ scrollTop: 500, drift: 0 });
     expect(settleDrift(500, NaN)).toEqual({ scrollTop: 500, drift: 0 });
+  });
+
+  it("尾巴已经在屏幕里，只抵消收起，气泡不动", () => {
+    expect(followPlan(500, 180, 0, 12)).toEqual({ scrollTop: 320, shift: 0 });
+    expect(followPlan(500, 180, -40, 12)).toEqual({ scrollTop: 320, shift: 0 });
+  });
+
+  it("尾巴在屏幕下面，飞行这一段里一起滚到位", () => {
+    expect(followPlan(100, 0, 200, 12)).toEqual({ scrollTop: 312, shift: -212 });
+    expect(followPlan(400, 80, 150, 12)).toEqual({ scrollTop: 482, shift: -162 });
+  });
+
+  it("滚不掉的收起仍算进落点，不留到动画结束后再跳", () => {
+    expect(followPlan(50, 180, 0, 12)).toEqual({ scrollTop: 0, shift: -130 });
+    expect(followPlan(0, 0, NaN, 12)).toEqual({ scrollTop: 0, shift: 0 });
+  });
+
+  it("飞行曲线两端钉死，中段比线性走得快，和 CSS ease-out 同向", () => {
+    expect(flyEase(0)).toBe(0);
+    expect(flyEase(1)).toBe(1);
+    expect(flyEase(0.5)).toBeGreaterThan(0.7);
+    expect(flyEase(-1)).toBe(0);
+    expect(flyEase(2)).toBe(1);
   });
 });

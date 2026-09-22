@@ -34,8 +34,11 @@
       messages="{{messages}}"
       busy="{{busy}}"
       opts-freeze="{{optsFreeze}}"
+      opts-ease="{{optsEase}}"
+      opts-gone="{{optsGone}}"
       probe-text="{{probeText}}"
       bind:choose="onStreamChoose"
+      bind:optsclear="onOptsClear"
     ></nb-context-stream>
   </view>
 
@@ -65,17 +68,23 @@
     <view class="chip-detail">{{chipDetail}}</view>
   </view>
 
-  <nb-composer
-    busy="{{busy}}"
-    mode="{{composerMode}}"
-    disabled="{{busy || picking}}"
-    safe-bottom="{{safeBottom}}"
-    keyboard-height="{{keyboardHeight}}"
-    seed="{{composerSeed}}"
-    seed-seq="{{seedSeq}}"
-    bind:send="onSend"
-    bind:typing="onTyping"
-  />
+  <!--
+    输入框是前景遮罩：飞行层 z-index 更低，经过这里会被这块不透明底盖住。
+    组件内部的 z-index 出不了组件，所以叠层必须写在页面这一层。
+  -->
+  <view class="composer-dock">
+    <nb-composer
+      busy="{{busy}}"
+      mode="{{composerMode}}"
+      disabled="{{busy || picking}}"
+      safe-bottom="{{safeBottom}}"
+      keyboard-height="{{keyboardHeight}}"
+      seed="{{composerSeed}}"
+      seed-seq="{{seedSeq}}"
+      bind:send="onSend"
+      bind:typing="onTyping"
+    />
+  </view>
 
   <view wx:if="{{showMenu}}" class="menu-mask" catchtap="onCloseMenu"></view>
 

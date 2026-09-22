@@ -25,13 +25,13 @@
     </view>
 
     <!--
-      三选：紧跟这句问话的第二段气泡。它排在后来插入的用户气泡前面，
-      所以收掉它的高度是让上面的对话往下走，刚落地的气泡不动。
+      三选排在用户气泡前面。收掉它的高度和滚动是同一段：
+      新气泡已在屏幕里就停住；会落到屏幕外，就在飞行里把它带进来。
     -->
     <view
       wx:if="{{item.owns && opts.length}}"
       id="opts-box"
-      class="opts {{optsFreeze >= 0 ? 'frozen' : ''}}"
+        class="opts {{optsFreeze >= 0 ? 'frozen' : ''}} {{optsEase ? 'ease' : ''}} {{optsGone ? 'gone' : ''}}"
       style="{{optsFreeze >= 0 ? 'height:' + optsFreeze + 'px;' : ''}}"
     >
       <view
