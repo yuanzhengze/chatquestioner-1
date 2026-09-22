@@ -8,6 +8,7 @@ const { parseGddPreview } = require("../../utils/gddPreview.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
 const legal = require("../../utils/legal.js");
+const { applyTabBar } = require("../../utils/tabBar.js");
 const {
   attachLiveOptions,
   freezeLiveOptions,
@@ -66,6 +67,7 @@ Page({
     openingGdd: false,
     composerSeed: "",
     seedSeq: 0,
+    showMenu: false,
     showHistory: false,
     historyItems: [] as Array<{ id: string; title: string; current: boolean }>,
     showConsent: false,
@@ -187,6 +189,7 @@ Page({
       done: false,
       composerSeed: "",
       seedSeq: this.data.seedSeq + 1,
+      showMenu: false,
       showHistory: false,
     });
   },
@@ -239,7 +242,7 @@ Page({
     this.runAfterConsent(() => {
       this.resetConversation();
       this.ensureDriver();
-      this.setData({ showHistory: false });
+      this.setData({ showHistory: false, showMenu: false });
       void this.boot();
     });
   },
@@ -260,7 +263,7 @@ Page({
 
   onBackToHome() {
     this.clearOpenGdd();
-    this.setData({ showHistory: false, showConsent: false, showLegal: false });
+    this.setData({ showHistory: false, showMenu: false, showConsent: false, showLegal: false });
     wx.switchTab({ url: "/pages/home/index" });
   },
 
@@ -280,7 +283,18 @@ Page({
     this.clearOpenGdd();
     this.paintChrome();
     this.ensureDriver();
+    applyTabBar(wx, true);
     void this.consumeHandoff();
+  },
+
+  onHide() {
+    this.clearOpenGdd();
+    /** 去文档预览不是 Tab 页，底栏继续藏着；回到首页或「我的」时再显示。 */
+    if (this._coverTabBar) {
+      this._coverTabBar = false;
+      return;
+    }
+    applyTabBar(wx, false);
   },
 
   async consumeHandoff() {
@@ -379,9 +393,6 @@ Page({
     }
   },
 
-  onHide() {
-    this.clearOpenGdd();
-  },
 
   onUnload() {
     this._abort?.();
@@ -747,9 +758,17 @@ Page({
     });
   },
 
+  onToggleMenu() {
+    this.setData({ showMenu: !this.data.showMenu });
+  },
+
+  onCloseMenu() {
+    if (this.data.showMenu) this.setData({ showMenu: false });
+  },
+
   onOpenHistory() {
     this.refreshIndexHint();
-    this.setData({ showHistory: true });
+    this.setData({ showHistory: true, showMenu: false });
   },
 
   onCloseHistory() {
@@ -817,6 +836,7 @@ Page({
       showConsent: true,
       consentChecked: false,
       showLegal: false,
+      showMenu: false,
       showHistory: false,
     });
   },
@@ -915,12 +935,14 @@ Page({
           key: GDD_DRAFT_KEY,
           data: payload,
           complete: () => {
+            this._coverTabBar = true;
             wx.navigateTo({
               url: "/pages/gdd/index",
               success: (res) => {
                 if (res.eventChannel) res.eventChannel.emit("gddDraft", payload);
               },
               fail: () => {
+                this._coverTabBar = false;
                 this.clearOpenGdd();
                 wx.showToast({ title: "打不开文档页", icon: "none" });
               },

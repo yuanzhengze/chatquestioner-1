@@ -2,6 +2,7 @@ import { FORGEAX_SITE_URL, FX_CHROME, GDD_DRAFT_KEY, LOGO_SRC } from "../../conf
 import { deleteSession } from "../../utils/api";
 
 const legal = require("../../utils/legal.js");
+const { applyTabBar } = require("../../utils/tabBar.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
 
@@ -30,6 +31,7 @@ Page({
   },
 
   onShow() {
+    applyTabBar(wx, false);
     this.refreshList();
   },
 

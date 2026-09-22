@@ -1,6 +1,7 @@
 import { FORGEAX_SITE_URL, FX_CHROME, LOGO_SRC } from "../../config";
 
 const legal = require("../../utils/legal.js");
+const { applyTabBar } = require("../../utils/tabBar.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
 
@@ -45,6 +46,7 @@ Page({
   },
 
   onShow() {
+    applyTabBar(wx, false);
     const cur = sessionIndex.current();
     this.setData({
       agreed: bridge.loadAgreed(),
