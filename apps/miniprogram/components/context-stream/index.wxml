@@ -14,7 +14,7 @@
       <view class="text">{{item.text}}</view>
     </view>
 
-    <view wx:else class="bubble assistant {{item.appear ? 'appear' : ''}}">
+    <view wx:else class="bubble assistant {{item.dim ? 'dim' : ''}} {{item.appear ? 'appear' : ''}}">
       <view class="role">NewBee</view>
       <rich-text wx:if="{{item.html}}" nodes="{{item.html}}"></rich-text>
       <block wx:else>
@@ -24,19 +24,17 @@
         <view wx:if="{{item.dots}}" class="text">…</view>
       </block>
     </view>
-  </block>
 
-  <!--
-    三选：最后一句问话之后的第二段气泡。
-    变形期间高度被就地压掉、内容反向平移，所以卡片留在原地，而下方腾出的空间正好给真实气泡占。
-  -->
-  <view
-    wx:if="{{opts.length}}"
-    id="opts-box"
-    class="opts {{optsFreeze >= 0 ? 'frozen' : ''}}"
-    style="{{optsFreeze >= 0 ? 'height:' + optsFreeze + 'px;' : ''}}"
-  >
-    <view class="opts-inner" style="{{optsShift ? 'transform: translateY(-' + optsShift + 'px);' : ''}}">
+    <!--
+      三选：紧跟这句问话的第二段气泡。它排在后来插入的用户气泡前面，
+      所以收掉它的高度是让上面的对话往下走，刚落地的气泡不动。
+    -->
+    <view
+      wx:if="{{item.owns && opts.length}}"
+      id="opts-box"
+      class="opts {{optsFreeze >= 0 ? 'frozen' : ''}}"
+      style="{{optsFreeze >= 0 ? 'height:' + optsFreeze + 'px;' : ''}}"
+    >
       <view
         wx:for="{{opts}}"
         wx:for-item="opt"
@@ -52,7 +50,7 @@
         <view wx:if="{{opt.detail && opt.detail !== opt.label}}" class="opt-detail">{{opt.detail}}</view>
       </view>
     </view>
-  </view>
+  </block>
 
   <!-- 量高用：脱离文档流，只为算出插进来的两条气泡有多高。 -->
   <view wx:if="{{probeText}}" id="probe-wrap" class="probe">
@@ -65,9 +63,6 @@
       <view class="text">…</view>
     </view>
   </view>
-
-  <!-- 选项撤场后接手它剩下的高度，收到 0，对话顺着滚落。 -->
-  <view wx:if="{{tailSpace >= 0}}" class="tail-space" style="height: {{tailSpace}}px;"></view>
 
   <view id="stream-end" class="end"></view>
 </scroll-view>

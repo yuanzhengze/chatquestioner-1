@@ -36,6 +36,10 @@
   border: 1px solid var(--border-subtle);
   color: var(--text);
 }
+/** 高度已经占住、还不该看见：「…」等变形落地了再显形。 */
+.bubble.assistant.dim {
+  opacity: 0;
+}
 .bubble.appear {
   animation: bubbleIn var(--dur-panel) var(--ease-out) both;
 }
@@ -61,19 +65,23 @@
   box-sizing: border-box;
   max-width: 86%;
   margin-bottom: 12rpx;
-}
-/** 高度被压掉时卡片照常溢出显示，靠 .opts-inner 反向平移留在原地，视觉上什么都没动。 */
-.opts.frozen {
-  overflow: visible;
-}
-.opts-inner {
   display: flex;
   flex-direction: column;
   gap: 12rpx;
 }
+/**
+ * 高度被压掉时卡片照常溢出显示 —— 块的顶还在原处，所以卡片一格没动。
+ * 收到 0 是一瞬间的事，不做 height 过渡：这一段的位移全交给同一条滚动动画去带，
+ * 两个动画各管一半才是上一版「先飞到位、对话再跳下来」的病根。
+ */
+.opts.frozen {
+  overflow: visible;
+}
 /** 这四项要和 pages/stage 的 .chip.from-opt 完全一致，否则接手那一帧会跳。 */
 .opt {
   box-sizing: border-box;
+  /** 块被压矮时卡片不许跟着缩，要原样溢出显示。 */
+  flex: 0 0 auto;
   padding: 16rpx 18rpx;
   border-radius: 12rpx;
   background: var(--bg-elevated);
@@ -108,11 +116,6 @@
   font-size: 24rpx;
   line-height: 1.5;
   color: var(--text-2);
-}
-.tail-space {
-  width: 100%;
-  pointer-events: none;
-  transition: height var(--dur-panel) var(--ease-out);
 }
 .probe {
   position: absolute;

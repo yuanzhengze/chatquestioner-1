@@ -29,7 +29,11 @@ function liveOptions(messages) {
   return [];
 }
 
-/** 渲染用：最后一组选项，连同能不能点、哪一个正在被选。冻结中的也要画完收尾。 */
+/**
+ * 渲染用：最后一组选项，连同它挂在第几条、能不能点、哪一个正在被选。
+ * `at` 决定选项块画在哪条消息后面 —— 它必须排在用户气泡**前面**，
+ * 收起它的高度才是把上方对话往下让，而不是把刚落地的气泡顶走。
+ */
 function optionsOf(messages) {
   var list = messages || [];
   for (var i = list.length - 1; i >= 0; i--) {
@@ -37,12 +41,13 @@ function optionsOf(messages) {
     if (m && m.role === "assistant" && Array.isArray(m.options) && m.options.length) {
       return {
         options: m.options,
+        at: i,
         live: m.optionsLive === true,
         pendingId: m.pendingId ? String(m.pendingId) : "",
       };
     }
   }
-  return { options: [], live: false, pendingId: "" };
+  return { options: [], at: -1, live: false, pendingId: "" };
 }
 
 function attachLiveOptions(messages, options) {
@@ -98,36 +103,26 @@ function markPending(messages, id) {
   return next;
 }
 
-/** 飞行前先把真实气泡放进列表，但不显形：落点因此是真的，不用猜。 */
+/**
+ * 飞行前先把真实气泡放进列表，但不显形：落点因此是真的，不用猜。
+ * 「…」从一开始就带上，占的高度才和探针量的一致，显形时不会再撑一行。
+ */
 function placeGhosts(messages, content, display) {
   var next = (messages || []).slice();
   next.push({ role: "user", content: content || "", display: display || "", ghost: true });
-  next.push({ role: "assistant", content: "" });
+  next.push({ role: "assistant", content: "", appear: true, ghost: true });
   return next;
 }
 
-/** 落地：用户气泡显形。 */
-function revealGhosts(messages) {
+/** 显形。给 role 就只显形那一种，落地时先放用户气泡，「…」留到发请求那一步。 */
+function revealGhosts(messages, role) {
   return (messages || []).map(function (m) {
     if (!m || !m.ghost) return m;
+    if (role && m.role !== role) return m;
     var copy = Object.assign({}, m);
     delete copy.ghost;
     return copy;
   });
-}
-
-/** 该出「…」了。 */
-function wakeThinking(messages) {
-  var next = (messages || []).map(function (m) {
-    return Object.assign({}, m);
-  });
-  for (var i = next.length - 1; i >= 0; i--) {
-    if (next[i].role === "assistant") {
-      if (!next[i].content) next[i].appear = true;
-      return next;
-    }
-  }
-  return next;
 }
 
 /** 流式刷新不能把已经挂上的选项和衬底冲掉。 */
@@ -173,6 +168,22 @@ function frozenSpacer(optsHeight, insertHeight) {
   return Math.max(0, box - insert);
 }
 
+/**
+ * 收掉 freeze px 的选项块该怎么收场。
+ *
+ * 微信的 scroll-view 在内容变矮时不会自己收 scrollTop，所以这一段必须我们自己滚：
+ * 往上滚同样多，选项块后面的气泡就停在原地，动的是它上面的对话。
+ * 滚不动那么多时（内容本来就没滚出去），差额只能由气泡自己往上走，`drift` 就是这个量，
+ * 芯片提前把它算进落点，落地之后不再动。
+ */
+function settleDrift(scrollTop, freeze) {
+  var top = Math.max(0, Number(scrollTop) || 0);
+  var gone = Number(freeze);
+  if (!isFinite(gone) || gone <= 0) return { scrollTop: top, drift: 0 };
+  var next = Math.max(0, top - gone);
+  return { scrollTop: next, drift: (top - next) - gone };
+}
+
 module.exports.isDirectionAsk = isDirectionAsk;
 module.exports.liveOptions = liveOptions;
 module.exports.optionsOf = optionsOf;
@@ -181,7 +192,7 @@ module.exports.freezeLiveOptions = freezeLiveOptions;
 module.exports.markPending = markPending;
 module.exports.placeGhosts = placeGhosts;
 module.exports.revealGhosts = revealGhosts;
-module.exports.wakeThinking = wakeThinking;
 module.exports.preserveAssistantMeta = preserveAssistantMeta;
 module.exports.morphDelta = morphDelta;
 module.exports.frozenSpacer = frozenSpacer;
+module.exports.settleDrift = settleDrift;

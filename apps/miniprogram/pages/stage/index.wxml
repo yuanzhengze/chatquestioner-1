@@ -28,8 +28,6 @@
       messages="{{messages}}"
       busy="{{busy}}"
       opts-freeze="{{optsFreeze}}"
-      opts-shift="{{optsShift}}"
-      tail-space="{{tailSpace}}"
       probe-text="{{probeText}}"
       bind:choose="onStreamChoose"
     ></nb-context-stream>

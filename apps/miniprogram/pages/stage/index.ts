@@ -15,17 +15,16 @@ const {
   markPending,
   placeGhosts,
   revealGhosts,
-  wakeThinking,
   preserveAssistantMeta,
   morphDelta,
   frozenSpacer,
+  settleDrift,
 } = require("../../utils/messageOptions.js");
 
 const WAKING = "正在唤醒 NewBee…";
 
-/** 和 app.wxss 的 --dur-fly / --dur-panel 对齐。 */
+/** 和 app.wxss 的 --dur-fly 对齐。占位收起和芯片飞行共用这一段。 */
 const FLY_MS = 320;
-const SETTLE_MS = 280;
 
 type Rect = { left: number; top: number; width: number; height: number } | null;
 
@@ -97,9 +96,9 @@ Page({
     this._deleting = false;
     this._choosing = false;
     this._flyTimer = 0 as number;
-    this._settleTimer = 0 as number;
     this._fromRect = null as Rect;
     this._freeze = -1;
+    this._settleTop = -1;
 
     this._onKeyboard = (res: { height: number }) => {
       this.setData({ keyboardHeight: res.height || 0 });
@@ -388,7 +387,6 @@ Page({
     this._abort?.();
     this._driver?.destroy();
     if (this._flyTimer) clearTimeout(this._flyTimer);
-    if (this._settleTimer) clearTimeout(this._settleTimer);
     if (this._flushTimer) clearTimeout(this._flushTimer);
     if (this._openGddTimer) clearTimeout(this._openGddTimer);
     if (this._onKeyboard) wx.offKeyboardHeightChange(this._onKeyboard);
@@ -423,7 +421,8 @@ Page({
   stream() {
     return this.selectComponent("#ctx-stream") as {
       measureProbe?: (cb: (height: number) => void) => void;
-      measureSlot?: (cb: (rect: Rect) => void) => void;
+      measureLanding?: (cb: (out: { slot: Rect; scrollTop: number }) => void) => void;
+      scrollTo?: (top: number, animated: boolean) => void;
       stickBottom?: (animated: boolean) => void;
     } | null;
   },
@@ -443,19 +442,14 @@ Page({
       clearTimeout(this._flyTimer);
       this._flyTimer = 0;
     }
-    if (this._settleTimer) {
-      clearTimeout(this._settleTimer);
-      this._settleTimer = 0;
-    }
     this._choosing = false;
     this._fromRect = null;
     this._freeze = -1;
-    if (this.data.chipShow || this.data.picking || this.data.optsFreeze >= 0 || this.data.tailSpace >= 0) {
+    this._settleTop = -1;
+    if (this.data.chipShow || this.data.picking || this.data.optsFreeze >= 0) {
       this.setData({
         picking: false,
         optsFreeze: -1,
-        optsShift: 0,
-        tailSpace: -1,
         probeText: "",
         chipShow: false,
         chipOn: false,
@@ -516,37 +510,45 @@ Page({
             return;
           }
           this._freeze = freeze;
-          this.placeGhost(said, opt.label, freeze, insertH);
+          this.placeGhost(said, opt.label, freeze);
         });
       },
     );
   },
 
   /**
-   * 真实气泡先进列表但不显形，同一次 setData 里把选项块压掉同样的高度、内容反向平移。
-   * 内容总高不变 → scroll-view 不钳制 → 飞行期间列表一动不动，落点因此量一次就恒定。
+   * 真实气泡先进列表但不显形，同一次 setData 里把选项块压掉同样的高度。
+   * 内容总高不变 → 这一帧什么都没动 → 落点可以稳稳量一次，飞行途中不会再变。
    */
-  placeGhost(said: string, display: string, freeze: number, shift: number) {
+  placeGhost(said: string, display: string, freeze: number) {
     const stream = this.stream();
     this.setData(
       {
         messages: placeGhosts(this.data.messages, said, display),
         optsFreeze: freeze,
-        optsShift: shift,
         probeText: "",
       },
       () => {
-        if (!stream || typeof stream.measureSlot !== "function") {
+        if (!stream || typeof stream.measureLanding !== "function") {
           this.land(said, display);
           return;
         }
-        stream.measureSlot!((slot) => {
-          const delta = morphDelta(this._fromRect, slot);
+        stream.measureLanding!((out) => {
+          /**
+           * 起飞这一帧把选项块整个收掉，位移交给一条滚动动画去带：
+           * 选项块排在气泡前面，往上滚同样多，气泡就停在原地，动的是它上面的对话。
+           * 滚不动那么多时差额由 drift 补进落点，落地之后芯片不会再挪。
+           */
+          const settle = settleDrift(out.scrollTop, freeze);
+          const target = out.slot ? { ...out.slot, top: out.slot.top + settle.drift } : null;
+          const delta = morphDelta(this._fromRect, target);
           if (!delta) {
             this.land(said, display);
             return;
           }
+          this._settleTop = settle.scrollTop;
           this.setData({
+            optsFreeze: 0,
             chipOn: true,
             chipDx: delta.dx,
             chipDy: delta.dy,
@@ -554,6 +556,7 @@ Page({
             chipH: delta.height,
             chipScale: 1,
           });
+          if (typeof stream.scrollTo === "function") stream.scrollTo(settle.scrollTop, true);
           this._flyTimer = setTimeout(() => {
             this._flyTimer = 0;
             this.land(said, display);
@@ -563,11 +566,17 @@ Page({
     );
   },
 
-  /** 落地：同一帧关掉固定层、让真实气泡显形，位置分毫不差。 */
+  /** 落地：同一帧关掉固定层、让用户气泡显形，位置分毫不差。「…」留到发请求那一步。 */
   land(said: string, display: string) {
+    const stream = this.stream();
+    /** 滚动动画的时长不归我们管，落地前把终点按死，免得差几像素。 */
+    if (this._settleTop >= 0 && stream && typeof stream.scrollTo === "function") {
+      stream.scrollTo(this._settleTop, false);
+    }
+    this._settleTop = -1;
     this.setData(
       {
-        messages: revealGhosts(this.data.messages),
+        messages: revealGhosts(this.data.messages, "user"),
         chipShow: false,
         chipOn: false,
       },
@@ -628,49 +637,31 @@ Page({
     const spoken: ChatMessage = { role: "user", content: trimmed };
     if (morph && morph.display) spoken.display = morph.display;
 
+    /** 占位已经在飞行那一段收完了，这里只是把 0 高度的空壳撤掉，并让「…」显形。 */
     const messages = preplaced
-      ? freezeLiveOptions(wakeThinking(list))
+      ? freezeLiveOptions(revealGhosts(list))
       : [
         ...freezeLiveOptions(list),
         spoken,
         { role: "assistant" as const, content: "", appear: true },
       ];
 
-    /** 选项块撤场，它让出的高度交给尾部占位，下一帧再收 0，对话顺着滚落。 */
-    const tail = preplaced && this._freeze > 0 ? this._freeze : -1;
     this._freeze = -1;
     this._lastOptions = [];
-    this.setData(
-      {
-        busy: true,
-        picking: false,
-        error: "",
-        messages,
-        optsFreeze: -1,
-        optsShift: 0,
-        tailSpace: tail,
-        probeText: "",
-        chipShow: false,
-        chipOn: false,
-        showGdd: false,
-        done: false,
-        composerSeed: "",
-        seedSeq: this.data.seedSeq + 1,
-      },
-      () => {
-        if (tail <= 0) return;
-        this._settleTimer = setTimeout(() => {
-          this.setData({ tailSpace: 0 });
-          this._settleTimer = setTimeout(() => {
-            this._settleTimer = 0;
-            this.setData({ tailSpace: -1 }, () => {
-              const stream = this.stream();
-              if (stream && typeof stream.stickBottom === "function") stream.stickBottom(true);
-            });
-          }, SETTLE_MS) as unknown as number;
-        }, 16) as unknown as number;
-      },
-    );
+    this.setData({
+      busy: true,
+      picking: false,
+      error: "",
+      messages,
+      optsFreeze: -1,
+      probeText: "",
+      chipShow: false,
+      chipOn: false,
+      showGdd: false,
+      done: false,
+      composerSeed: "",
+      seedSeq: this.data.seedSeq + 1,
+    });
     this.syncAvatar();
 
     const { abort } = sendMessage(id, trimmed, {

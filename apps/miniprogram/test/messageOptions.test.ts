@@ -14,23 +14,23 @@ const {
   markPending,
   placeGhosts,
   revealGhosts,
-  wakeThinking,
   preserveAssistantMeta,
   morphDelta,
   frozenSpacer,
+  settleDrift,
 } = createRequire(import.meta.url)("../utils/messageOptions.js") as {
   isDirectionAsk: (options: unknown) => boolean;
   liveOptions: (messages: Msg[]) => Opt[];
-  optionsOf: (messages: Msg[]) => { options: Opt[]; live: boolean; pendingId: string };
+  optionsOf: (messages: Msg[]) => { options: Opt[]; at: number; live: boolean; pendingId: string };
   attachLiveOptions: (messages: Msg[], options: unknown) => Msg[];
   freezeLiveOptions: (messages: Msg[]) => Msg[];
   markPending: (messages: Msg[], id: string) => Msg[];
   placeGhosts: (messages: Msg[], content: string, display: string) => Msg[];
-  revealGhosts: (messages: Msg[]) => Msg[];
-  wakeThinking: (messages: Msg[]) => Msg[];
+  revealGhosts: (messages: Msg[], role?: string) => Msg[];
   preserveAssistantMeta: (prev: Msg, content: string) => Msg;
   morphDelta: (from: Rect | null, to: Rect | null) => { dx: number; dy: number; width: number; height: number } | null;
   frozenSpacer: (optsHeight: unknown, insertHeight: unknown) => number;
+  settleDrift: (scrollTop: unknown, freeze: unknown) => { scrollTop: number; drift: number };
 };
 
 const DIRECTION: Opt[] = [
@@ -89,7 +89,7 @@ describe("messageOptions", () => {
     const live = attachLiveOptions([{ role: "assistant", content: "守摊还是赶集？" }], DIRECTION);
     const pending = markPending(live, "A");
     expect(liveOptions(pending)).toEqual([]);
-    expect(optionsOf(pending)).toEqual({ options: DIRECTION, live: false, pendingId: "A" });
+    expect(optionsOf(pending)).toEqual({ options: DIRECTION, at: 0, live: false, pendingId: "A" });
   });
 
   it("这轮收尾时撤掉选项节点，只留问过方向这个事实", () => {
@@ -98,24 +98,27 @@ describe("messageOptions", () => {
     expect(frozen[0].options).toBeUndefined();
     expect(frozen[0].pendingId).toBeUndefined();
     expect(frozen[0].tintAsk).toBe(true);
-    expect(optionsOf(frozen).options).toEqual([]);
+    expect(optionsOf(frozen)).toEqual({ options: [], at: -1, live: false, pendingId: "" });
   });
 
   it("ghost 先占位再显形，气泡显示 label 而发出去的是 detail", () => {
     const placed = placeGhosts([{ role: "assistant", content: "守摊还是赶集？" }], "守住自家摊位。", "守摊");
     expect(placed).toHaveLength(3);
     expect(placed[1]).toEqual({ role: "user", content: "守住自家摊位。", display: "守摊", ghost: true });
-    expect(placed[2]).toEqual({ role: "assistant", content: "" });
-
-    const shown = revealGhosts(placed);
-    expect(shown[1].ghost).toBeUndefined();
-    expect(shown[1].display).toBe("守摊");
-    expect(wakeThinking(shown)[2].appear).toBe(true);
+    /** 「…」一开始就带上，占的高度才和探针量的一致。 */
+    expect(placed[2]).toEqual({ role: "assistant", content: "", appear: true, ghost: true });
   });
 
-  it("有字的助手气泡不会被当成「…」再淡入一次", () => {
-    const streamed = wakeThinking([{ role: "assistant", content: "已经流出来的字" }]);
-    expect(streamed[0].appear).toBeUndefined();
+  it("落地先放用户气泡，「…」留到下一步", () => {
+    const placed = placeGhosts([{ role: "assistant", content: "守摊还是赶集？" }], "守住自家摊位。", "守摊");
+    const landed = revealGhosts(placed, "user");
+    expect(landed[1].ghost).toBeUndefined();
+    expect(landed[1].display).toBe("守摊");
+    expect(landed[2].ghost).toBe(true);
+
+    const sent = revealGhosts(landed);
+    expect(sent[2].ghost).toBeUndefined();
+    expect(sent[2].appear).toBe(true);
   });
 
   it("流式刷新保住选项、衬底，字出来后收掉 appear", () => {
@@ -144,5 +147,19 @@ describe("messageOptions", () => {
     expect(frozenSpacer(0, 96)).toBe(-1);
     expect(frozenSpacer(280, 0)).toBe(-1);
     expect(frozenSpacer(280, NaN)).toBe(-1);
+  });
+
+  it("收选项块靠自己往上滚；滚得动时气泡一动不动", () => {
+    expect(settleDrift(500, 180)).toEqual({ scrollTop: 320, drift: 0 });
+  });
+
+  it("滚不动那么多时，差额由气泡自己往上走，芯片提前算进落点", () => {
+    expect(settleDrift(50, 180)).toEqual({ scrollTop: 0, drift: -130 });
+    expect(settleDrift(0, 180)).toEqual({ scrollTop: 0, drift: -180 });
+  });
+
+  it("没有选项块要收就什么都不动", () => {
+    expect(settleDrift(500, 0)).toEqual({ scrollTop: 500, drift: 0 });
+    expect(settleDrift(500, NaN)).toEqual({ scrollTop: 500, drift: 0 });
   });
 });

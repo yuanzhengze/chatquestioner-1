@@ -22,10 +22,6 @@ Component({
     busy: { type: Boolean, value: false },
     /** >= 0 时把选项块的高度就地压到这个 px 值；-1 是自然高度。 */
     optsFreeze: { type: Number, value: -1 },
-    /** 压高度的同时把卡片反向平移这么多 px，让它们留在原位。 */
-    optsShift: { type: Number, value: 0 },
-    /** 选项撤场后接手它剩下的高度；-1 是不渲染。 */
-    tailSpace: { type: Number, value: -1 },
     /** 非空时渲染量高探针，内容是即将发出的那句话。 */
     probeText: { type: String, value: "" },
   },
@@ -40,8 +36,10 @@ Component({
       tailHtml: string;
       dots: boolean;
       ghost: boolean;
+      dim: boolean;
       appear: boolean;
       slot: boolean;
+      owns: boolean;
     }>,
     opts: [] as Array<{ id: string; label: string; detail: string }>,
     optsLive: false,
@@ -90,15 +88,15 @@ Component({
           tailHtml,
           dots: !user && !html && !question && (m.appear === true || streaming),
           ghost: user && m.ghost === true,
-          appear: !user && m.appear === true,
+          /** 还没轮到「…」显形：高度已经占住，只是看不见。 */
+          dim: !user && m.ghost === true,
+          appear: !user && m.appear === true && m.ghost !== true,
           slot: user && m.ghost === true,
+          owns: index === picked.at,
         };
       });
 
-      const held =
-        list.some((m) => m.ghost === true)
-        || Number(this.data.optsFreeze) >= 0
-        || Number(this.data.tailSpace) >= 0;
+      const held = list.some((m) => m.ghost === true) || Number(this.data.optsFreeze) >= 0;
       this.setData(
         {
           items,
@@ -164,14 +162,25 @@ Component({
       });
     },
 
-    /** 量落点：真实用户气泡的位置和大小。 */
-    measureSlot(cb: (rect: Rect) => void) {
+    /** 量落点：真实用户气泡的位置和大小，外加算收场要用的当前滚动位置。 */
+    measureLanding(cb: (out: { slot: Rect; scrollTop: number }) => void) {
       const q = this.createSelectorQuery();
       q.select("#user-slot").boundingClientRect();
-      q.exec((res: Array<Rect>) => {
-        const r = res && res[0];
-        cb(r && Number(r.width) > 0 ? r : null);
+      q.select(".stream").scrollOffset();
+      q.exec((res: Array<Record<string, number> | null>) => {
+        const slot = res && res[0];
+        const offset = res && res[1];
+        cb({
+          slot: slot && Number(slot.width) > 0 ? (slot as unknown as Rect) : null,
+          scrollTop: offset ? Number(offset.scrollTop) || 0 : 0,
+        });
       });
+    },
+
+    /** 收选项块那一段的位移全靠这条滚动动画带，页面直接指定终点。 */
+    scrollTo(top: number, animated: boolean) {
+      const next = Math.max(0, Number(top) || 0);
+      this.applyScroll(next, animated === true);
     },
 
     onPick(e: { currentTarget: { dataset: { id?: string } } }) {
