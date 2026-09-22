@@ -56,13 +56,13 @@
     class="chip {{chipOn ? 'to-user' : 'from-opt'}}"
     style="left: {{chipLeft}}px; top: {{chipTop}}px; width: {{chipW}}px; height: {{chipH}}px; transform: translate({{chipDx}}px, {{chipDy}}px) scale({{chipScale}});"
   >
-    <view class="chip-role">你</view>
     <view class="chip-label">{{chipLabel}}</view>
     <view class="chip-detail">{{chipDetail}}</view>
   </view>
 
   <nb-composer
     busy="{{busy}}"
+    mode="{{composerMode}}"
     disabled="{{busy || picking}}"
     safe-bottom="{{0}}"
     keyboard-height="{{keyboardHeight}}"

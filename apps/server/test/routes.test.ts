@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildServer } from "../src/server.js";
 import { FileSessionStore } from "../src/sessionStore.js";
-import { createInitialState, PATCH_OPTIONS } from "@cq/conversation";
+import { createInitialState, CONVERGENCE_OPTIONS, PATCH_OPTIONS } from "@cq/conversation";
 import { fakeLlm } from "./fixtures/fakeLlm.js";
 
 let dir: string;
@@ -360,6 +360,51 @@ describe("routes", () => {
     const staleGot = await app.inject({ method: "GET", url: `/api/share/${stale.json().id}` });
     expect(staleGot.json().markdown).toContain("旧快照");
     expect(staleGot.json().markdown).not.toContain("种菜");
+    await app.close();
+  });
+
+  it("点定稿：模型说完就报 activity，排在字段抽取和 synthesis 之前，输入框才有可见时间", async () => {
+    const { app, store } = makeApp();
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    const s = createInitialState();
+    s.guidance = "accepted";
+    s.spark = "九龙城寨开火焦虑";
+    s.coreEmotion = "开火焦虑";
+    s.coreAction = "点击空田播种";
+    s.reward = "废弃冰室补给";
+    s.failRule = "被抓惨死回冰室";
+    s.optionPhase = "convergence";
+    s.lastOptions = CONVERGENCE_OPTIONS.map((o) => ({ ...o }));
+    s.history = [
+      {
+        role: "assistant",
+        content: "> 📌 **暂定游戏名**：《城寨幽鸣》\n> 📌 **一句话亮点**：开火即逃亡。\n> 📌 **核心循环**：搜刮 ➔ 潜行 ➔ 开枪逃跑",
+      },
+    ];
+    await store.save(created.id, s);
+
+    const r = await app.inject({
+      method: "POST",
+      url: `/api/session/${created.id}/message`,
+      payload: { message: CONVERGENCE_OPTIONS[0].detail },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.body).toContain("event: activity");
+    expect(r.body).toContain('"kind":"gdd"');
+    expect(r.body.indexOf("event: activity")).toBeLessThan(r.body.indexOf("event: synthesis"));
+    await app.close();
+  });
+
+  it("普通采访一轮不发 activity：输入框保持「思考中」", async () => {
+    const { app } = makeApp();
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    const r = await app.inject({
+      method: "POST",
+      url: `/api/session/${created.id}/message`,
+      payload: { message: "我想做个食堂游戏" },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.body).not.toContain("event: activity");
     await app.close();
   });
 });

@@ -1,5 +1,7 @@
 <view class="bar" style="padding-bottom: {{padBottom}}px;">
+  <view wx:if="{{busy}}" class="input locked">{{mode === 'gdd' ? '游戏文档生成中...' : '思考中...'}}</view>
   <textarea
+    wx:else
     class="input {{focused ? 'on' : ''}}"
     value="{{value}}"
     placeholder="说说你的脑洞…"

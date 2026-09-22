@@ -953,4 +953,65 @@ describe("advance", () => {
     expect(cancelled.patchCommitted).toBeUndefined();
     expect(cancelled.state.optionPhase).toBe("interview");
   });
+
+  it("定稿轮：人话一说完就报在写文档，不等后面那段看不见的 JSON 流完", async () => {
+    /** 哨兵之后还有很长的 state JSON，它每一片都记录当时是否已经报过。 */
+    const tail = ["{\"state_delta\"", ":{},\"stage_", "complete\":false}"];
+    const seen: boolean[] = [];
+    let told = false;
+    let turnNo = 0;
+    const llm = {
+      async *stream() {
+        turnNo += 1;
+        /** 只看这一轮；finish() 里的抽字段会再调一次同一个假 LLM。 */
+        const record = turnNo === 1;
+        yield "记下了，正在写。";
+        yield `\n${STATE_SENTINEL}\n`;
+        for (const piece of tail) {
+          if (record) seen.push(told);
+          yield piece;
+        }
+      },
+    };
+
+    const s = accepted();
+    s.stage = 10;
+    s.spark = "猫咪帝国";
+    s.pitch = "猫RTS";
+    s.coreEmotion = "反差萌";
+    s.optionPhase = "convergence";
+    s.lastOptions = CONVERGENCE_OPTIONS.map((o) => ({ ...o }));
+    s.history = [
+      { role: "user", content: "猫咪帝国，猫RTS，反差萌" },
+      { role: "assistant", content: "> 📌 **暂定名**：《猫RTS》\n> 📌 **一句话亮点**：猫咪帝国" },
+    ];
+    s.summaryEligibleFrom = 0;
+
+    const res = await advance(s, CONVERGENCE_OPTIONS[0].detail, {
+      llm,
+      systemPrompt: SYS,
+      onWritingGdd: () => { told = true; },
+    });
+
+    expect(res.readyForSynthesis).toBe(true);
+    /** 隐藏的 JSON 还在流的时候就已经报过了，否则这句话晚好几秒才出现。 */
+    expect(seen).toEqual([true, true, true]);
+  });
+
+  it("普通采访轮不报在写文档", async () => {
+    const llm = scriptedLlm([
+      turn("那你更想守摊还是赶集？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "守摊", detail: "守住摊位" },
+          { id: "B", label: "赶集", detail: "推车赶集" },
+        ],
+      }),
+    ]);
+    let told = false;
+    const s = accepted();
+    s.history = [{ role: "user", content: "我想做食堂游戏" }];
+    await advance(s, "食堂", { llm, systemPrompt: SYS, onWritingGdd: () => { told = true; } });
+    expect(told).toBe(false);
+  });
 });

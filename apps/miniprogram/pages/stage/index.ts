@@ -44,6 +44,8 @@ Page({
     keyboardHeight: 0,
     /** 变形进行中：锁输入，但不等于 busy。 */
     picking: false,
+    /** think：回答中。gdd：正在编文档。空：可以打字。 */
+    composerMode: "",
     optsFreeze: -1,
     probeText: "",
     chipShow: false,
@@ -191,6 +193,7 @@ Page({
       seedSeq: this.data.seedSeq + 1,
       showMenu: false,
       showHistory: false,
+      composerMode: "",
     });
   },
 
@@ -230,6 +233,7 @@ Page({
         options,
       ),
       busy: false,
+      composerMode: "",
       error: "",
     });
     this.refreshResult(ready, options);
@@ -374,7 +378,7 @@ Page({
       wx.showToast({ title: "这条共创打不开了", icon: "none" });
       return;
     }
-    this.setData({ busy: true, error: "" });
+    this.setData({ busy: true, composerMode: "think", error: "" });
     try {
       const res = await startLinePatch(this._sessionId, intent);
       if (res.state && Object.keys(res.state).length) {
@@ -386,9 +390,9 @@ Page({
           gddDraftBar: res.draftBar === true || res.state.gddDraftBar === true || res.state.draftBar === true,
         });
       }
-      this.setData({ busy: false });
+      this.setData({ busy: false, composerMode: "" });
     } catch (_e) {
-      this.setData({ busy: false });
+      this.setData({ busy: false, composerMode: "" });
       wx.showToast({ title: "这一行还进不去", icon: "none" });
     }
   },
@@ -661,6 +665,7 @@ Page({
     this._lastOptions = [];
     this.setData({
       busy: true,
+      composerMode: "think",
       picking: false,
       error: "",
       messages,
@@ -724,6 +729,9 @@ Page({
           this._synthesisDraftBar = payload.draftBar === true;
         }
       },
+      onActivity: (kind) => {
+        if (kind === "gdd") this.setData({ composerMode: "gdd" });
+      },
       onWarning: () => {
         this._warnTick += 1;
         this.syncAvatar();
@@ -735,7 +743,7 @@ Page({
         const withOpts = this._lastOptions.length
           ? attachLiveOptions(flushed, this._lastOptions)
           : flushed;
-        this.setData({ busy: false, messages: withOpts }, () => {
+        this.setData({ busy: false, composerMode: "", messages: withOpts }, () => {
           this.refreshResult(ready, this._lastOptions);
           this.rememberSession();
           this.refreshIndexHint();

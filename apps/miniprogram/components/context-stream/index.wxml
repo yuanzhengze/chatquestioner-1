@@ -10,11 +10,10 @@
       id="{{item.slot ? 'user-slot' : ''}}"
       class="bubble user {{item.ghost ? 'ghost' : ''}}"
     >
-      <view class="role">你</view>
       <view class="text">{{item.text}}</view>
     </view>
 
-    <view wx:else class="bubble assistant {{item.dim ? 'dim' : ''}} {{item.appear ? 'appear' : ''}}">
+    <view wx:else class="bubble assistant {{item.dim ? 'dim' : ''}} {{item.appear ? 'appear' : ''}} {{item.dots ? 'thinking' : ''}}">
       <view class="role">NewBee</view>
       <rich-text wx:if="{{item.html}}" nodes="{{item.html}}"></rich-text>
       <block wx:else>
@@ -55,10 +54,9 @@
   <!-- 量高用：脱离文档流，只为算出插进来的两条气泡有多高。 -->
   <view wx:if="{{probeText}}" id="probe-wrap" class="probe">
     <view class="bubble user">
-      <view class="role">你</view>
       <view class="text">{{probeText}}</view>
     </view>
-    <view class="bubble assistant">
+    <view class="bubble assistant thinking">
       <view class="role">NewBee</view>
       <view class="text">…</view>
     </view>

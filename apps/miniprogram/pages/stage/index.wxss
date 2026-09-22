@@ -161,25 +161,6 @@ page { height: 100%; background: var(--bg-canvas); }
   border: 1px solid transparent;
   color: var(--text-on-bright);
 }
-.chip-role {
-  font-size: 20rpx;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  max-height: 0;
-  margin-bottom: 0;
-  opacity: 0;
-  overflow: hidden;
-  color: var(--text-on-bright);
-  transition:
-    max-height var(--dur-fly) var(--ease-out),
-    margin-bottom var(--dur-fly) var(--ease-out),
-    opacity var(--dur-fast) var(--ease-out);
-}
-.chip.to-user .chip-role {
-  max-height: 40rpx;
-  margin-bottom: 6rpx;
-  opacity: 1;
-}
 .chip-label {
   font-size: 28rpx;
   font-weight: 600;

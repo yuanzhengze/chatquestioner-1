@@ -41,6 +41,12 @@ export interface AdvanceDeps {
   systemPrompt?: string;
   skillDir?: string;
   onToken?: (token: string) => void;
+  /**
+   * 模型说完、开始写文档那一刻。
+   * 真正耗时的是接下来的字段抽取，编译本身只有几毫秒 ——
+   * 所以状态要在这里报，报到编译前就没有可见的时间窗了。
+   */
+  onWritingGdd?: () => void;
   retrieve?: Retriever;
 }
 
@@ -179,10 +185,15 @@ function cardsForReply(
   return { options: fromJson, phase: "interview" };
 }
 
+/**
+ * onReplyEnd：人话刚说完那一刻。
+ * 哨兵之后模型还要吐一段用户看不见的 JSON，等整条流结束才报状态就会晚上好几秒。
+ */
 async function collectStream(
   llm: LlmClient,
   messages: ChatMessage[],
   onToken?: (t: string) => void,
+  onReplyEnd?: () => void,
 ): Promise<string> {
   let full = "";
   let emitted = 0;
@@ -196,6 +207,7 @@ async function collectStream(
       if (sIdx > emitted) onToken(full.slice(emitted, sIdx));
       emitted = sIdx;
       stopped = true;
+      onReplyEnd?.();
     } else {
       const safeEnd = Math.max(emitted, full.length - hold);
       if (safeEnd > emitted) {
@@ -207,6 +219,8 @@ async function collectStream(
   if (onToken && !stopped && full.length > emitted) {
     onToken(full.slice(emitted));
   }
+  /** 没出哨兵的话，流结束就是人话结束。 */
+  if (!stopped) onReplyEnd?.();
   return full;
 }
 
@@ -467,10 +481,21 @@ export async function advance(
   ];
 
   let streamed = "";
-  let raw = await collectStream(deps.llm, messages, (t) => {
-    streamed += t;
-    deps.onToken?.(t);
-  });
+  let told = false;
+  const tellWritingGdd = () => {
+    if (told || !generating) return;
+    told = true;
+    deps.onWritingGdd?.();
+  };
+  let raw = await collectStream(
+    deps.llm,
+    messages,
+    (t) => {
+      streamed += t;
+      deps.onToken?.(t);
+    },
+    tellWritingGdd,
+  );
   let parsed = parseTurnOutput(raw);
   if (streamed.trim()) parsed = { ...parsed, reply: streamed.trim() };
   const summaryTurn = looksLikeConceptSummary(parsed.reply);
@@ -503,6 +528,7 @@ export async function advance(
       parsed.reply,
     ),
   );
+  tellWritingGdd();
   return finish(
     state,
     parsed.reply,

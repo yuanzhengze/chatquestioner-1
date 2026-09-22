@@ -32,6 +32,7 @@ export interface SseHandlers {
   onStage?: (info: StageInfo) => void;
   onOptions?: (options: TurnOption[]) => void;
   onSynthesis?: (payload: { gddMarkdown: string; gddModel?: unknown; gddView?: unknown; complete?: boolean; draftBar?: boolean }) => void;
+  onActivity?: (kind: string) => void;
   onWarning?: () => void;
   onError?: (message: string) => void;
   onDone?: (readyForSynthesis: boolean, extra?: { openPreview?: boolean }) => void;

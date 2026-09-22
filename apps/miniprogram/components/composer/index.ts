@@ -1,6 +1,8 @@
 Component({
   properties: {
     busy: { type: Boolean, value: false },
+    /** think：思考中。gdd：游戏文档生成中。空：平时。 */
+    mode: { type: String, value: "" },
     disabled: { type: Boolean, value: false },
     safeBottom: { type: Number, value: 0 },
     keyboardHeight: { type: Number, value: 0 },
@@ -23,6 +25,7 @@ Component({
   },
   methods: {
     onInput(e: { detail: { value: string } }) {
+      if (this.properties.busy) return;
       const value = e.detail.value;
       this.setData({ value });
       this.triggerEvent("draft", { value });

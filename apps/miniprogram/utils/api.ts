@@ -27,6 +27,9 @@ function dispatch(ev: { event: string; data: unknown }, h: SseHandlers): void {
         draftBar: data.draftBar === true,
       });
       break;
+    case "activity":
+      h.onActivity?.(String(data.kind ?? ""));
+      break;
     case "warning":
       h.onWarning?.();
       break;

@@ -359,6 +359,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           skillDir: deps.skillDir,
           retrieve: deps.retrieve,
           onToken: (text) => sendEvent(reply, SSE_EVENTS.token, { text }),
+          onWritingGdd: () => sendEvent(reply, SSE_EVENTS.activity, { kind: "gdd" }),
         });
         await deps.store.save(req.params.id, res.state);
 

@@ -8,6 +8,7 @@ export const SSE_EVENTS = {
   stage: "stage",
   options: "options",
   synthesis: "synthesis",
+  activity: "activity",
   error: "error",
   done: "done",
 } as const;

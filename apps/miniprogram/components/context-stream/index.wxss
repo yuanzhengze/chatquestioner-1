@@ -43,6 +43,12 @@
 .bubble.appear {
   animation: bubbleIn var(--dur-panel) var(--ease-out) both;
 }
+/** 还没出字时只留一粒点，不要拉成和正式回复一样宽。 */
+.bubble.thinking {
+  width: fit-content;
+  max-width: 40%;
+  padding: 8rpx 16rpx;
+}
 @keyframes bubbleIn {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -22,6 +22,9 @@
 .input.on {
   border-color: var(--border-focus);
 }
+.input.locked {
+  color: var(--text-3);
+}
 .ph { color: var(--text-3); }
 .send {
   flex-shrink: 0;
