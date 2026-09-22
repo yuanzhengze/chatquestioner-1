@@ -3,6 +3,8 @@
  * 这里不碰 wx API，方便单测。
  */
 
+var splitQuestion = require("./splitQuestion.js");
+
 /** 定稿三选、补丁三选是「做决定」，不是问方向，问句不加衬底。 */
 function isDirectionAsk(options) {
   var list = Array.isArray(options) ? options : [];
@@ -15,6 +17,20 @@ function isDirectionAsk(options) {
   if (/应用这些改动/.test(blob) && /再改改说法/.test(blob)) return false;
   if (/定稿|写成设计文档/.test(blob) && /(改一|再挖)/.test(blob)) return false;
   return true;
+}
+
+/**
+ * 问句该不该加衬底。
+ * 方向三选出来之后以选项为准；流式还没出卡时，问号一出现就按最终版式排，
+ * 免得选项挂上的那一帧整段突然换成带底的版本。
+ * 定稿 / 补丁三选、以及没有选项的开场，出卡或说完后不加衬底。
+ */
+function shouldTintAsk(message, streaming) {
+  if (!message || message.role === "user") return false;
+  if (!splitQuestion.hasQuestionMark(message.content)) return false;
+  if (message.tintAsk === true || isDirectionAsk(message.options)) return true;
+  var hasOpts = Array.isArray(message.options) && message.options.length > 0;
+  return streaming === true && !hasOpts;
 }
 
 /** 还能点的三选。没有就是空数组。 */
@@ -185,6 +201,7 @@ function settleDrift(scrollTop, freeze) {
 }
 
 module.exports.isDirectionAsk = isDirectionAsk;
+module.exports.shouldTintAsk = shouldTintAsk;
 module.exports.liveOptions = liveOptions;
 module.exports.optionsOf = optionsOf;
 module.exports.attachLiveOptions = attachLiveOptions;

@@ -7,6 +7,7 @@ type Rect = { left: number; top: number; width: number; height: number };
 
 const {
   isDirectionAsk,
+  shouldTintAsk,
   liveOptions,
   optionsOf,
   attachLiveOptions,
@@ -20,6 +21,7 @@ const {
   settleDrift,
 } = createRequire(import.meta.url)("../utils/messageOptions.js") as {
   isDirectionAsk: (options: unknown) => boolean;
+  shouldTintAsk: (message: Msg | null, streaming: boolean) => boolean;
   liveOptions: (messages: Msg[]) => Opt[];
   optionsOf: (messages: Msg[]) => { options: Opt[]; at: number; live: boolean; pendingId: string };
   attachLiveOptions: (messages: Msg[], options: unknown) => Msg[];
@@ -51,6 +53,29 @@ const PATCH: Opt[] = [
 ];
 
 describe("messageOptions", () => {
+  it("流式一出问号就按最终衬底排，出卡时不再换版", () => {
+    const ask = { role: "assistant", content: "这个点子挺有画面。你更想守摊还是赶集？" };
+    expect(shouldTintAsk(ask, true)).toBe(true);
+    expect(shouldTintAsk(ask, false)).toBe(false);
+    expect(shouldTintAsk({ role: "assistant", content: "还在铺垫，问号没到" }, true)).toBe(false);
+    expect(shouldTintAsk({ role: "user", content: "守摊还是赶集？" }, true)).toBe(false);
+  });
+
+  it("方向三选保持衬底，定稿三选和开场说完都不加", () => {
+    const asked = attachLiveOptions(
+      [{ role: "assistant", content: "你更想守摊还是赶集？" }],
+      DIRECTION,
+    )[0];
+    expect(shouldTintAsk(asked, false)).toBe(true);
+
+    const converged = attachLiveOptions(
+      [{ role: "assistant", content: "要按这个定稿吗？" }],
+      CONVERGENCE,
+    )[0];
+    expect(shouldTintAsk(converged, true)).toBe(false);
+    expect(shouldTintAsk(converged, false)).toBe(false);
+  });
+
   it("只有问方向的三选才算方向问句", () => {
     expect(isDirectionAsk(DIRECTION)).toBe(true);
     expect(isDirectionAsk(CONVERGENCE)).toBe(false);

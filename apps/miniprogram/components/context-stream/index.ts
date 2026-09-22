@@ -1,6 +1,6 @@
 const { mdToHtml } = require("../../utils/md.js");
-const { hasQuestionMark, splitQuestion } = require("../../utils/splitQuestion.js");
-const { optionsOf, isDirectionAsk } = require("../../utils/messageOptions.js");
+const { splitQuestion } = require("../../utils/splitQuestion.js");
+const { optionsOf, shouldTintAsk } = require("../../utils/messageOptions.js");
 
 type Msg = {
   role?: string;
@@ -57,7 +57,7 @@ Component({
         const user = (m.role || "assistant") === "user";
         const raw = m.content || "";
         const streaming = Boolean(busy) && index === lastIndex && !user;
-        const tint = !user && hasQuestionMark(raw) && (m.tintAsk === true || isDirectionAsk(m.options));
+        const tint = shouldTintAsk(m, streaming);
 
         let html = "";
         let leadHtml = "";
