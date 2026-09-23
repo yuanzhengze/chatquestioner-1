@@ -123,7 +123,7 @@
   </view>
 
   <view wx:if="{{!fromShare}}" class="share-actions">
-    <button class="share-btn" open-type="share" hover-class="press">分享给朋友</button>
+    <button class="share-btn" open-type="share" hover-class="press" bindtap="markSheet">分享给朋友</button>
     <button class="export-btn" hover-class="press" bindtap="onExportFile">导出 GDD 文件</button>
   </view>
 

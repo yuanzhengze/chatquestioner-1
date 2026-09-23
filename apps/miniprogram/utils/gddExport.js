@@ -97,6 +97,35 @@ function shareGddMarkdown(opts) {
   return { ok: true, fileName: mdName };
 }
 
+/** 预览页和共创卡片共用。规则在 shareGddMarkdown：先 .md，被拒再 .txt，取消不报失败。 */
+function sendGddFile(title, markdown) {
+  var wxApi = typeof wx !== "undefined" ? wx : null;
+  if (!wxApi || !wxApi.env) {
+    return { ok: false, reason: "api" };
+  }
+  var result = shareGddMarkdown({
+    title: title,
+    markdown: markdown,
+    userDataPath: wxApi.env.USER_DATA_PATH,
+    writeFileSync: function (filePath, data, encoding) {
+      wxApi.getFileSystemManager().writeFileSync(filePath, data, encoding);
+    },
+    shareFileMessage: function (opts) {
+      wxApi.shareFileMessage(opts);
+    },
+    onFail: function () {
+      wxApi.showToast({ title: "文件没发出去，可以先复制全文", icon: "none" });
+    },
+    onUnsupported: function () {
+      wxApi.showToast({ title: "模拟器发不了，请用真机", icon: "none" });
+    },
+  });
+  if (!result.ok && result.reason === "empty") {
+    wxApi.showToast({ title: "还没有文档可导出", icon: "none" });
+  }
+  return result;
+}
+
 module.exports = {
   sanitizeExportBase: sanitizeExportBase,
   gddExportFileName: gddExportFileName,
@@ -104,4 +133,5 @@ module.exports = {
   isShareCancel: isShareCancel,
   isDevtoolsShareUnsupported: isDevtoolsShareUnsupported,
   shareGddMarkdown: shareGddMarkdown,
+  sendGddFile: sendGddFile,
 };

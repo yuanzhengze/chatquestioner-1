@@ -14,4 +14,15 @@ function parseGddPreview(md) {
   return { title: title, pitch: pitch };
 }
 
+/** 共创卡片的封面位。高度固定，状态只换里面的字或图。 */
+function coverSlot(meta) {
+  var status = meta && meta.status ? String(meta.status) : "";
+  var image = meta && meta.imageUrl ? String(meta.imageUrl).trim() : "";
+  if (status === "ready" && image) return "ready";
+  if (status === "failed") return "failed";
+  if (status === "pending") return "pending";
+  return "empty";
+}
+
 module.exports.parseGddPreview = parseGddPreview;
+module.exports.coverSlot = coverSlot;

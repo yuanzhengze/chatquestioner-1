@@ -7,6 +7,7 @@ const {
   joinUserDataPath,
   isShareCancel,
   shareGddMarkdown,
+  sendGddFile,
 } = createRequire(import.meta.url)("../utils/gddExport.js") as {
   sanitizeExportBase: (title: unknown) => string;
   gddExportFileName: (title: unknown, ext?: string) => string;
@@ -26,6 +27,7 @@ const {
     onFail?: () => void;
     onUnsupported?: () => void;
   }) => { ok: boolean; reason?: string; fileName?: string };
+  sendGddFile: (title: unknown, markdown: unknown) => { ok: boolean; reason?: string };
 };
 
 describe("gddExport 文件名", () => {
@@ -156,5 +158,9 @@ describe("shareGddMarkdown", () => {
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("write");
     expect(failed).toBe(true);
+  });
+
+  it("共创页和文档页调用的发送函数确实是函数", () => {
+    expect(typeof sendGddFile).toBe("function");
   });
 });

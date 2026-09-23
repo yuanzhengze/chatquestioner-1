@@ -1,10 +1,12 @@
-import { createSession, getSession, deleteSession, sendMessage, startLinePatch } from "../../utils/api";
+import { createSession, getSession, deleteSession, sendMessage, startLinePatch, createShare, getCoverMeta, downloadCover, attachShareCover } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
-import { GDD_DRAFT_KEY, GDD_PATCH_KEY, FX_CHROME, LOGO_SRC } from "../../config";
+import { GDD_DRAFT_KEY, GDD_PATCH_KEY, FX_CHROME, LOGO_SRC, API_BASE } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
 
 const { gddFromState } = require("../../utils/gdd.js");
-const { parseGddPreview } = require("../../utils/gddPreview.js");
+const { parseGddPreview, coverSlot } = require("../../utils/gddPreview.js");
+const gddExport = require("../../utils/gddExport.js");
+const { captureShareCard } = require("../../utils/gddShareCard.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
 const legal = require("../../utils/legal.js");
@@ -28,6 +30,16 @@ const WAKING = "正在唤醒 NewBee…";
 const FLY_MS = 320;
 /** 尾巴露进屏幕时，和可视区底边留的空隙（px）。 */
 const TAIL_PAD = 12;
+/** 封面轮询和预览页同一节奏。卡片高度不跟着封面变。 */
+const COVER_POLL_MS = 2000;
+const COVER_POLL_MAX = 90;
+
+function absUrl(path: string): string {
+  const p = String(path || "").trim();
+  if (!p) return "";
+  if (/^https?:\/\//i.test(p)) return p;
+  return `${API_BASE}${p.startsWith("/") ? p : `/${p}`}`;
+}
 
 type Rect = { left: number; top: number; width: number; height: number } | null;
 
@@ -67,6 +79,10 @@ Page({
     chipScale: 1,
     gddMarkdown: "",
     gddTitle: "",
+    gddPitch: "",
+    gddCoverUrl: "",
+    /** pending | ready | failed | empty */
+    gddCoverState: "empty",
     gddKicker: "游戏文档已成型",
     gddGo: "打开预览",
     showGdd: false,
@@ -100,6 +116,13 @@ Page({
     this._synthesisDraftBar = false;
     this._lastOptions = [] as TurnOption[];
     this._openGddTimer = 0 as number;
+    this._coverTimer = 0 as number;
+    this._coverTries = 0;
+    this._shareId = "";
+    this._sharePromise = null as Promise<{ id: string; title: string }> | null;
+    this._shareImage = "";
+    this._shareImagePromise = null as Promise<string> | null;
+    this._shareCardKey = "";
     this._driver = null;
     this._handlingShow = false;
     this._afterConsent = null as null | (() => void);
@@ -207,6 +230,12 @@ Page({
     this._warnTick = 0;
     this._typing = false;
     this.clearMorph();
+    this.stopCoverWatch();
+    this._shareId = "";
+    this._sharePromise = null;
+    this._shareImage = "";
+    this._shareImagePromise = null;
+    this._shareCardKey = "";
     this.setData({
       messages: [{ role: "assistant", content: WAKING }],
       busy: false,
@@ -214,6 +243,9 @@ Page({
       stageLabel: "",
       gddMarkdown: "",
       gddTitle: "",
+      gddPitch: "",
+      gddCoverUrl: "",
+      gddCoverState: "empty",
       gddKicker: "游戏文档已成型",
       gddGo: "打开预览",
       showGdd: false,
@@ -313,6 +345,13 @@ Page({
   },
 
   onShow() {
+    if (this._sheetHide) {
+      this._sheet = false;
+      this._sheetHide = false;
+      applyTabBar(wx, true);
+      return;
+    }
+    this._sheet = false;
     this.clearOpenGdd();
     this.paintChrome();
     this.ensureDriver();
@@ -322,12 +361,26 @@ Page({
 
   onHide() {
     this.clearOpenGdd();
-    /** 去文档预览不是 Tab 页，底栏继续藏着；回到首页或「我的」时再显示。 */
+    /** 去文档预览优先：这是真的离开，不要被分享标记拦住。 */
     if (this._coverTabBar) {
       this._coverTabBar = false;
+      this._sheet = false;
+      return;
+    }
+    /**
+     * 分享面板和导出文件面板会把页面盖住，微信因此走到 onHide。
+     * 这不是离开共创。底栏继续藏着，回来也不重排。
+     */
+    if (this._sheet) {
+      this._sheetHide = true;
       return;
     }
     applyTabBar(wx, false);
+  },
+
+  /** 原生分享/导出面板打开前打标，避免 onHide 把底栏放出来。 */
+  markSheet() {
+    this._sheet = true;
   },
 
   async consumeHandoff() {
@@ -433,6 +486,7 @@ Page({
     if (this._flyTimer) clearTimeout(this._flyTimer);
     if (this._flushTimer) clearTimeout(this._flushTimer);
     if (this._openGddTimer) clearTimeout(this._openGddTimer);
+    this.stopCoverWatch();
     if (this._onKeyboard) wx.offKeyboardHeightChange(this._onKeyboard);
   },
 
@@ -727,7 +781,6 @@ Page({
       probeText: "",
       chipShow: false,
       chipOn: false,
-      showGdd: false,
       done: false,
       composerSeed: "",
       seedSeq: this.data.seedSeq + 1,
@@ -959,45 +1012,221 @@ Page({
     const hasDoc = Boolean(markdown && markdown.trim());
     const opts = optionList || this._lastOptions || liveOptions(this.data.messages) || [];
     const showGdd = hasUser && ready && hasDoc && !optionsArePatch(opts);
-    const gddTitle = showGdd ? parseGddPreview(markdown).title : "";
+    const preview = showGdd ? parseGddPreview(markdown) : { title: "", pitch: "" };
+    const keepCover = showGdd && this.data.gddCoverState === "ready" && Boolean(this.data.gddCoverUrl);
     this.setData({
       gddMarkdown: markdown,
-      gddTitle,
+      gddTitle: preview.title,
+      gddPitch: preview.pitch,
       showGdd,
       done: false,
       gddKicker: "游戏文档已成型",
       gddGo: "打开预览",
-    }, () => this.dockGdd(showGdd));
+      gddCoverState: showGdd ? (keepCover ? "ready" : (this.data.gddCoverState === "failed" ? "failed" : "pending")) : "empty",
+      gddCoverUrl: showGdd && keepCover ? this.data.gddCoverUrl : "",
+    }, () => {
+      this.dockGdd(showGdd);
+      this.syncShareMenu(showGdd);
+      if (showGdd) {
+        this.prepareDocShare();
+        this.watchCover();
+      } else {
+        this.stopCoverWatch();
+      }
+    });
+  },
+
+  syncShareMenu(on: boolean) {
+    try {
+      if (on) {
+        wx.showShareMenu({ menus: ["shareAppMessage"] });
+        wx.hideShareMenu({ menus: ["shareTimeline"] });
+      } else {
+        wx.hideShareMenu({ menus: ["shareAppMessage", "shareTimeline"] });
+      }
+    } catch (_e) {
+      // 分享菜单失败不挡卡片
+    }
+  },
+
+  stopCoverWatch() {
+    if (this._coverTimer) clearTimeout(this._coverTimer);
+    this._coverTimer = 0;
+    this._coverWatching = false;
+  },
+
+  watchCover() {
+    if (!this._sessionId || !this.data.showGdd) return;
+    if (this.data.gddCoverState === "ready" && this.data.gddCoverUrl) return;
+    if (this._coverWatching) return;
+    this._coverWatching = true;
+    this._coverTries = 0;
+    this.pollCover();
+  },
+
+  scheduleCoverPoll() {
+    if (this._coverTimer || !this._sessionId || !this.data.showGdd) return;
+    if (this._coverTries >= COVER_POLL_MAX) {
+      if (this.data.gddCoverState === "pending") this.setData({ gddCoverState: "empty" });
+      return;
+    }
+    this._coverTimer = setTimeout(() => {
+      this._coverTimer = 0;
+      this._coverTries += 1;
+      this.pollCover();
+    }, COVER_POLL_MS) as unknown as number;
+  },
+
+  pollCover() {
+    const id = this._sessionId;
+    if (!id || !this.data.showGdd) return;
+    void getCoverMeta(id)
+      .then((meta) => {
+        if (id !== this._sessionId || !this.data.showGdd) return;
+        const slot = coverSlot(meta);
+        if (slot === "ready") {
+          this.stopCoverWatch();
+          const remote = absUrl(meta.imageUrl || "");
+          void downloadCover(remote)
+            .then((local) => {
+              if (id !== this._sessionId) return;
+              this.setData({ gddCoverUrl: local, gddCoverState: "ready" });
+            })
+            .catch(() => {
+              if (id !== this._sessionId) return;
+              this.setData({ gddCoverUrl: remote, gddCoverState: "ready" });
+            });
+          if (this._shareId) void attachShareCover(this._shareId, id).catch(() => "");
+          return;
+        }
+        if (slot === "failed") {
+          this.stopCoverWatch();
+          this.setData({ gddCoverUrl: "", gddCoverState: "failed" });
+          return;
+        }
+        if (slot === "empty" && this._coverTries >= 8) {
+          this.stopCoverWatch();
+          this.setData({ gddCoverUrl: "", gddCoverState: "empty" });
+          return;
+        }
+        if (this.data.gddCoverState !== "pending") this.setData({ gddCoverState: "pending" });
+        this.scheduleCoverPoll();
+      })
+      .catch(() => this.scheduleCoverPoll());
+  },
+
+  onCoverImageError() {
+    this.setData({ gddCoverUrl: "", gddCoverState: "failed" });
+  },
+
+  prepareDocShare() {
+    const markdown = this.data.gddMarkdown;
+    const title = this.data.gddTitle || "未命名游戏";
+    const pitch = this.data.gddPitch || "";
+    if (!markdown) return;
+    const key = title + "\n" + pitch;
+    if (this._shareCardKey !== key) {
+      this._shareCardKey = key;
+      this._shareImage = "";
+      this._shareImagePromise = null;
+    }
+    void this.startShare().catch(() => "");
+    if (!this._shareImagePromise) void this.makeShareCard(title, pitch);
+  },
+
+  startShare(): Promise<{ id: string; title: string }> {
+    if (this._shareId) return Promise.resolve({ id: this._shareId, title: this.data.gddTitle || "未命名游戏" });
+    if (this._sharePromise) return this._sharePromise;
+    const markdown = this.data.gddMarkdown;
+    const title = this.data.gddTitle || "未命名游戏";
+    if (!markdown) return Promise.reject(new Error("empty markdown"));
+    this._sharePromise = createShare(markdown, title, {
+      model: this._synthesisModel || undefined,
+      complete: this._synthesisComplete === true,
+      sessionId: this._sessionId || undefined,
+    })
+      .then((res) => {
+        this._shareId = res.id;
+        return res;
+      })
+      .catch((err) => {
+        this._sharePromise = null;
+        throw err;
+      });
+    return this._sharePromise;
+  },
+
+  makeShareCard(title: string, pitch: string): Promise<string> {
+    this._shareImage = "";
+    const job = captureShareCard(this, FX_CHROME, LOGO_SRC, title, pitch).then((path: string) => {
+      this._shareImage = path;
+      return path;
+    });
+    this._shareImagePromise = job;
+    return job;
+  },
+
+  sharePayload(shareId: string) {
+    const title = this.data.gddTitle || "NewBee 游戏文档";
+    const payload: { title: string; path: string; imageUrl?: string } = {
+      title,
+      path: shareId ? `/pages/gdd/index?s=${shareId}` : "/pages/gdd/index",
+    };
+    if (this._shareImage) payload.imageUrl = this._shareImage;
+    return payload;
+  },
+
+  onShareAppMessage() {
+    const title = this.data.gddTitle || "NewBee 游戏文档";
+    if (!this.data.showGdd || !this.data.gddMarkdown) {
+      return { title, path: "/pages/home/index", imageUrl: LOGO_SRC };
+    }
+    if (!this._shareId) void this.startShare().catch(() => "");
+    if (!this._shareImage) void this.makeShareCard(title, this.data.gddPitch || "");
+    const payload = this.sharePayload(this._shareId || "");
+    if (!payload.imageUrl) payload.imageUrl = LOGO_SRC;
+    return payload;
+  },
+
+  onExportGdd() {
+    this.markSheet();
+    gddExport.sendGddFile(this.data.gddTitle, this.data.gddMarkdown);
   },
 
   /**
-   * 卡片占掉的那截高度要由滚动区让出来。
-   *
-   * 微信在可视高度变矮时**不会**自己收 scrollTop，所以卡片一出现，最后一条消息
-   * 就会落到它后面。这里先量一次卡片矩形 —— 量到说明它已经排好版、滚动区已经变矮 ——
-   * 然后让对话平滑贴一次底。卡片是纯 view，排版同步，量一次就准，不用轮询补。
-   * 标题折行导致高度变化时走同一条路，所以后续改文档也是同一个入口，不会多出第二张卡。
+   * 卡片占掉的高度由滚动区让出来。setData 回调里布局未必已经变矮，
+   * 所以再等一帧量卡片，然后用同一条缓动把尾巴滚进可视区。
+   * 高度没变且尾巴已经在里面时，这次滚动是空操作。
    */
   dockGdd(showGdd: boolean) {
     const stream = this.stream();
     if (!stream || typeof stream.stickBottom !== "function") return;
-    if (!showGdd) {
-      if (this._dockH) {
-        this._dockH = 0;
-        stream.stickBottom(true);
-      }
-      return;
-    }
-    const q = this.createSelectorQuery();
-    q.select("#gdd-dock").boundingClientRect();
-    q.exec((res: Array<{ height?: number } | null>) => {
-      const r = res && res[0];
-      const h = r ? Math.round(Number(r.height)) : 0;
-      if (!isFinite(h) || h <= 0) return;
-      if (Math.abs(h - Number(this._dockH || 0)) <= 1) return;
-      this._dockH = h;
-      stream.stickBottom!(true);
-    });
+    const measure = (attempt: number) => {
+      wx.nextTick(() => {
+        if (!showGdd) {
+          if (this._dockH) {
+            this._dockH = 0;
+            stream.stickBottom!(false);
+          }
+          return;
+        }
+        this.createSelectorQuery().select("#gdd-dock").boundingClientRect().exec((res: Array<{ height?: number } | null>) => {
+          const r = res && res[0];
+          const h = r ? Math.round(Number(r.height)) : 0;
+          if (!isFinite(h) || h <= 0) {
+            if (attempt < 1) measure(attempt + 1);
+            return;
+          }
+          const prev = Number(this._dockH || 0);
+          const grew = Math.abs(h - prev) > 1;
+          this._dockH = h;
+          if (!grew) return;
+          stream.stickBottom!(false);
+          wx.nextTick(() => stream.stickBottom!(false));
+        });
+      });
+    };
+    measure(0);
   },
 
   clearOpenGdd() {

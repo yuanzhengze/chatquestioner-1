@@ -223,11 +223,40 @@ page { height: 100%; background: var(--bg-canvas); }
 }
 .gdd-entry {
   width: 100%;
-  padding: 24rpx 28rpx;
   box-sizing: border-box;
   background: var(--bg-base);
   border: 1px solid var(--border-subtle);
   border-radius: 32rpx;
+  overflow: hidden;
+}
+.gdd-main {
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx;
+}
+.gdd-cover {
+  width: 200rpx;
+  height: 150rpx;
+  flex-shrink: 0;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gdd-cover-img { width: 100%; height: 100%; }
+.gdd-cover-label {
+  padding: 0 12rpx;
+  font-size: 22rpx;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--text-3);
+}
+.gdd-copy {
+  flex: 1;
+  min-width: 0;
 }
 .gdd-kicker {
   font-size: 22rpx;
@@ -238,12 +267,64 @@ page { height: 100%; background: var(--bg-canvas); }
   margin-top: 8rpx;
   font-size: 32rpx;
   font-weight: 600;
+  line-height: 1.35;
   color: var(--text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.gdd-pitch {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.45;
+  color: var(--text-2);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .gdd-go {
-  margin-top: 12rpx;
+  margin-top: 10rpx;
   font-size: 24rpx;
   color: var(--brand);
+}
+.gdd-actions {
+  display: flex;
+  border-top: 1px solid var(--divider);
+}
+.gdd-act {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 22rpx 12rpx;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 26rpx;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1.4;
+  color: var(--brand);
+  text-align: center;
+}
+.gdd-act + .gdd-act { border-left: 1px solid var(--divider); }
+button.gdd-act {
+  font-weight: 700;
+  font-size: 26rpx;
+}
+button.gdd-act::after { border: none; }
+.gdd-act-press { background: var(--hover); }
+.share-canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 500px;
+  height: 400px;
+  transform: translateX(-120%);
+  pointer-events: none;
 }
 .done-bar {
   padding: 20rpx 32rpx 24rpx;

@@ -48,10 +48,29 @@
     它占掉的那截高度由滚动区让出 —— 见 pages/stage/index.ts 的 dockGdd。
   -->
   <view wx:if="{{showGdd}}" id="gdd-dock" class="stage">
-    <view class="gdd-entry" hover-class="gdd-press" bindtap="onOpenGdd">
-      <view class="gdd-kicker">{{gddKicker}}</view>
-      <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
-      <view class="gdd-go">{{gddGo}}</view>
+    <view class="gdd-entry">
+      <view class="gdd-main" hover-class="gdd-press" bindtap="onOpenGdd">
+        <view class="gdd-cover">
+          <image
+            wx:if="{{gddCoverState === 'ready' && gddCoverUrl}}"
+            class="gdd-cover-img"
+            src="{{gddCoverUrl}}"
+            mode="aspectFill"
+            binderror="onCoverImageError"
+          />
+          <view wx:else class="gdd-cover-label">{{gddCoverState === 'pending' ? '封面生成中' : (gddCoverState === 'failed' ? '封面没生成' : '暂无封面')}}</view>
+        </view>
+        <view class="gdd-copy">
+          <view class="gdd-kicker">{{gddKicker}}</view>
+          <view class="gdd-name">{{gddTitle || '未命名游戏'}}</view>
+          <view wx:if="{{gddPitch}}" class="gdd-pitch">{{gddPitch}}</view>
+          <view class="gdd-go">{{gddGo}}</view>
+        </view>
+      </view>
+      <view class="gdd-actions" catchtap="noop">
+        <button class="gdd-act" open-type="share" hover-class="gdd-act-press" bindtap="markSheet">分享给朋友</button>
+        <view class="gdd-act" hover-class="gdd-act-press" bindtap="onExportGdd">导出 GDD 文件</view>
+      </view>
     </view>
   </view>
 
@@ -145,4 +164,6 @@
       <view class="loading-text">正在打开文档…</view>
     </view>
   </view>
+
+  <canvas type="2d" id="shareCard" class="share-canvas"></canvas>
 </view>
