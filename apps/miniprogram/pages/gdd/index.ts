@@ -47,6 +47,7 @@ Page({
     loopOpen: "",
     loopText: "",
     selectedLineId: "",
+    lineActionsOn: false,
   },
 
   _markdown: "",
@@ -136,6 +137,8 @@ Page({
 
   onUnload() {
     if (this._waitTimer) clearTimeout(this._waitTimer);
+    if (this._lineActTimer) clearTimeout(this._lineActTimer);
+    if (this._lineViewTimer) clearTimeout(this._lineViewTimer);
     this.stopCoverWatch();
   },
 
@@ -214,6 +217,7 @@ Page({
         loopOpen: "",
         loopText: "",
         selectedLineId: "",
+        lineActionsOn: false,
       });
       return;
     }
@@ -261,6 +265,7 @@ Page({
       loopOpen: "",
       loopText: "",
       selectedLineId: "",
+      lineActionsOn: false,
     });
     if (this._fromShare) {
       const shareCover = payload && payload.coverImageUrl ? String(payload.coverImageUrl) : "";
@@ -466,7 +471,7 @@ Page({
     const prev = String(this.data.expandedId || "");
     const next = prev === id ? "" : id;
     if (!next) {
-      this.setData({ expandedId: "", selectedLineId: "" });
+      this.setData({ expandedId: "", selectedLineId: "", lineActionsOn: false });
       return;
     }
     this.scrollAccordionTo(prev, next);
@@ -485,7 +490,7 @@ Page({
       const scrollTop = Number((res && res[0] && res[0].scrollTop) || 0);
       const nextRect = res && res[1];
       if (!nextRect || typeof nextRect.top !== "number") {
-        this.setData({ expandedId: nextId, selectedLineId: "" });
+        this.setData({ expandedId: nextId, selectedLineId: "", lineActionsOn: false });
         return;
       }
       let lift = 0;
@@ -498,7 +503,7 @@ Page({
       }
       const padding = 8;
       const target = Math.max(0, scrollTop + nextRect.top - lift - padding);
-      this.setData({ expandedId: nextId, selectedLineId: "" });
+      this.setData({ expandedId: nextId, selectedLineId: "", lineActionsOn: false });
       wx.pageScrollTo({ scrollTop: target, duration: ACCORDION_MS });
     });
   },
@@ -507,7 +512,82 @@ Page({
     if (this.data.fromShare) return;
     const id = String((e.currentTarget.dataset && e.currentTarget.dataset.id) || "").trim();
     if (!id) return;
-    this.setData({ selectedLineId: this.data.selectedLineId === id ? "" : id });
+    if (this.data.selectedLineId === id) {
+      this.onCancelLine();
+      return;
+    }
+    if (this._lineActTimer) {
+      clearTimeout(this._lineActTimer);
+      this._lineActTimer = 0;
+    }
+    if (this._lineViewTimer) {
+      clearTimeout(this._lineViewTimer);
+      this._lineViewTimer = 0;
+    }
+    this.setData({ selectedLineId: id, lineActionsOn: false }, () => {
+      wx.nextTick(() => {
+        if (this.data.selectedLineId !== id) return;
+        this.setData({ lineActionsOn: true });
+        if (this._lineViewTimer) clearTimeout(this._lineViewTimer);
+        /** 等操作条的高度过渡结束再量，量的是展开后的真实位置。 */
+        this._lineViewTimer = setTimeout(() => {
+          this._lineViewTimer = 0;
+          this.keepLineInView(id);
+        }, 200) as unknown as number;
+      });
+    });
+  },
+
+  /**
+   * 只在选中行或操作条超出可视区时，滚动刚好把它们拉回来。
+   * 窗口高度用 getWindowInfo，不用 viewport 的 bottom：页面滚过之后那个 bottom 会变小，
+   * 按它算会把选中行顶出屏幕。
+   */
+  keepLineInView(id: string) {
+    if (this.data.selectedLineId !== id || !this.data.lineActionsOn) return;
+    const info = typeof wx.getWindowInfo === "function" ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const winH = Number(info.windowHeight) || 0;
+    if (!winH) return;
+    const q = wx.createSelectorQuery();
+    q.selectViewport().scrollOffset();
+    q.select(".card-line.on").boundingClientRect();
+    q.select(".line-actions.on").boundingClientRect();
+    q.exec((res: Array<{ scrollTop?: number; top?: number; bottom?: number } | null>) => {
+      if (this.data.selectedLineId !== id || !this.data.lineActionsOn) return;
+      const offset = res && res[0];
+      const line = res && res[1];
+      const bar = res && res[2];
+      if (!offset || !line || typeof line.top !== "number") return;
+      const scrollTop = Number(offset.scrollTop) || 0;
+      const barBottom = bar && typeof bar.bottom === "number" ? bar.bottom : line.bottom;
+      let delta = 0;
+      if (typeof barBottom === "number" && barBottom > winH) {
+        delta = barBottom - winH + 8;
+      }
+      if (line.top - delta < 0) {
+        delta = line.top;
+      }
+      if (delta < -scrollTop) delta = -scrollTop;
+      if (Math.abs(delta) <= 2) return;
+      wx.pageScrollTo({ scrollTop: scrollTop + delta, duration: 200 });
+    });
+  },
+
+  onCancelLine() {
+    if (!this.data.selectedLineId) return;
+    if (this._lineActTimer) clearTimeout(this._lineActTimer);
+    if (this._lineViewTimer) {
+      clearTimeout(this._lineViewTimer);
+      this._lineViewTimer = 0;
+    }
+    const id = this.data.selectedLineId;
+    this.setData({ lineActionsOn: false });
+    this._lineActTimer = setTimeout(() => {
+      this._lineActTimer = 0;
+      if (this.data.selectedLineId === id && !this.data.lineActionsOn) {
+        this.setData({ selectedLineId: "" });
+      }
+    }, 200) as unknown as number;
   },
 
   onPatchLine(e: {

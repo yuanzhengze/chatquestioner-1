@@ -306,18 +306,46 @@ page { background: var(--bg-canvas); color: var(--text); }
   font-size: 26rpx;
   line-height: 1.6;
 }
-.line-edit,
-.line-edit-slot {
-  flex-shrink: 0;
-  width: 32rpx;
-  font-size: 26rpx;
-  line-height: 1.6;
-  text-align: right;
+.line-actions {
+  display: grid;
+  grid-template-rows: 0fr;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    grid-template-rows var(--dur-smooth) var(--ease-out),
+    max-height var(--dur-smooth) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
 }
-.line-edit {
-  color: var(--brand);
+.line-actions.on {
+  grid-template-rows: 1fr;
+  max-height: 96rpx;
+  opacity: 1;
 }
-.card-line:last-child { border-bottom: none; }
+.line-actions-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 4rpx 8rpx 12rpx;
+}
+.line-act {
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.line-act.primary {
+  background: var(--action-primary-bg);
+  color: var(--action-primary-fg);
+  border-color: transparent;
+}
+.line-act-press { opacity: 0.72; }
 
 .patch-hint {
   margin-top: 28rpx;

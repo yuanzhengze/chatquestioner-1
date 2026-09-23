@@ -76,7 +76,7 @@
     <view wx:if="{{loopText}}" class="loop-text">{{loopText}}</view>
   </view>
 
-  <view wx:if="{{!fromShare && sections.length}}" class="patch-hint">点一句选中，右侧出现 ✎ 再去改。</view>
+  <view wx:if="{{!fromShare && sections.length}}" class="patch-hint">点一句，再点修改。</view>
   <view
     wx:for="{{sections}}"
     wx:key="id"
@@ -89,26 +89,32 @@
     </view>
     <view id="gdd-fold-{{item.id}}" class="card-fold">
       <view class="card-body">
-        <view
-          wx:for="{{item.lines}}"
-          wx:for-item="line"
-          wx:key="id"
-          class="card-line {{fromShare ? '' : 'tap'}} {{selectedLineId === line.id ? 'on' : ''}}"
-          data-id="{{line.id}}"
-          catchtap="onSelectLine"
-        >
-          <text class="card-line-text">{{line.text}}</text>
-          <text
-            wx:if="{{!fromShare && selectedLineId === line.id}}"
-            class="line-edit"
+        <block wx:for="{{item.lines}}" wx:for-item="line" wx:key="id">
+          <view
+            class="card-line {{fromShare ? '' : 'tap'}} {{selectedLineId === line.id ? 'on' : ''}}"
             data-id="{{line.id}}"
-            data-text="{{line.text}}"
-            data-section="{{item.id}}"
-            data-title="{{item.title}}"
-            catchtap="onPatchLine"
-          >✎</text>
-          <text wx:elif="{{!fromShare}}" class="line-edit-slot"></text>
-        </view>
+            catchtap="onSelectLine"
+          >
+            <text class="card-line-text">{{line.text}}</text>
+          </view>
+          <view
+            wx:if="{{!fromShare && selectedLineId === line.id}}"
+            class="line-actions {{lineActionsOn ? 'on' : ''}}"
+          >
+            <view class="line-actions-inner">
+              <view
+                class="line-act primary"
+                hover-class="line-act-press"
+                catchtap="onPatchLine"
+                data-id="{{line.id}}"
+                data-text="{{line.text}}"
+                data-section="{{item.id}}"
+                data-title="{{item.title}}"
+              >修改</view>
+              <view class="line-act" hover-class="line-act-press" catchtap="onCancelLine">取消</view>
+            </view>
+          </view>
+        </block>
       </view>
     </view>
   </view>
