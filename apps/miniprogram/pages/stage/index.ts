@@ -1,10 +1,10 @@
-import { createSession, getSession, deleteSession, sendMessage, startLinePatch, createShare, getCoverMeta, downloadCover, attachShareCover } from "../../utils/api";
+import { createSession, getSession, deleteSession, sendMessage, startLinePatch, createShare, getCoverMeta, downloadCover, downloadCoverFile, attachShareCover } from "../../utils/api";
 import { AvatarDriver } from "../../utils/avatar";
 import { GDD_DRAFT_KEY, GDD_PATCH_KEY, FX_CHROME, LOGO_SRC, API_BASE } from "../../config";
 import type { ChatMessage, StageInfo, TurnOption } from "../../utils/types";
 
 const { gddFromState } = require("../../utils/gdd.js");
-const { parseGddPreview, coverSlot } = require("../../utils/gddPreview.js");
+const { parseGddPreview, coverSlot, recordCard, coverFileMatches } = require("../../utils/gddPreview.js");
 const gddExport = require("../../utils/gddExport.js");
 const { captureShareCard } = require("../../utils/gddShareCard.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
@@ -93,7 +93,7 @@ Page({
     seedSeq: 0,
     showMenu: false,
     showHistory: false,
-    historyItems: [] as Array<{ id: string; title: string; current: boolean }>,
+    historyItems: [] as Array<{ id: string; title: string; pitch: string; coverUrl: string; hasDoc: boolean; current: boolean }>,
     showConsent: false,
     consentChecked: false,
     showLegal: false,
@@ -127,6 +127,8 @@ Page({
     this._handlingShow = false;
     this._afterConsent = null as null | (() => void);
     this._deleting = false;
+    this._histGen = 0;
+    this._histCache = {} as Record<string, { title: string; pitch: string; coverUrl: string; hasDoc: boolean; coverPath?: string }>;
     this._choosing = false;
     this._flyTimer = 0 as number;
     this._fromRect = null as Rect;
@@ -892,13 +894,73 @@ Page({
 
   refreshIndexHint() {
     const idx = sessionIndex.load();
+    const cache = this._histCache || {};
     this.setData({
-      historyItems: idx.items.map((it: { id: string; title?: string }) => ({
-        id: it.id,
-        title: it.title || "未命名共创",
-        current: it.id === this._sessionId,
-      })),
+      historyItems: idx.items.map((it: { id: string; title?: string }) => {
+        const prev = cache[it.id];
+        return {
+          id: it.id,
+          title: (prev && prev.title) || it.title || "未命名共创",
+          pitch: prev ? prev.pitch : "",
+          coverUrl: prev && coverFileMatches(it.id, prev.coverUrl) ? prev.coverUrl : "",
+          hasDoc: prev ? prev.hasDoc : false,
+          current: it.id === this._sessionId,
+        };
+      }),
     });
+  },
+
+  onOpenHistory() {
+    this.refreshIndexHint();
+    this.setData({ showHistory: true, showMenu: false });
+    this.enrichHistory();
+  },
+
+  enrichHistory() {
+    const gen = this._histGen + 1;
+    this._histGen = gen;
+    const items = (sessionIndex.load().items || []) as Array<{ id: string; title?: string }>;
+    void Promise.all(items.map((it) => this.loadHistCard(it))).then((cards) => {
+      if (gen !== this._histGen) return;
+      const keep: Record<string, { title: string; pitch: string; coverUrl: string; hasDoc: boolean; coverPath?: string }> = {};
+      cards.forEach((card) => { keep[card.id] = card; });
+      this._histCache = keep;
+      if (!this.data.showHistory) return;
+      this.setData({
+        historyItems: cards.map((card) => ({
+          id: card.id,
+          title: card.title,
+          pitch: card.pitch,
+          coverUrl: card.coverUrl,
+          hasDoc: card.hasDoc,
+          current: card.id === this._sessionId,
+        })),
+      });
+    });
+  },
+
+  async loadHistCard(it: { id: string; title?: string }) {
+    const prev = this._histCache[it.id];
+    try {
+      const state = await getSession(it.id);
+      const card = recordCard(it, state) as { id: string; title: string; pitch: string; hasDoc: boolean; coverPath: string };
+      let coverUrl = "";
+      if (card.coverPath) {
+        if (prev && prev.coverPath === card.coverPath && coverFileMatches(it.id, prev.coverUrl)) coverUrl = prev.coverUrl;
+        else {
+          try {
+            const remote = /^https?:\/\//i.test(card.coverPath) ? card.coverPath : `${API_BASE}${card.coverPath.startsWith("/") ? card.coverPath : `/${card.coverPath}`}`;
+            coverUrl = await downloadCoverFile(remote, it.id);
+          } catch (_e) {
+            coverUrl = "";
+          }
+        }
+      }
+      return { id: card.id, title: card.title, pitch: card.pitch, hasDoc: card.hasDoc, coverUrl, coverPath: card.coverPath };
+    } catch (_e) {
+      if (prev) return { id: it.id, ...prev };
+      return { id: it.id, title: it.title || "未命名共创", pitch: "", hasDoc: false, coverUrl: "", coverPath: "" };
+    }
   },
 
   onToggleMenu() {
@@ -907,11 +969,6 @@ Page({
 
   onCloseMenu() {
     if (this.data.showMenu) this.setData({ showMenu: false });
-  },
-
-  onOpenHistory() {
-    this.refreshIndexHint();
-    this.setData({ showHistory: true, showMenu: false });
   },
 
   onCloseHistory() {
@@ -953,6 +1010,7 @@ Page({
       return;
     }
     sessionIndex.remove(id);
+    if (this._histCache) delete this._histCache[id];
     try {
       wx.removeStorageSync(GDD_DRAFT_KEY);
     } catch (_e) {

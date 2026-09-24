@@ -107,24 +107,31 @@
 
   <view wx:if="{{showMenu}}" class="menu-mask" catchtap="onCloseMenu"></view>
 
-  <view wx:if="{{showHistory}}" class="hist-mask" catchtap="onCloseHistory">
-    <view class="hist-panel" catchtap="noop">
-      <view class="hist-head">共创历史</view>
-      <view wx:if="{{historyItems.length === 0}}" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
-      <scroll-view wx:if="{{historyItems.length > 0}}" scroll-y class="hist-list">
-        <view
-          wx:for="{{historyItems}}"
-          wx:key="id"
-          class="hist-item {{item.current ? 'on' : ''}}"
-        >
-          <view class="hist-main" data-id="{{item.id}}" bindtap="onPickSession">
-            <view class="hist-title">{{item.title}}</view>
+  <view wx:if="{{showHistory}}" class="hist-mask" catchtap="onCloseHistory"></view>
+  <view wx:if="{{showHistory}}" class="hist-panel">
+    <view class="hist-head">共创历史</view>
+    <view wx:if="{{historyItems.length === 0}}" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
+    <scroll-view wx:if="{{historyItems.length > 0}}" scroll-y class="hist-list">
+      <view
+        wx:for="{{historyItems}}"
+        wx:key="id"
+        class="side-rec {{item.current ? 'on' : ''}}"
+      >
+        <view class="side-main" data-id="{{item.id}}" bindtap="onPickSession">
+          <view class="side-cover">
+            <image wx:if="{{item.coverUrl}}" class="side-img" src="{{item.coverUrl}}" mode="aspectFill" />
+            <image wx:else class="side-ph" src="{{logoSrc}}" mode="aspectFit" />
           </view>
-          <view class="hist-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
+          <view class="side-copy">
+            <view class="side-title">{{item.title}}</view>
+            <view wx:if="{{item.pitch}}" class="side-pitch">{{item.pitch}}</view>
+            <view class="side-state {{item.hasDoc ? 'doc' : ''}}">{{item.hasDoc ? '已生成文档' : '未生成文档'}}</view>
+          </view>
         </view>
-      </scroll-view>
-      <view class="hist-close" bindtap="onCloseHistory">关闭</view>
-    </view>
+        <view class="side-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
+      </view>
+    </scroll-view>
+    <view class="hist-close" bindtap="onCloseHistory">关闭</view>
   </view>
 
   <view wx:if="{{showConsent}}" class="consent-mask" catchtap="onCloseConsent">
@@ -157,7 +164,7 @@
     </view>
   </view>
 
-  <view wx:if="{{openingGdd}}" class="loading-mask">
+  <view wx:if="{{openingGdd}}" class="loading-mask" catchtap="noop">
     <view class="loading-card">
       <image class="loading-logo" src="{{logoSrc}}" mode="aspectFit" />
       <view class="spinner"></view>
