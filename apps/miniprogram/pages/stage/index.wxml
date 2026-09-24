@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="header">
+  <view class="header {{showHistory ? 'under' : ''}}">
     <view class="header-row">
       <view class="header-left">
         <view class="icon-btn" bindtap="onBackToHome" aria-role="button" aria-label="返回首页">
@@ -131,6 +131,7 @@
         </view>
         <view class="side-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
       </view>
+      <view class="hist-list-end"></view>
     </scroll-view>
     <view class="hist-close" bindtap="onCloseHistory">关闭</view>
   </view>

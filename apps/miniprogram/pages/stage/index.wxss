@@ -13,6 +13,13 @@ page { height: 100%; background: var(--bg-canvas); }
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--divider);
 }
+/**
+ * 历史侧栏从屏幕顶端开始画。顶栏平时 70 会盖住侧栏上面一截（标题和第一张卡）。
+ * 侧栏打开时菜单已经收起，顶栏不再建层，回到普通文档流，落到遮罩 36 和侧栏 37 下面。
+ */
+.header.under {
+  z-index: auto;
+}
 .header-row {
   display: flex;
   align-items: center;
@@ -391,7 +398,7 @@ button.gdd-act::after { border: none; }
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding: 28rpx 0 32rpx;
+  padding: 28rpx 0 calc(24rpx + env(safe-area-inset-bottom));
   background: var(--bg-base);
   border-right: 1px solid var(--border-subtle);
   animation: histIn var(--dur-panel) var(--ease-out);
@@ -401,22 +408,28 @@ button.gdd-act::after { border: none; }
   to { transform: translateX(0); }
 }
 .hist-head {
+  flex: 0 0 auto;
   padding: 0 28rpx 20rpx;
   font-size: 32rpx;
   font-weight: 600;
   color: var(--text);
+  border-bottom: 1px solid var(--divider);
 }
 .hist-empty {
-  padding: 12rpx 28rpx;
+  flex: 1 1 auto;
+  padding: 20rpx 28rpx;
   font-size: 26rpx;
   line-height: 1.55;
   color: var(--text-2);
 }
+/** 标题、列表、关闭三段纵向排布：列表只拿剩下的高度，上下都不被别的块盖住。 */
 .hist-list {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
-  height: 100%;
+  box-sizing: border-box;
+  padding-top: 16rpx;
 }
+.hist-list-end { height: 4rpx; }
 .side-rec {
   display: flex;
   align-items: stretch;
@@ -482,7 +495,8 @@ button.gdd-act::after { border: none; }
   color: var(--error);
 }
 .hist-close {
-  margin: 20rpx 28rpx 0;
+  flex: 0 0 auto;
+  margin: 16rpx 28rpx 0;
   height: 80rpx;
   display: flex;
   align-items: center;
