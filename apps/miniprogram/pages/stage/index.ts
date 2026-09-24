@@ -275,6 +275,16 @@ Page({
     const gddComplete = state.gddComplete === true;
     const md = typeof state.gddMarkdown === "string" ? state.gddMarkdown : "";
     const model = state.gddModel && typeof state.gddModel === "object" ? state.gddModel : null;
+    const switched = id !== this._sessionId;
+    if (switched) {
+      /** 封面和分享卡归属于会话。换会话时先清掉，否则 refreshResult 会把上一条的封面留给这一条。 */
+      this.stopCoverWatch();
+      this._shareId = "";
+      this._sharePromise = null;
+      this._shareImage = "";
+      this._shareImagePromise = null;
+      this._shareCardKey = "";
+    }
     this._sessionId = id;
     this._state = state;
     this._lastOptions = options;
@@ -288,7 +298,9 @@ Page({
     this._synthesisComplete = gddComplete;
     this._synthesisDraftBar = state.gddDraftBar === true || state.draftBar === true;
     this.clearMorph();
+    const coverReset = switched ? { gddCoverUrl: "", gddCoverState: "empty" } : {};
     this.setData({
+      ...coverReset,
       messages: attachLiveOptions(
         messages.length ? messages : [{ role: "assistant", content: WAKING }],
         options,
