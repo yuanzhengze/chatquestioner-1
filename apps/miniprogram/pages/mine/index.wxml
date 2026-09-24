@@ -17,20 +17,41 @@
       <view class="hist-toggle-title">共创记录</view>
       <view class="hist-chevron {{histOpen ? 'on' : ''}}"></view>
     </view>
-    <view wx:if="{{histOpen}}" class="hist-body">
-      <view wx:if="{{historyItems.length === 0}}" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
-      <scroll-view wx:if="{{historyItems.length > 0}}" scroll-y class="hist-list" style="height: {{histListHeight}}rpx;">
-        <view
-          wx:for="{{historyItems}}"
-          wx:key="id"
-          class="hist-item {{item.current ? 'on' : ''}}"
-        >
-          <view class="hist-main" data-id="{{item.id}}" bindtap="onPickSession">
-            <view class="hist-title">{{item.title}}</view>
+    <view class="hist-clip {{histOpen ? 'on' : ''}}" style="height: {{histOpen ? histPanelPx : 0}}px;">
+      <view class="hist-reveal">
+      <view wx:if="{{historyItems.length === 0}}" id="hist-empty" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
+      <scroll-view
+        wx:else
+        scroll-y
+        show-scrollbar="{{false}}"
+        class="hist-scroll"
+        style="height: {{histScrollPx}}px;"
+      >
+        <view id="hist-measure" class="hist-cards">
+          <view
+            wx:for="{{historyItems}}"
+            wx:key="id"
+            class="rec {{pickedId === item.id ? 'on' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onPickCard"
+          >
+            <view class="rec-cover">
+              <image wx:if="{{item.coverUrl}}" class="rec-img" src="{{item.coverUrl}}" mode="aspectFill" />
+              <image wx:else class="rec-ph" src="{{logoSrc}}" mode="aspectFit" />
+            </view>
+            <view class="rec-copy">
+              <view class="rec-title">{{item.title}}</view>
+              <view wx:if="{{item.pitch}}" class="rec-pitch">{{item.pitch}}</view>
+              <view wx:elif="{{!item.hasDoc}}" class="rec-pitch muted">还在共创，文档还没生成</view>
+            </view>
+            <view class="rec-side" catchtap="noop">
+              <view class="rec-go" hover-class="rec-press" data-id="{{item.id}}" catchtap="onRecordAction">{{item.action === 'view' ? '查看' : '继续'}}</view>
+              <view class="rec-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
+            </view>
           </view>
-          <view class="hist-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
         </view>
       </scroll-view>
+      </view>
     </view>
   </view>
 

@@ -3,6 +3,15 @@ import { Utf8StreamDecoder } from "./utf8";
 import { shared } from "./shared";
 import type { SseHandlers, StageInfo, TurnOption } from "./types";
 
+const { coverFileName, resolveCoverDownload } = require("./gddPreview.js") as {
+  coverFileName: (sessionId: string) => string;
+  resolveCoverDownload: (
+    sessionId: string,
+    requestedPath: string,
+    result: { filePath?: string; tempFilePath?: string } | null,
+  ) => { localPath: string; copyFrom: string };
+};
+
 function dispatch(ev: { event: string; data: unknown }, h: SseHandlers): void {
   const data = ev.data as Record<string, unknown>;
   switch (ev.event) {
@@ -289,6 +298,49 @@ export function downloadCover(url: string): Promise<string> {
       success(res: { statusCode: number; tempFilePath?: string }) {
         if (res.statusCode === 200 && res.tempFilePath) resolve(res.tempFilePath);
         else reject(new Error(`downloadCover ${res.statusCode}`));
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "downloadCover network error"));
+      },
+    });
+  });
+}
+
+/** 只给记录列表用。共创页单张封面仍走 downloadCover，这里不改那条路径。 */
+export function downloadCoverFile(url: string, sessionId: string): Promise<string> {
+  const name = coverFileName(sessionId);
+  const filePath = name ? `${wx.env.USER_DATA_PATH}/${name}` : "";
+  return new Promise((resolve, reject) => {
+    if (!url || !filePath) {
+      reject(new Error("empty cover url"));
+      return;
+    }
+    wx.downloadFile({
+      url,
+      filePath,
+      timeout: 60000,
+      success(res: { statusCode: number; filePath?: string; tempFilePath?: string }) {
+        if (res.statusCode !== 200) {
+          reject(new Error(`downloadCover ${res.statusCode}`));
+          return;
+        }
+        const picked = resolveCoverDownload(sessionId, filePath, res);
+        if (!picked.localPath) {
+          reject(new Error("downloadCover missing session file"));
+          return;
+        }
+        if (!picked.copyFrom) {
+          resolve(picked.localPath);
+          return;
+        }
+        try {
+          const fs = wx.getFileSystemManager();
+          const bytes = fs.readFileSync(picked.copyFrom);
+          fs.writeFileSync(picked.localPath, bytes);
+          resolve(picked.localPath);
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error("downloadCover copy failed"));
+        }
       },
       fail(err: { errMsg?: string }) {
         reject(new Error(err.errMsg || "downloadCover network error"));

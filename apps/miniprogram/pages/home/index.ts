@@ -85,12 +85,14 @@ Page({
 
   onStart() {
     if (!this.requireAgree()) return;
+    bridge.setEntryOrigin("home");
     bridge.setPendingChat({ type: this.data.hasLast ? "resume" : "boot" });
     bridge.goChat();
   },
 
   onNewSession() {
     if (!this.requireAgree()) return;
+    bridge.setEntryOrigin("home");
     bridge.setPendingChat({ type: "boot" });
     bridge.goChat();
   },
@@ -98,6 +100,7 @@ Page({
   onUseIdea(e: { currentTarget: { dataset: { text?: string } } }) {
     const text = e.currentTarget.dataset.text;
     if (!text) return;
+    bridge.setEntryOrigin("home");
     bridge.setPendingPrompt(text);
     bridge.goChat();
   },
@@ -107,6 +110,7 @@ Page({
     const pitch = e.currentTarget.dataset.pitch || "";
     const text = [title, pitch].filter(Boolean).join("：");
     if (!text) return;
+    bridge.setEntryOrigin("home");
     bridge.setPendingPrompt(text);
     bridge.goChat();
   },

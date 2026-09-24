@@ -61,6 +61,29 @@ function goChat() {
   wx.switchTab({ url: "/pages/stage/index" });
 }
 
+var ORIGIN_KEY = "nb.entryOrigin";
+
+function setEntryOrigin(origin) {
+  var value = origin === "mine" ? "mine" : "home";
+  try {
+    wx.setStorageSync(ORIGIN_KEY, value);
+  } catch (_e) {
+    // 记不住来源时返回仍回首页
+  }
+}
+
+function entryOrigin() {
+  try {
+    return wx.getStorageSync(ORIGIN_KEY) === "mine" ? "mine" : "home";
+  } catch (_e) {
+    return "home";
+  }
+}
+
+function backTarget(origin) {
+  return origin === "mine" ? "/pages/mine/index" : "/pages/home/index";
+}
+
 module.exports = {
   loadAgreed: loadAgreed,
   saveAgreed: saveAgreed,
@@ -69,4 +92,7 @@ module.exports = {
   setPendingChat: setPendingChat,
   takePendingChat: takePendingChat,
   goChat: goChat,
+  setEntryOrigin: setEntryOrigin,
+  entryOrigin: entryOrigin,
+  backTarget: backTarget,
 };

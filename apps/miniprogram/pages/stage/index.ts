@@ -341,7 +341,9 @@ Page({
   onBackToHome() {
     this.clearOpenGdd();
     this.setData({ showHistory: false, showMenu: false, showConsent: false, showLegal: false });
-    wx.switchTab({ url: "/pages/home/index" });
+    const origin = bridge.entryOrigin();
+    if (origin === "mine") bridge.setEntryOrigin("home");
+    wx.switchTab({ url: bridge.backTarget(origin) });
   },
 
   async openSession(id: string) {
@@ -406,6 +408,8 @@ Page({
       }
 
       const pending = bridge.takePendingChat();
+      if (pending && pending.from === "mine") bridge.setEntryOrigin("mine");
+      else if (pending) bridge.setEntryOrigin("home");
       if (pending && pending.type === "boot") {
         this.resetConversation();
         await this.boot();
