@@ -1,61 +1,81 @@
+/**
+ * 聊天版式只有一套规则，两边共用：
+ * - 左右各留 24rpx 页边。
+ * - 助手：64rpx 头像 + 16rpx 间距 + 气泡；气泡最宽到整行减去头像和右侧 48rpx 留空。
+ * - 用户：靠右；左侧留出 128rpx（头像位 + 间距 + 48rpx），所以两边外缘天然错开，助手长文仍然够宽。
+ * - 气泡：15px / 22px / 400，内边距 10px 14px，圆角 18px，1px 边框（用户透明）。两边只换底色和字色。
+ */
 .stream {
   position: relative;
   height: 100%;
   box-sizing: border-box;
-  padding: 8rpx 32rpx 16rpx;
+  padding: 8rpx 24rpx 16rpx;
 }
+.row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20rpx;
+}
+.row.me { justify-content: flex-end; }
+.ava {
+  flex: 0 0 64rpx;
+  width: 64rpx;
+  height: 64rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ava-img { width: 40rpx; height: 40rpx; }
 .bubble {
   box-sizing: border-box;
-  max-width: 78%;
-  padding: 12rpx 20rpx;
-  border-radius: var(--r-ctrl);
-  margin-bottom: 12rpx;
-  font-size: 26rpx;
-  line-height: 1.5;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 22px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
-.role {
-  font-size: 20rpx;
-  letter-spacing: 0.04em;
-  margin-bottom: 6rpx;
-  color: var(--text-3);
-}
-.bubble.user {
-  margin-left: auto;
+.bubble.me {
+  max-width: calc(100% - 128rpx);
   background: var(--brand);
   color: var(--text-on-bright);
-  white-space: pre-wrap;
 }
-.bubble.user .role { color: var(--text-on-bright); }
+.bubble.ai {
+  max-width: calc(100% - 128rpx);
+  background: var(--bg-base);
+  border-color: var(--border-subtle);
+  color: var(--text);
+}
+.text { white-space: pre-wrap; }
+.bubble rich-text { display: block; }
 /** 变形飞行期间先占位不显形，落点因此是真实的。 */
-.bubble.user.ghost {
+.bubble.ghost {
   opacity: 0;
   pointer-events: none;
 }
-.bubble.assistant {
-  background: var(--bg-base);
-  border: 1px solid var(--border-subtle);
-  color: var(--text);
-}
 /** 高度已经占住、还不该看见：「…」等变形落地了再显形。 */
-.bubble.assistant.dim {
+.row.dim {
   opacity: 0;
 }
-.bubble.appear {
+.row.appear {
   animation: bubbleIn var(--dur-panel) var(--ease-out) both;
 }
 /** 思考中的点从下往上滑入，和选项出现是同一种语言，不是单纯淡出淡入。 */
-.bubble.thinking.appear {
+.row.thinking.appear {
   animation: thinkIn var(--dur-panel) var(--ease-out) both;
 }
 @keyframes thinkIn {
   from { opacity: 0; transform: translateY(12rpx); }
   to { opacity: 1; transform: none; }
-}
-/** 还没出字时只留一粒点，不要拉成和正式回复一样宽。 */
-.bubble.thinking {
-  width: fit-content;
-  max-width: 40%;
-  padding: 8rpx 16rpx;
 }
 @keyframes bubbleIn {
   from { opacity: 0; }
@@ -65,20 +85,24 @@
   display: block;
   width: 100%;
 }
-/** 问方向的那一句单独衬底，一眼看到在问什么。 */
+/** 问方向的那一句单独衬底，一眼看到在问什么。字号行高跟气泡正文一致。 */
 .qbox {
-  margin-top: 8rpx;
-  padding: 12rpx 16rpx;
-  border-radius: 12rpx;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: var(--brand-tint);
   border: 1px solid var(--brand-stroke);
   color: var(--text);
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 22px;
 }
+.qbox.after { margin-top: 6px; }
+.tail { margin-top: 6px; }
+/** 三选挂在助手气泡下面，左缘和气泡对齐，宽度规则和助手气泡相同。 */
 .opts {
   box-sizing: border-box;
-  max-width: 86%;
-  margin-bottom: 12rpx;
+  margin-left: 80rpx;
+  max-width: calc(100% - 128rpx);
+  margin-bottom: 20rpx;
   display: flex;
   flex-direction: column;
   gap: 12rpx;
@@ -139,8 +163,8 @@
 }
 .probe {
   position: absolute;
-  left: 32rpx;
-  right: 32rpx;
+  left: 24rpx;
+  right: 24rpx;
   top: 0;
   overflow: hidden;
   visibility: hidden;

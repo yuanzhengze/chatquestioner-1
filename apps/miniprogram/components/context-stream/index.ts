@@ -5,6 +5,7 @@ const { optionsOf, shouldTintAsk, flyEase } = require("../../utils/messageOption
 /** 流式跟上用的时长。和飞行同一条曲线，距离大就接近 320ms，一行字则短一些。不是瞬间改 scrollTop。 */
 const FOLLOW_MIN = 160;
 const FOLLOW_MAX = 320;
+const CHAT_MD = { chat: true };
 
 type Msg = {
   role?: string;
@@ -31,6 +32,8 @@ Component({
     optsGone: { type: Boolean, value: false },
     /** 非空时渲染量高探针，内容是即将发出的那句话。 */
     probeText: { type: String, value: "" },
+    /** 助手头像。由页面传入，以后换正式形象只改这里的来源。 */
+    avatar: { type: String, value: "" },
   },
   data: {
     items: [] as Array<{
@@ -74,11 +77,11 @@ Component({
           try {
             const split = tint ? splitQuestion(raw) : { lead: "", question: "", tail: "" };
             if (split.question) {
-              leadHtml = split.lead ? mdToHtml(split.lead) : "";
+              leadHtml = split.lead ? mdToHtml(split.lead, CHAT_MD) : "";
               question = split.question;
-              tailHtml = split.tail ? mdToHtml(split.tail) : "";
+              tailHtml = split.tail ? mdToHtml(split.tail, CHAT_MD) : "";
             } else {
-              html = mdToHtml(raw);
+              html = mdToHtml(raw, CHAT_MD);
             }
           } catch (_e) {
             html = "";

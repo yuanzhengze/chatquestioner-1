@@ -5,23 +5,28 @@
   scroll-with-animation="{{scrollAnim}}"
 >
   <block wx:for="{{items}}" wx:key="key">
-    <view
-      wx:if="{{item.user}}"
-      id="{{item.slot ? 'user-slot' : ''}}"
-      class="bubble user {{item.ghost ? 'ghost' : ''}}"
-    >
-      <view class="text">{{item.text}}</view>
+    <view wx:if="{{item.user}}" class="row me">
+      <view
+        id="{{item.slot ? 'user-slot' : ''}}"
+        class="bubble me {{item.ghost ? 'ghost' : ''}}"
+      >
+        <view class="text">{{item.text}}</view>
+      </view>
     </view>
 
-    <view wx:else class="bubble assistant {{item.dim ? 'dim' : ''}} {{item.appear ? 'appear' : ''}} {{item.dots ? 'thinking' : ''}}">
-      <view class="role">NewBee</view>
-      <rich-text wx:if="{{item.html}}" nodes="{{item.html}}"></rich-text>
-      <block wx:else>
-        <rich-text wx:if="{{item.leadHtml}}" nodes="{{item.leadHtml}}"></rich-text>
-        <view wx:if="{{item.question}}" class="qbox">{{item.question}}</view>
-        <rich-text wx:if="{{item.tailHtml}}" nodes="{{item.tailHtml}}"></rich-text>
-        <view wx:if="{{item.dots}}" class="text">…</view>
-      </block>
+    <view wx:else class="row ai {{item.dim ? 'dim' : ''}} {{item.appear ? 'appear' : ''}} {{item.dots ? 'thinking' : ''}}">
+      <view class="ava">
+        <image wx:if="{{avatar}}" class="ava-img" src="{{avatar}}" mode="aspectFit" />
+      </view>
+      <view class="bubble ai {{item.dots ? 'dots' : ''}}">
+        <rich-text wx:if="{{item.html}}" nodes="{{item.html}}"></rich-text>
+        <block wx:else>
+          <rich-text wx:if="{{item.leadHtml}}" nodes="{{item.leadHtml}}"></rich-text>
+          <view wx:if="{{item.question}}" class="qbox {{item.leadHtml ? 'after' : ''}}">{{item.question}}</view>
+          <rich-text wx:if="{{item.tailHtml}}" class="tail" nodes="{{item.tailHtml}}"></rich-text>
+          <view wx:if="{{item.dots}}" class="text">…</view>
+        </block>
+      </view>
     </view>
 
     <!--
@@ -53,12 +58,16 @@
 
   <!-- 量高用：脱离文档流，只为算出插进来的两条气泡有多高。 -->
   <view wx:if="{{probeText}}" id="probe-wrap" class="probe">
-    <view class="bubble user">
-      <view class="text">{{probeText}}</view>
+    <view class="row me">
+      <view class="bubble me">
+        <view class="text">{{probeText}}</view>
+      </view>
     </view>
-    <view class="bubble assistant thinking">
-      <view class="role">NewBee</view>
-      <view class="text">…</view>
+    <view class="row ai thinking">
+      <view class="ava"></view>
+      <view class="bubble ai dots">
+        <view class="text">…</view>
+      </view>
     </view>
   </view>
 

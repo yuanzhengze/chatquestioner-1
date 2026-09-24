@@ -37,6 +37,7 @@
       opts-ease="{{optsEase}}"
       opts-gone="{{optsGone}}"
       probe-text="{{probeText}}"
+      avatar="{{logoSrc}}"
       bind:choose="onStreamChoose"
       bind:optsclear="onOptsClear"
     ></nb-context-stream>

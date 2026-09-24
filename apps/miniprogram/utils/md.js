@@ -18,8 +18,19 @@ function quoteHtml(inner) {
   );
 }
 
-/** Markdown 子集 → 小程序 rich-text HTML。对话与 GDD 共用：正文 / **高亮** / > 引用卡 / 标题 / 列表。 */
-function mdToHtml(md) {
+/**
+ * Markdown 子集 → 小程序 rich-text HTML。对话与 GDD 共用：正文 / **高亮** / > 引用卡 / 标题 / 列表。
+ * opts.chat：聊天气泡用。正文和用户气泡同一套 15px / 22px，段首段尾不加外边距，气泡上下留白只由气泡自己给。
+ */
+function mdToHtml(md, opts) {
+  var chat = Boolean(opts && opts.chat);
+  var body = chat
+    ? "font-size:15px;line-height:22px;font-weight:400;color:#EDEDED;margin:0"
+    : "font-size:15px;line-height:1.65;color:#EDEDED;margin:8px 0";
+  var item = chat
+    ? "font-size:15px;line-height:22px;font-weight:400;color:#EDEDED;margin:0"
+    : "font-size:14px;line-height:1.65;color:#EDEDED;margin:2px 0";
+  var gap = chat ? ";margin-top:6px" : "";
   var lines = String(md || "").replace(/\r\n/g, "\n").split("\n");
   var out = [];
   var inList = false;
@@ -62,14 +73,14 @@ function mdToHtml(md) {
     }
     if (line.indexOf("- ") === 0) {
       if (!inList) {
-        out.push('<div style="padding-left:4px;margin:4px 0">');
+        out.push('<div style="' + (chat ? "padding-left:0;margin:0" : "padding-left:4px;margin:4px 0") + (chat && out.length ? gap : "") + '">');
         inList = true;
       }
-      out.push('<div style="font-size:14px;line-height:1.65;color:#EDEDED;margin:2px 0">· ' + inline(line.slice(2)) + "</div>");
+      out.push('<div style="' + item + '">· ' + inline(line.slice(2)) + "</div>");
       continue;
     }
     closeList();
-    out.push('<div style="font-size:15px;line-height:1.65;color:#EDEDED;margin:8px 0">' + inline(line) + "</div>");
+    out.push('<div style="' + body + (chat && out.length ? gap : "") + '">' + inline(line) + "</div>");
   }
   flushQuote();
   closeList();

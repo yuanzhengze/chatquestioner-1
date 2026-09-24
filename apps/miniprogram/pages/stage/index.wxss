@@ -182,11 +182,12 @@ page { height: 100%; background: var(--bg-canvas); }
   border: 1px solid var(--border-subtle);
   color: var(--text);
 }
+/** 终点必须和 context-stream 的 .bubble.me 逐项一致：内边距、圆角、透明 1px 边框、15px / 22px / 400。 */
 .chip.to-user {
-  padding: 12rpx 20rpx;
-  border-radius: var(--r-ctrl);
+  padding: 10px 14px;
+  border-radius: 18px;
   background: var(--brand);
-  border-width: 0;
+  border: 1px solid transparent;
   color: var(--text-on-bright);
 }
 .chip-label {
@@ -199,9 +200,9 @@ page { height: 100%; background: var(--bg-canvas); }
     line-height var(--dur-fly) var(--ease-out);
 }
 .chip.to-user .chip-label {
-  font-size: 26rpx;
+  font-size: 15px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 22px;
 }
 .chip-detail {
   margin-top: 8rpx;
