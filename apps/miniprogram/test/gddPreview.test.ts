@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 
-const { parseGddPreview, coverSlot, recordCard, listViewportHeight, resolveCoverDownload } = createRequire(import.meta.url)("../utils/gddPreview.js") as {
+const { parseGddPreview, fullDocBody, coverSlot, recordCard, listViewportHeight, resolveCoverDownload } = createRequire(import.meta.url)("../utils/gddPreview.js") as {
   parseGddPreview: (md: string) => { title: string; pitch: string };
+  fullDocBody: (md: string) => string;
   coverSlot: (meta: { status?: string; imageUrl?: string } | null) => string;
   recordCard: (item: { id?: string; title?: string }, state: Record<string, unknown> | null) => { coverPath: string; action: string; id: string };
   listViewportHeight: (contentPx: number, windowPx: number) => number;
@@ -14,6 +15,18 @@ describe("文档入口卡片要的标题、亮点和封面状态", () => {
     const parsed = parseGddPreview("# 夜班便利店\n\n> 一句话 Pitch：客人全是过期的自己。\n");
     expect(parsed).toEqual({ title: "夜班便利店", pitch: "客人全是过期的自己。" });
     expect(parseGddPreview("# 未写\n\n> 一句话 Pitch：（未写）\n").pitch).toBe("");
+  });
+
+  it("完整文档展示去掉开头的名字和 Pitch，后文章节都留着", () => {
+    const md = "# 夜班便利店\n\n> 一句话 Pitch：客人全是过期的自己。\n\n## 游戏宪法\n\n- 核心幻想：灯还亮着\n\n## 8. 难度与心流\n\n越到后面越安静\n";
+    const body = fullDocBody(md);
+    expect(body.startsWith("## 游戏宪法")).toBe(true);
+    expect(body).toContain("## 8. 难度与心流");
+    expect(body).toContain("越到后面越安静");
+    expect(body).not.toContain("夜班便利店");
+    expect(body).not.toContain("一句话 Pitch");
+    expect(fullDocBody("# 只有名字\n\n> 一句话 Pitch：就这一句。\n")).toBe("");
+    expect(fullDocBody("没有标题的正文")).toBe("没有标题的正文");
   });
 
   it("封面位只分四种，有图才算就绪", () => {

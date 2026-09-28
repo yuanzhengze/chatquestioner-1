@@ -286,19 +286,24 @@ page { background: var(--bg-canvas); color: var(--text); }
   display: flex;
   align-items: flex-start;
   gap: 8rpx;
+  box-sizing: border-box;
   font-size: 26rpx;
   line-height: 1.6;
   color: var(--text-2);
   padding: 16rpx 8rpx;
-  border-bottom: 1px solid var(--divider-subtle);
+  border: 1px solid transparent;
+  border-bottom-color: var(--divider-subtle);
+  border-radius: 12rpx;
+  background: transparent;
+  transition: border-color var(--dur-smooth) var(--ease-out);
 }
 .card-line.tap:active {
-  color: var(--brand);
+  opacity: 0.82;
 }
 .card-line.on {
-  background: var(--brand-tint);
-  border-radius: 12rpx;
-  color: var(--text);
+  border-color: var(--brand);
+  background: transparent;
+  color: var(--text-2);
 }
 .card-line-text {
   flex: 1;
@@ -315,7 +320,7 @@ page { background: var(--bg-canvas); color: var(--text); }
   transition:
     grid-template-rows var(--dur-smooth) var(--ease-out),
     max-height var(--dur-smooth) var(--ease-out),
-    opacity var(--dur-fast) var(--ease-out);
+    opacity var(--dur-smooth) var(--ease-out);
 }
 .line-actions.on {
   grid-template-rows: 1fr;
@@ -417,6 +422,75 @@ page { background: var(--bg-canvas); color: var(--text); }
   border-radius: 12rpx;
 }
 
+.doc-name {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #EDEDED;
+}
+.doc-pitch {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  background: #222326;
+  border-left: 3px solid #C5DD78;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #EDEDED;
+}
+.doc-toggle {
+  margin-top: 8px;
+  padding: 14px 24px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-3);
+  background: transparent;
+}
+.doc-toggle-press { opacity: 0.55; }
+.doc-block {
+  position: relative;
+  padding-bottom: 4px;
+}
+.doc-fold {
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transition: height 220ms var(--ease-out), opacity 220ms var(--ease-out);
+}
+.doc-fold.on {
+  opacity: 1;
+}
+.doc-fold.measure {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: auto !important;
+  opacity: 0;
+  overflow: visible;
+  pointer-events: none;
+  transition: none;
+}
+.doc-fold.snap {
+  transition: none;
+}
+.doc-fold.settled {
+  height: auto !important;
+  overflow: visible;
+}
+.doc-fold-inner {
+  width: 100%;
+}
+.doc-fold:not(.on) .doc-fold-inner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+.doc-fold.measure .doc-fold-inner {
+  position: static;
+}
 .doc-plain {
   display: block;
   font-size: 26rpx;

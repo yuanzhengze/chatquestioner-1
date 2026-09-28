@@ -91,7 +91,7 @@
       <view class="card-body">
         <block wx:for="{{item.lines}}" wx:for-item="line" wx:key="id">
           <view
-            class="card-line {{fromShare ? '' : 'tap'}} {{selectedLineId === line.id ? 'on' : ''}}"
+            class="card-line {{fromShare ? '' : 'tap'}} {{selectedLineId === line.id && lineActionsOn ? 'on' : ''}}"
             data-id="{{line.id}}"
             catchtap="onSelectLine"
           >
@@ -119,13 +119,28 @@
     </view>
   </view>
 
-  <view class="block">
-    <view class="doc-head">
-      <view class="label">完整文档</view>
-      <view class="copy" bindtap="onCopy">复制全文</view>
+  <view id="gdd-full" class="block doc-block">
+    <view id="gdd-full-head">
+      <view class="doc-head">
+        <view class="label">完整文档</view>
+        <view class="copy" bindtap="onCopy">复制全文</view>
+      </view>
+      <view class="doc-name">{{title}}</view>
+      <view wx:if="{{pitch}}" class="doc-pitch">一句话 Pitch：{{pitch}}</view>
     </view>
-    <rich-text wx:if="{{html}}" nodes="{{html}}"></rich-text>
-    <text wx:if="{{!html}}" class="doc-plain">{{plain}}</text>
+    <view wx:if="{{(html || plain) && !fullDocOpen}}" class="doc-toggle" hover-class="doc-toggle-press" bindtap="onToggleFullDoc">点击展开完整文档 ↓</view>
+    <view
+      wx:if="{{html || plain}}"
+      id="gdd-full-fold"
+      class="doc-fold {{fullDocOpen ? 'on' : ''}} {{fullDocMeasure ? 'measure' : ''}} {{fullDocSnap ? 'snap' : ''}} {{fullDocSettled ? 'settled' : ''}}"
+      style="height: {{fullDocH}};"
+    >
+      <view id="gdd-full-body" class="doc-fold-inner">
+        <rich-text wx:if="{{html}}" nodes="{{html}}"></rich-text>
+        <text wx:else class="doc-plain">{{plain}}</text>
+        <view class="doc-toggle" hover-class="doc-toggle-press" bindtap="onToggleFullDoc" data-edge="bottom">点击收起完整文档 ↑</view>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{!fromShare}}" class="share-actions">

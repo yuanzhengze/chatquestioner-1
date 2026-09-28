@@ -4,6 +4,18 @@ function emptyPitch(pitch) {
   return p;
 }
 
+/**
+ * 完整文档展示用的正文：去掉开头的游戏名和一句话 Pitch。
+ * 收起只藏这段展示；复制仍用原文。
+ */
+function fullDocBody(md) {
+  var text = String(md || "").replace(/\r\n/g, "\n").replace(/^\uFEFF/, "").trim();
+  if (!text) return "";
+  var rest = text.replace(/^#\s+[^\n]+\n+/, "");
+  rest = rest.replace(/^>\s*一句话 Pitch：[^\n]*\n*/, "");
+  return rest.trim();
+}
+
 /** 从 renderGdd 的 Markdown 抽出封面要用的标题和一句话。 */
 function parseGddPreview(md) {
   var text = String(md || "").replace(/\r\n/g, "\n");
@@ -24,6 +36,7 @@ function coverSlot(meta) {
   return "empty";
 }
 
+module.exports.fullDocBody = fullDocBody;
 module.exports.parseGddPreview = parseGddPreview;
 module.exports.coverSlot = coverSlot;
 

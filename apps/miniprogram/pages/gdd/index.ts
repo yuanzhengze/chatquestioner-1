@@ -2,13 +2,14 @@ import { API_BASE, FX_CHROME, GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../
 import { attachShareCover, createShare, downloadCover, getCoverMeta, getShare, requestCover } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
-const { parseGddPreview } = require("../../utils/gddPreview.js");
+const { parseGddPreview, fullDocBody } = require("../../utils/gddPreview.js");
 const { sectionsFromModel } = require("../../utils/gddSections.js");
 const { toGddView } = require("../../utils/gddView.js");
 const gddExport = require("../../utils/gddExport.js");
 const { captureShareCard } = require("../../utils/gddShareCard.js");
 
 const ACCORDION_MS = 200;
+const FULL_DOC_MS = 220;
 
 function absUrl(path: string): string {
   const p = String(path || "").trim();
@@ -48,6 +49,11 @@ Page({
     loopText: "",
     selectedLineId: "",
     lineActionsOn: false,
+    fullDocOpen: false,
+    fullDocH: "0px",
+    fullDocMeasure: false,
+    fullDocSnap: false,
+    fullDocSettled: false,
   },
 
   _markdown: "",
@@ -64,6 +70,8 @@ Page({
   _coverTimer: 0 as number,
   _coverTries: 0,
   _coverRegen: false,
+  _fullDocGen: 0,
+  _fullDocSettle: 0,
 
   onLoad(query: { s?: string }) {
     try {
@@ -139,6 +147,7 @@ Page({
     if (this._waitTimer) clearTimeout(this._waitTimer);
     if (this._lineActTimer) clearTimeout(this._lineActTimer);
     if (this._lineViewTimer) clearTimeout(this._lineViewTimer);
+    this.clearFullDocSettle();
     this.stopCoverWatch();
   },
 
@@ -181,6 +190,7 @@ Page({
     sessionId?: string;
     coverImageUrl?: string;
   }) {
+    this.clearFullDocSettle();
     const markdown = String((payload && payload.markdown) || "").trim();
     const model = payload && payload.model && typeof payload.model === "object" ? payload.model : null;
     const complete = payload && payload.complete === true;
@@ -218,13 +228,19 @@ Page({
         loopText: "",
         selectedLineId: "",
         lineActionsOn: false,
+        fullDocOpen: false,
+        fullDocH: "0px",
+        fullDocMeasure: false,
+        fullDocSnap: false,
+        fullDocSettled: false,
       });
       return;
     }
     const meta = parseGddPreview(markdown);
+    const docBody = fullDocBody(markdown);
     let html = "";
     try {
-      html = mdToHtml(markdown);
+      html = docBody ? mdToHtml(docBody) : "";
     } catch (_e) {
       html = "";
     }
@@ -248,7 +264,7 @@ Page({
       title,
       pitch,
       html,
-      plain: markdown,
+      plain: html ? "" : docBody,
       draft: draftBar,
       sections,
       expandedId: sections.length ? sections[0].id : "",
@@ -266,6 +282,11 @@ Page({
       loopText: "",
       selectedLineId: "",
       lineActionsOn: false,
+      fullDocOpen: false,
+      fullDocH: "0px",
+      fullDocMeasure: false,
+      fullDocSnap: false,
+      fullDocSettled: false,
     });
     if (this._fromShare) {
       const shareCover = payload && payload.coverImageUrl ? String(payload.coverImageUrl) : "";
@@ -581,6 +602,7 @@ Page({
       this._lineViewTimer = 0;
     }
     const id = this.data.selectedLineId;
+    /** 描边和操作条都看 lineActionsOn，一起开始退场。selectedLineId 只留到动画结束，避免操作条被提前卸掉。 */
     this.setData({ lineActionsOn: false });
     this._lineActTimer = setTimeout(() => {
       this._lineActTimer = 0;
@@ -614,6 +636,124 @@ Page({
       fail: () => {
         wx.switchTab({ url: "/pages/stage/index" });
       },
+    });
+  },
+
+  onToggleFullDoc(e: { currentTarget: { dataset: { edge?: string } } }) {
+    const edge = String((e.currentTarget.dataset && e.currentTarget.dataset.edge) || "");
+    if (this.data.fullDocOpen) {
+      this.collapseFullDoc(edge);
+      return;
+    }
+    this.expandFullDoc();
+  },
+
+  clearFullDocSettle() {
+    if (this._fullDocSettle) {
+      clearTimeout(this._fullDocSettle);
+      this._fullDocSettle = 0;
+    }
+  },
+
+  expandFullDoc() {
+    const gen = ++this._fullDocGen;
+    this.clearFullDocSettle();
+    const open = (h: number) => {
+      if (gen !== this._fullDocGen) return;
+      this.setData({ fullDocMeasure: false, fullDocSnap: true, fullDocSettled: false, fullDocOpen: false, fullDocH: "0px" }, () => {
+        wx.nextTick(() => {
+          if (gen !== this._fullDocGen) return;
+          const height = h > 0 ? `${h}px` : "auto";
+          this.setData({ fullDocSnap: false, fullDocOpen: true, fullDocH: height, fullDocSettled: height === "auto" }, () => {
+            this.settleFullDoc(gen, 0);
+          });
+        });
+      });
+    };
+    this.setData({ fullDocMeasure: true, fullDocSettled: false }, () => {
+      wx.nextTick(() => {
+        if (gen !== this._fullDocGen) return;
+        wx.createSelectorQuery().select("#gdd-full-body").boundingClientRect().exec((res: Array<{ height?: number } | null>) => {
+          if (gen !== this._fullDocGen) return;
+          const h = Math.ceil(Number(res && res[0] ? res[0].height : 0));
+          if (h > 0) {
+            open(h);
+            return;
+          }
+          wx.nextTick(() => {
+            if (gen !== this._fullDocGen) return;
+            wx.createSelectorQuery().select("#gdd-full-body").boundingClientRect().exec((again: Array<{ height?: number } | null>) => {
+              open(Math.ceil(Number(again && again[0] ? again[0].height : 0)));
+            });
+          });
+        });
+      });
+    });
+  },
+
+  /**
+   * 展开动画用的像素高度经常小于 rich-text 排完后的高度。
+   * 可见后再量一次；仍然偏小就放开成 auto，避免 overflow 把文末裁掉。
+   */
+  settleFullDoc(gen: number, pass: number) {
+    this.clearFullDocSettle();
+    this._fullDocSettle = setTimeout(() => {
+      this._fullDocSettle = 0;
+      if (gen !== this._fullDocGen || !this.data.fullDocOpen) return;
+      wx.createSelectorQuery().select("#gdd-full-body").boundingClientRect().exec((res: Array<{ height?: number } | null>) => {
+        if (gen !== this._fullDocGen || !this.data.fullDocOpen) return;
+        const h = Math.ceil(Number(res && res[0] ? res[0].height : 0));
+        const current = this.data.fullDocH === "auto" ? h : parseInt(this.data.fullDocH, 10) || 0;
+        if (pass < 1 && h > current + 2) {
+          this.setData({ fullDocSettled: false, fullDocH: `${h}px` }, () => this.settleFullDoc(gen, pass + 1));
+          return;
+        }
+        this.setData({ fullDocH: "auto", fullDocSettled: true });
+      });
+    }, FULL_DOC_MS) as unknown as number;
+  },
+
+  /**
+   * 收起前先把 auto 锁回真实像素，才能播高度动画。
+   * 摘要在正文上面，位置不随收起变化，所以滚回的是收起前量到的头部。
+   */
+  collapseFullDoc(_edge: string) {
+    const gen = ++this._fullDocGen;
+    this.clearFullDocSettle();
+    const q = wx.createSelectorQuery();
+    q.selectViewport().scrollOffset();
+    q.select("#gdd-full-head").boundingClientRect();
+    q.select("#gdd-full-fold").boundingClientRect();
+    q.exec((res: Array<{ scrollTop?: number; top?: number; height?: number } | null>) => {
+      if (gen !== this._fullDocGen || !this.data.fullDocOpen) return;
+      const offset = res && res[0];
+      const head = res && res[1];
+      const fold = res && res[2];
+      const scrollTop = Number(offset && offset.scrollTop) || 0;
+      const headTop = head && typeof head.top === "number" ? head.top : 0;
+      const foldH = Math.ceil(Number(fold && fold.height) || 0);
+      const target = Math.max(0, scrollTop + headTop - 12);
+      const startClose = () => {
+        if (gen !== this._fullDocGen) return;
+        this.setData({
+          fullDocSnap: false,
+          fullDocMeasure: false,
+          fullDocSettled: false,
+          fullDocOpen: false,
+          fullDocH: "0px",
+        });
+        wx.pageScrollTo({ scrollTop: target, duration: FULL_DOC_MS });
+      };
+      if (foldH <= 0) {
+        startClose();
+        return;
+      }
+      this.setData({
+        fullDocSnap: true,
+        fullDocSettled: false,
+        fullDocOpen: true,
+        fullDocH: `${foldH}px`,
+      }, () => wx.nextTick(startClose));
     });
   },
 
