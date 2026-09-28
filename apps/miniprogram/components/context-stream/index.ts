@@ -1,5 +1,5 @@
 const { mdToHtml } = require("../../utils/md.js");
-const { splitQuestion } = require("../../utils/splitQuestion.js");
+const { splitQuestion, markedQuestion } = require("../../utils/splitQuestion.js");
 const { optionsOf, shouldTintAsk, flyEase } = require("../../utils/messageOptions.js");
 
 /** 流式跟上用的时长。和飞行同一条曲线，距离大就接近 320ms，一行字则短一些。不是瞬间改 scrollTop。 */
@@ -67,7 +67,6 @@ Component({
         const user = (m.role || "assistant") === "user";
         const raw = m.content || "";
         const streaming = Boolean(busy) && index === lastIndex && !user;
-        const tint = shouldTintAsk(m, streaming);
 
         let html = "";
         let leadHtml = "";
@@ -75,7 +74,9 @@ Component({
         let tailHtml = "";
         if (!user && raw) {
           try {
-            const split = tint ? splitQuestion(raw) : { lead: "", question: "", tail: "" };
+            const marked = markedQuestion(raw);
+            const tint = shouldTintAsk(m, streaming);
+            const split = marked.question ? marked : (tint ? splitQuestion(raw) : { lead: "", question: "", tail: "" });
             if (split.question) {
               leadHtml = split.lead ? mdToHtml(split.lead, CHAT_MD) : "";
               question = split.question;

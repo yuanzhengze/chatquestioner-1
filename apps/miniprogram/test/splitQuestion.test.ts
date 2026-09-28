@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 
-const { hasQuestionMark, splitQuestion } = createRequire(import.meta.url)("../utils/splitQuestion.js") as {
+const { hasQuestionMark, splitQuestion, markedQuestion } = createRequire(import.meta.url)("../utils/splitQuestion.js") as {
   hasQuestionMark: (s: unknown) => boolean;
   splitQuestion: (md: unknown) => { lead: string; question: string; tail: string };
+  markedQuestion: (md: unknown) => { lead: string; question: string; tail: string };
 };
 
 describe("splitQuestion", () => {
@@ -50,5 +51,13 @@ describe("splitQuestion", () => {
     expect(hit.lead).toBe("");
     expect(hit.question).toBe("想做个什么样的游戏？");
     expect(hit.tail).toBe("");
+  });
+
+  it("正文里的引导问题块可以在没有 tintAsk 时还原", () => {
+    const hit = markedQuestion("这个点子挺有画面。\n> ❓ 你更想守摊还是赶集？");
+    expect(hit.lead).toBe("这个点子挺有画面。");
+    expect(hit.question).toBe("你更想守摊还是赶集？");
+    expect(hit.tail).toBe("");
+    expect(markedQuestion("> 📌 **暂定名**：《夜班》")).toEqual({ lead: "", question: "", tail: "" });
   });
 });

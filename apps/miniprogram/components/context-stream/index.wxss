@@ -87,19 +87,21 @@
 }
 /** 问方向的那一句单独衬底，一眼看到在问什么。字号行高跟气泡正文一致。 */
 .qbox {
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--brand-tint);
-  border: 1px solid var(--brand-stroke);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(197, 221, 120, 0.14);
+  border-left: 2px solid #C5DD78;
   color: var(--text);
   font-size: 15px;
+  font-weight: 400;
   line-height: 22px;
 }
-.qbox.after { margin-top: 6px; }
+.qbox.after { margin-top: 8px; }
 .tail { margin-top: 6px; }
 /** 三选挂在助手气泡下面，左缘和气泡对齐，宽度规则和助手气泡相同。 */
 .opts {
   box-sizing: border-box;
+  margin-top: -8rpx;
   margin-left: 80rpx;
   max-width: calc(100% - 128rpx);
   margin-bottom: 20rpx;
