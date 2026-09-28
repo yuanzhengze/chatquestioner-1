@@ -1,0 +1,16 @@
+<view wx:if="{{show}}" class="consent-mask" catchtap="onClose">
+  <view class="consent-card" catchtap="noop">
+    <view class="consent-x" catchtap="onClose" aria-role="button" aria-label="关闭">×</view>
+    <view class="consent-title">欢迎使用 ForgeaX</view>
+    <view class="consent-copy">为向你提供游戏共创服务，请阅读并同意《用户协议》和《隐私政策》。</view>
+    <view class="consent-copy">点击「同意并继续」即表示你已阅读并同意上述内容。</view>
+    <view class="consent-links">
+      <text class="link" catchtap="onLegal" data-kind="terms">《用户协议》</text>
+      <text class="link" catchtap="onLegal" data-kind="privacy">《隐私政策》</text>
+    </view>
+    <view class="consent-actions">
+      <view class="btn agree" hover-class="press" bindtap="onAgree">同意并继续</view>
+      <view class="consent-no" bindtap="onClose">不同意</view>
+    </view>
+  </view>
+</view>

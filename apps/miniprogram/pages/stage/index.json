@@ -2,7 +2,8 @@
   "usingComponents": {
     "nb-avatar": "../../components/avatar/index",
     "nb-context-stream": "../../components/context-stream/index",
-    "nb-composer": "../../components/composer/index"
+    "nb-composer": "../../components/composer/index",
+    "nb-consent": "../../components/consent/index"
   },
   "disableScroll": true,
   "navigationBarTitleText": "共创",

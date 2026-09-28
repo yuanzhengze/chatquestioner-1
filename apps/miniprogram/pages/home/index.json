@@ -1,4 +1,7 @@
 {
+  "usingComponents": {
+    "nb-consent": "../../components/consent/index"
+  },
   "navigationBarTitleText": "首页",
   "navigationBarBackgroundColor": "#1A1C1F",
   "navigationBarTextStyle": "white",

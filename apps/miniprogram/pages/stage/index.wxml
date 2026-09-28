@@ -136,25 +136,7 @@
     <view class="hist-close" bindtap="onCloseHistory">关闭</view>
   </view>
 
-  <view wx:if="{{showConsent}}" class="consent-mask" catchtap="onCloseConsent">
-    <view class="consent-card" catchtap="noop">
-      <view class="consent-title">开始共创前请先确认</view>
-      <view class="consent-copy">勾选同意后就可以说话。协议可随时在「我的」里再看。</view>
-      <view class="consent-row" bindtap="onToggleConsent">
-        <view class="box {{consentChecked ? 'on' : ''}}">{{consentChecked ? '✓' : ''}}</view>
-        <view class="consent-text">
-          我已阅读并同意
-          <text class="link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
-          与
-          <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
-        </view>
-      </view>
-      <view class="consent-actions">
-        <view class="btn ghost" bindtap="onCloseConsent">稍后再说</view>
-        <view class="btn primary {{consentChecked ? '' : 'off'}}" bindtap="onConfirmConsent">同意并继续</view>
-      </view>
-    </view>
-  </view>
+  <nb-consent show="{{showConsent}}" bind:agree="onConfirmConsent" bind:close="onCloseConsent" bind:legal="onConsentLegal" />
 
   <view wx:if="{{showLegal}}" class="legal-mask" catchtap="onCloseLegal">
     <view class="sheet" catchtap="noop">

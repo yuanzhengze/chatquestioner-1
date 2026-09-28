@@ -317,7 +317,7 @@ page {
   background: var(--overlay);
   display: flex;
   align-items: flex-end;
-  z-index: 20;
+  z-index: 50;
 }
 .sheet {
   width: 100%;

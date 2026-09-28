@@ -55,7 +55,7 @@
             <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
           </view>
         </view>
-        <button class="btn primary {{agreed ? '' : 'off'}}" hover-class="press" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
+        <button class="btn primary" hover-class="press" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
         <button wx:if="{{hasLast}}" class="btn ghost" hover-class="press" bindtap="onNewSession">新的共创</button>
         <button class="btn ghost" hover-class="press" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
       </view>
@@ -104,6 +104,8 @@
     </scroll-view>
   </swiper-item>
 </swiper>
+
+<nb-consent show="{{showConsent}}" bind:agree="onAgreeConsent" bind:close="onCloseConsent" bind:legal="onConsentLegal" />
 
 <view wx:if="{{showLegal}}" class="mask" catchtap="onCloseSheets">
   <view class="sheet" catchtap="noop">

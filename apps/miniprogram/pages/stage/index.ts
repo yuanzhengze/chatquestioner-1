@@ -95,7 +95,6 @@ Page({
     showHistory: false,
     historyItems: [] as Array<{ id: string; title: string; pitch: string; coverUrl: string; hasDoc: boolean; current: boolean }>,
     showConsent: false,
-    consentChecked: false,
     showLegal: false,
     legalTitle: "",
     legalBody: "",
@@ -126,6 +125,7 @@ Page({
     this._driver = null;
     this._handlingShow = false;
     this._afterConsent = null as null | (() => void);
+    this._agreeLock = false;
     this._deleting = false;
     this._histGen = 0;
     this._histCache = {} as Record<string, { title: string; pitch: string; coverUrl: string; hasDoc: boolean; coverPath?: string }>;
@@ -373,6 +373,9 @@ Page({
     this.ensureDriver();
     applyTabBar(wx, true);
     void this.consumeHandoff();
+    if (!bridge.loadAgreed() && !this.data.showConsent && !this.data.showLegal) {
+      this.setData({ showConsent: true });
+    }
   },
 
   onHide() {
@@ -1035,32 +1038,30 @@ Page({
     this._afterConsent = fn;
     this.setData({
       showConsent: true,
-      consentChecked: false,
       showLegal: false,
       showMenu: false,
       showHistory: false,
     });
   },
 
-  onToggleConsent() {
-    this.setData({ consentChecked: !this.data.consentChecked });
-  },
-
   onConfirmConsent() {
-    if (!this.data.consentChecked) {
-      wx.showToast({ title: "请先勾选同意", icon: "none" });
-      return;
-    }
+    if (this._agreeLock) return;
+    this._agreeLock = true;
     bridge.saveAgreed(true);
-    this.setData({ showConsent: false, consentChecked: true });
+    this.setData({ showConsent: false });
     const next = this._afterConsent;
     this._afterConsent = null;
+    this._agreeLock = false;
     if (next) next();
   },
 
   onCloseConsent() {
     this._afterConsent = null;
     this.setData({ showConsent: false });
+  },
+
+  onConsentLegal(e: { detail?: { kind?: string } }) {
+    this.onShowLegal({ currentTarget: { dataset: { kind: e.detail && e.detail.kind } } });
   },
 
   onShowLegal(e: { currentTarget: { dataset: { kind?: string } } }) {

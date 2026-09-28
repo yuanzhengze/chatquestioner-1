@@ -30,11 +30,15 @@ Page({
     legalTitle: "",
     legalBody: "",
     showLink: false,
+    showConsent: false,
     siteUrl: FORGEAX_SITE_URL,
     ideas: IDEAS,
     cases: CASES,
     screen: 0,
   },
+
+  _afterConsent: null as null | (() => void),
+  _agreeLock: false,
 
   onLoad() {
     try {
@@ -72,37 +76,64 @@ Page({
   },
 
   onToggleAgree() {
-    const agreed = !this.data.agreed;
-    this.setData({ agreed });
+    const agreed = !bridge.loadAgreed();
     bridge.saveAgreed(agreed);
+    this.setData({ agreed });
   },
 
-  requireAgree() {
-    if (this.data.agreed) return true;
-    wx.showToast({ title: "请先勾选同意", icon: "none" });
-    return false;
+  gate(next: () => void) {
+    if (bridge.loadAgreed()) {
+      next();
+      return;
+    }
+    this._afterConsent = next;
+    this.setData({ showConsent: true, showLegal: false, showLink: false });
+  },
+
+  onAgreeConsent() {
+    if (this._agreeLock) return;
+    this._agreeLock = true;
+    bridge.saveAgreed(true);
+    const next = this._afterConsent;
+    this._afterConsent = null;
+    this.setData({ agreed: true, showConsent: false });
+    this._agreeLock = false;
+    if (next) next();
+  },
+
+  onCloseConsent() {
+    this._afterConsent = null;
+    this.setData({ showConsent: false });
+  },
+
+  onConsentLegal(e: { detail?: { kind?: string } }) {
+    this.onShowLegal({ currentTarget: { dataset: { kind: e.detail && e.detail.kind } } });
   },
 
   onStart() {
-    if (!this.requireAgree()) return;
-    bridge.setEntryOrigin("home");
-    bridge.setPendingChat({ type: this.data.hasLast ? "resume" : "boot" });
-    bridge.goChat();
+    this.gate(() => {
+      bridge.setEntryOrigin("home");
+      bridge.setPendingChat({ type: this.data.hasLast ? "resume" : "boot" });
+      bridge.goChat();
+    });
   },
 
   onNewSession() {
-    if (!this.requireAgree()) return;
-    bridge.setEntryOrigin("home");
-    bridge.setPendingChat({ type: "boot" });
-    bridge.goChat();
+    this.gate(() => {
+      bridge.setEntryOrigin("home");
+      bridge.setPendingChat({ type: "boot" });
+      bridge.goChat();
+    });
   },
 
   onUseIdea(e: { currentTarget: { dataset: { text?: string } } }) {
     const text = e.currentTarget.dataset.text;
     if (!text) return;
-    bridge.setEntryOrigin("home");
-    bridge.setPendingPrompt(text);
-    bridge.goChat();
+    this.gate(() => {
+      bridge.setEntryOrigin("home");
+      bridge.setPendingPrompt(text);
+      bridge.goChat();
+    });
   },
 
   onUseCase(e: { currentTarget: { dataset: { pitch?: string; title?: string } } }) {
@@ -110,9 +141,11 @@ Page({
     const pitch = e.currentTarget.dataset.pitch || "";
     const text = [title, pitch].filter(Boolean).join("：");
     if (!text) return;
-    bridge.setEntryOrigin("home");
-    bridge.setPendingPrompt(text);
-    bridge.goChat();
+    this.gate(() => {
+      bridge.setEntryOrigin("home");
+      bridge.setPendingPrompt(text);
+      bridge.goChat();
+    });
   },
 
   onOpenLink() {
