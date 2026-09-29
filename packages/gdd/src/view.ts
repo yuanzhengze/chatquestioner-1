@@ -25,6 +25,13 @@ export interface GrowthStep {
   text: string;
 }
 
+/** 关键瞬间：核心机制的视觉化预览。内容只从 mechanics 派生。 */
+export interface GameplayMoment {
+  id: string;
+  title: string;
+  description: string;
+}
+
 export interface GddView {
   title: string;
   pitch: string;
@@ -34,6 +41,7 @@ export interface GddView {
   delight: string;
   growthSteps: GrowthStep[];
   growthNone: boolean;
+  gameplayMoments: GameplayMoment[];
   cover: {
     prompt: string;
     fingerprint: string;
@@ -138,6 +146,44 @@ export function loopNodes(m: GddModel): LoopNode[] {
   return nodes;
 }
 
+/**
+ * 核心机制是一整句。第一处中文或英文冒号前是标题，后面是正文。
+ * 没有冒号，或拆开后有一边是空的，整句当作标题，不另写介绍。
+ */
+export function parseCoreMechanic(raw: unknown): { title: string; description: string } {
+  const whole = text(raw);
+  if (!whole) return { title: "", description: "" };
+  const full = whole.indexOf("：");
+  const half = whole.indexOf(":");
+  const idx = full >= 0 && half >= 0 ? Math.min(full, half) : full >= 0 ? full : half;
+  if (idx <= 0) return { title: whole, description: "" };
+  const title = whole.slice(0, idx).trim();
+  const description = whole.slice(idx + 1).trim();
+  if (!title || !description) return { title: whole, description: "" };
+  return { title, description };
+}
+
+/** 未改动的机制原文指纹不变。身份是原文，不是数组下标。 */
+export function coreMechanicId(raw: unknown): string {
+  return fnv1aHex(text(raw));
+}
+
+export function gameplayMomentsFromModel(m: GddModel): GameplayMoment[] {
+  const items = (m.mechanics || []).map(text).filter(Boolean);
+  const seen = new Map<string, number>();
+  return items.map((raw) => {
+    const base = coreMechanicId(raw);
+    const n = (seen.get(base) || 0) + 1;
+    seen.set(base, n);
+    const parsed = parseCoreMechanic(raw);
+    return {
+      id: n === 1 ? base : `${base}-${n}`,
+      title: parsed.title,
+      description: parsed.description,
+    };
+  });
+}
+
 export function growthStepsFromModel(m: GddModel): GrowthStep[] {
   const g = m.growth || { none: false, unlocks: "", nearGoal: "", afterTenMin: "" };
   const steps: GrowthStep[] = [];
@@ -159,6 +205,7 @@ export function toGddView(m: GddModel, cover: { status?: CoverStatus; imageUrl?:
     delight: text(m.coreDelight),
     growthSteps: steps,
     growthNone: Boolean(g.none) && steps.length === 0,
+    gameplayMoments: gameplayMomentsFromModel(m),
     cover: {
       prompt: coverPromptFromModel(m),
       fingerprint: coverFingerprint(m),

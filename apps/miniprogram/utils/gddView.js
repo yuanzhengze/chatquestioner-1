@@ -99,6 +99,42 @@ function loopNodes(m) {
   return nodes;
 }
 
+function parseCoreMechanic(raw) {
+  var whole = text(raw);
+  if (!whole) return { title: "", description: "" };
+  var full = whole.indexOf("：");
+  var half = whole.indexOf(":");
+  var idx = -1;
+  if (full >= 0 && half >= 0) idx = Math.min(full, half);
+  else if (full >= 0) idx = full;
+  else idx = half;
+  if (idx <= 0) return { title: whole, description: "" };
+  var title = whole.slice(0, idx).trim();
+  var description = whole.slice(idx + 1).trim();
+  if (!title || !description) return { title: whole, description: "" };
+  return { title: title, description: description };
+}
+
+function gameplayMoments(m) {
+  var list = Array.isArray(m.mechanics) ? m.mechanics : [];
+  var seen = {};
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    var raw = text(list[i]);
+    if (!raw) continue;
+    var base = fnv1aHex(raw);
+    var n = (seen[base] || 0) + 1;
+    seen[base] = n;
+    var parsed = parseCoreMechanic(raw);
+    out.push({
+      id: n === 1 ? base : base + "-" + n,
+      title: parsed.title,
+      description: parsed.description,
+    });
+  }
+  return out;
+}
+
 function growthStepsFromModel(m) {
   var g = m.growth && typeof m.growth === "object" ? m.growth : {};
   var steps = [];
@@ -122,6 +158,7 @@ function toGddView(m, cover) {
     delight: text(m.coreDelight),
     growthSteps: steps,
     growthNone: Boolean(g.none) && steps.length === 0,
+    gameplayMoments: gameplayMoments(m),
     cover: {
       prompt: coverPromptFromModel(m),
       fingerprint: coverFingerprint(m),

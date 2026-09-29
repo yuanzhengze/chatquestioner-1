@@ -29,6 +29,19 @@
     <view class="regen {{coverPending ? 'off' : ''}}" bindtap="onRegenCover">{{coverPending ? '封面生成中' : '重新生成封面'}}</view>
   </view>
 
+  <view wx:if="{{gameplayMoments.length}}" class="moments">
+    <view class="card-title moments-heading">关键瞬间</view>
+    <scroll-view scroll-x class="moments-row" show-scrollbar="{{false}}">
+      <view class="moments-lead"></view>
+      <view wx:for="{{gameplayMoments}}" wx:key="id" class="moment">
+        <view class="moment-shot"></view>
+        <view class="card-title moment-caption">{{item.title}}</view>
+        <view wx:if="{{item.description}}" class="card-line-text moment-caption moment-desc">{{item.description}}</view>
+      </view>
+      <view class="moments-tail"></view>
+    </scroll-view>
+  </view>
+
   <view wx:if="{{draft}}" class="draft-bar">这是草稿，还有没写全的部分。可以分享，也可以回去继续聊。</view>
 
   <view wx:if="{{dna.length}}" class="block dna-block">
