@@ -148,6 +148,18 @@ export interface ConversationState {
     mime?: string;
     generatedAt?: number;
   };
+  /** 玩法图元数据。字节在 data/gameplay，按 session + mechanic 分文件，不进 JSON。 */
+  gameplayImages?: {
+    lineup: string[];
+    items: Record<string, {
+      mechanicId: string;
+      fingerprint: string;
+      status: "queued" | "pending" | "ready" | "failed" | "stale";
+      error?: string;
+      mime?: string;
+      generatedAt?: number;
+    }>;
+  };
 }
 
 export function createInitialState(): ConversationState {
@@ -239,6 +251,31 @@ export function normalizeConversationState(state: ConversationState): Conversati
     const c = state.cover;
     const okStatus = c.status === "pending" || c.status === "ready" || c.status === "failed";
     if (!c.fingerprint || !okStatus) delete state.cover;
+  }
+  if (state.gameplayImages) {
+    const bag = state.gameplayImages;
+    const items = bag.items && typeof bag.items === "object" ? bag.items : {};
+    const next: NonNullable<ConversationState["gameplayImages"]>["items"] = {};
+    for (const [key, raw] of Object.entries(items)) {
+      if (!raw || typeof raw !== "object") continue;
+      const mechanicId = String(raw.mechanicId || key || "").trim();
+      const fingerprint = String(raw.fingerprint || "").trim();
+      const status = raw.status;
+      const ok = status === "queued" || status === "pending" || status === "ready" || status === "failed" || status === "stale";
+      if (!/^[A-Za-z0-9_-]+$/.test(mechanicId) || !fingerprint || !ok) continue;
+      next[mechanicId] = {
+        mechanicId,
+        fingerprint,
+        status,
+        error: raw.error ? String(raw.error).slice(0, 200) : undefined,
+        mime: raw.mime,
+        generatedAt: typeof raw.generatedAt === "number" ? raw.generatedAt : undefined,
+      };
+    }
+    state.gameplayImages = {
+      lineup: Array.isArray(bag.lineup) ? bag.lineup.map((id) => String(id || "").trim()).filter((id) => /^[A-Za-z0-9_-]+$/.test(id)) : [],
+      items: next,
+    };
   }
   return state;
 }

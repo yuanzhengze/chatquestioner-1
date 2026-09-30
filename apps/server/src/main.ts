@@ -54,6 +54,9 @@ async function start(): Promise<void> {
     image,
     shareDir: resolve(repoRoot, "data"),
     coverDir: resolve(repoRoot, "data", "covers"),
+    gameplayDir: resolve(repoRoot, "data", "gameplay"),
+    imageConcurrency: cfg.IMAGE_CONCURRENCY,
+    gameplayImageSize: cfg.GAMEPLAY_IMAGE_SIZE,
     webDir: resolve(repoRoot, "apps/web/dist"),
     avatarDir: resolve(repoRoot, "apps/web/public/avatar"),
   });

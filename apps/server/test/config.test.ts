@@ -8,6 +8,8 @@ describe("loadConfig", () => {
     expect(cfg.PORT).toBe(8420);
     expect(cfg.IMAGE_MODEL).toBe("gpt-image-2");
     expect(cfg.IMAGE_SIZE).toBe("1024x1024");
+    expect(cfg.GAMEPLAY_IMAGE_SIZE).toBe("1536x864");
+    expect(cfg.IMAGE_CONCURRENCY).toBe(2);
     expect(cfg.IMAGE_BASE_URL).toBe("https://llm-proxy.forgeax.com/v1");
     expect(cfg.IMAGE_API_KEY).toBe("sk-x");
   });

@@ -1,5 +1,5 @@
 import { API_BASE, FX_CHROME, GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../../config";
-import { attachShareCover, createShare, downloadCover, getCoverMeta, getShare, requestCover } from "../../utils/api";
+import { attachShareCover, createShare, downloadCover, downloadGameplayFile, getCoverMeta, getGameplay, getShare, requestCover, requestGameplay, requestGameplayOne } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
 const { parseGddPreview, fullDocBody } = require("../../utils/gddPreview.js");
@@ -21,6 +21,32 @@ function absUrl(path: string): string {
 /** gpt-image-2 出一张约 2MB 图经常要 1–3 分钟，不能按 30 秒放弃。 */
 const COVER_POLL_MS = 2000;
 const COVER_POLL_MAX = 90;
+const GAMEPLAY_POLL_MS = 2000;
+const GAMEPLAY_POLL_MAX = 450;
+
+type MomentCard = {
+  id: string;
+  title: string;
+  description: string;
+  imageStatus: "idle" | "queued" | "pending" | "ready" | "failed" | "stale";
+  localUrl: string;
+  remoteUrl: string;
+  imageFingerprint: string;
+  revision: string;
+};
+
+function blankMoments(items: Array<{ id: string; title: string; description: string }>): MomentCard[] {
+  return (items || []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    imageStatus: "idle",
+    localUrl: "",
+    remoteUrl: "",
+    imageFingerprint: "",
+    revision: "",
+  }));
+}
 
 Page({
   data: {
@@ -47,7 +73,7 @@ Page({
     loopNodes: [] as Array<{ id: string; label: string; text: string }>,
     loopOpen: "",
     loopText: "",
-    gameplayMoments: [] as Array<{ id: string; title: string; description: string }>,
+    gameplayMoments: [] as MomentCard[],
     selectedLineId: "",
     lineActionsOn: false,
     fullDocOpen: false,
@@ -71,6 +97,9 @@ Page({
   _coverTimer: 0 as number,
   _coverTries: 0,
   _coverRegen: false,
+  _gpTimer: 0 as number,
+  _gpTries: 0,
+  _gpLocal: {} as Record<string, string>,
   _fullDocGen: 0,
   _fullDocSettle: 0,
 
@@ -119,6 +148,7 @@ Page({
     this._sheet = false;
     if (this._fromShare) return;
     if (!this._applied) this.applyFromStorage();
+    else this.refreshGameplay(true);
   },
 
   onHide() {
@@ -150,6 +180,7 @@ Page({
     if (this._lineViewTimer) clearTimeout(this._lineViewTimer);
     this.clearFullDocSettle();
     this.stopCoverWatch();
+    this.stopGameplayWatch();
   },
 
   async loadShare(id: string) {
@@ -198,6 +229,8 @@ Page({
     const draftBar = payload && payload.draftBar === true;
     this._sessionId = payload && payload.sessionId ? String(payload.sessionId) : this._sessionId;
     this.stopCoverWatch();
+    this.stopGameplayWatch();
+    this._gpLocal = {};
     if (!markdown) {
       this._markdown = "";
       this._model = null;
@@ -282,7 +315,7 @@ Page({
       loopNodes: view.loopNodes || [],
       loopOpen: "",
       loopText: "",
-      gameplayMoments: view.gameplayMoments || [],
+      gameplayMoments: blankMoments(view.gameplayMoments || []),
       selectedLineId: "",
       lineActionsOn: false,
       fullDocOpen: false,
@@ -299,6 +332,7 @@ Page({
     void this.startShare();
     void this.makeShareCard(title, pitch);
     this.startCoverWatch();
+    this.refreshGameplay(true);
   },
 
   startShare(): Promise<{ id: string; title: string }> {
@@ -381,6 +415,106 @@ Page({
       this._coverTimer = 0;
     }
     this._coverTries = 0;
+  },
+
+  stopGameplayWatch() {
+    if (this._gpTimer) {
+      clearTimeout(this._gpTimer);
+      this._gpTimer = 0;
+    }
+    this._gpTries = 0;
+  },
+
+  refreshGameplay(ensure = false) {
+    if (this._fromShare || !this._sessionId || !this.data.gameplayMoments.length) return;
+    const sessionId = this._sessionId;
+    const task = ensure ? requestGameplay(sessionId) : getGameplay(sessionId);
+    void task
+      .then((pub) => this.applyGameplay(sessionId, pub.items || []))
+      .catch(() => {
+        if (ensure) this.refreshGameplay(false);
+      });
+  },
+
+  applyGameplay(sessionId: string, items: Array<{ mechanicId?: string; status?: string; imageUrl?: string; imageFingerprint?: string; fingerprint?: string; revision?: string }>) {
+    if (sessionId !== this._sessionId) return;
+    const byId: Record<string, { status: MomentCard["imageStatus"]; imageUrl: string; imageFingerprint: string; revision: string }> = {};
+    items.forEach((item) => {
+      const id = String(item.mechanicId || "");
+      if (!id) return;
+      const status = item.status;
+      const imageStatus: MomentCard["imageStatus"] = status === "queued" || status === "pending" || status === "ready" || status === "failed" || status === "stale" ? status : "idle";
+      byId[id] = {
+        status: imageStatus,
+        imageUrl: String(item.imageUrl || ""),
+        imageFingerprint: String(item.imageFingerprint || item.fingerprint || ""),
+        revision: String(item.revision || ""),
+      };
+    });
+    const next = this.data.gameplayMoments.map((moment) => {
+      const remote = byId[moment.id];
+      if (!remote) {
+        return { ...moment, imageStatus: "idle" as const, localUrl: "", remoteUrl: "", imageFingerprint: "", revision: "" };
+      }
+      const key = `${moment.id}|${remote.revision}`;
+      const cached = remote.revision && moment.revision === remote.revision ? (this._gpLocal[key] || moment.localUrl || "") : "";
+      return {
+        ...moment,
+        imageStatus: remote.status,
+        remoteUrl: remote.imageUrl,
+        imageFingerprint: remote.imageFingerprint,
+        revision: remote.revision,
+        localUrl: cached,
+      };
+    });
+    const busy = next.some((moment) => moment.imageStatus === "pending" || moment.imageStatus === "queued");
+    this.setData({ gameplayMoments: next });
+    next.forEach((moment) => {
+      if ((moment.imageStatus !== "ready" && moment.imageStatus !== "stale") || !moment.remoteUrl || moment.localUrl || !moment.revision) return;
+      const key = `${moment.id}|${moment.revision}`;
+      void downloadGameplayFile(absUrl(moment.remoteUrl), sessionId, moment.id, moment.revision)
+        .then((local) => {
+          if (sessionId !== this._sessionId) return;
+          this._gpLocal[key] = local;
+          const cards = this.data.gameplayMoments.map((card) => card.id === moment.id && card.revision === moment.revision
+            ? { ...card, localUrl: local }
+            : card);
+          this.setData({ gameplayMoments: cards });
+        })
+        .catch(() => {
+          // 下载失败先留占位或旧图，下次打开再试
+        });
+    });
+    if (busy) this.scheduleGameplayPoll();
+    else this.stopGameplayWatch();
+  },
+
+  scheduleGameplayPoll() {
+    if (this._fromShare || !this._sessionId || this._gpTimer) return;
+    if (this._gpTries >= GAMEPLAY_POLL_MAX) return;
+    this._gpTimer = setTimeout(() => {
+      this._gpTimer = 0;
+      this._gpTries += 1;
+      this.refreshGameplay(false);
+    }, GAMEPLAY_POLL_MS) as unknown as number;
+  },
+
+  onRegenGameplay(e: { currentTarget: { dataset: { id?: string } } }) {
+    const mechanicId = String((e.currentTarget.dataset && e.currentTarget.dataset.id) || "");
+    if (this._fromShare || !this._sessionId || !mechanicId) return;
+    const current = this.data.gameplayMoments.find((moment) => moment.id === mechanicId);
+    if (!current || current.imageStatus === "pending" || current.imageStatus === "queued") return;
+    void requestGameplayOne(this._sessionId, mechanicId)
+      .then(() => this.refreshGameplay(false))
+      .catch(() => {
+        wx.showToast({ title: "这一张还没开始重画", icon: "none" });
+      });
+  },
+
+  onPreviewGameplay(e: { currentTarget: { dataset: { url?: string } } }) {
+    const url = String((e.currentTarget.dataset && e.currentTarget.dataset.url) || "");
+    if (!url) return;
+    wx.previewImage({ current: url, urls: [url] });
   },
 
   startCoverWatch() {

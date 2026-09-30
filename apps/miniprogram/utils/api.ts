@@ -3,8 +3,9 @@ import { Utf8StreamDecoder } from "./utf8";
 import { shared } from "./shared";
 import type { SseHandlers, StageInfo, TurnOption } from "./types";
 
-const { coverFileName, resolveCoverDownload } = require("./gddPreview.js") as {
+const { coverFileName, gameplayFileName, resolveCoverDownload } = require("./gddPreview.js") as {
   coverFileName: (sessionId: string) => string;
+  gameplayFileName: (sessionId: string, mechanicId: string, fingerprint: string) => string;
   resolveCoverDownload: (
     sessionId: string,
     requestedPath: string,
@@ -367,6 +368,114 @@ export function attachShareCover(shareId: string, sessionId: string): Promise<st
       },
       fail(err: { errMsg?: string }) {
         reject(new Error(err.errMsg || "attachShareCover network error"));
+      },
+    });
+  });
+}
+
+export interface GameplayImageItem {
+  mechanicId: string;
+  fingerprint: string;
+  imageFingerprint?: string;
+  revision?: string;
+  status: "idle" | "queued" | "pending" | "ready" | "failed" | "stale";
+  imageUrl?: string;
+  error?: string;
+}
+
+export function getGameplay(sessionId: string): Promise<{ items: GameplayImageItem[] }> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${sessionId}/gameplay`,
+      method: "GET",
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          const body = res.data as { items?: GameplayImageItem[] };
+          resolve({ items: Array.isArray(body.items) ? body.items : [] });
+        } else {
+          reject(new Error(`getGameplay ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "getGameplay network error"));
+      },
+    });
+  });
+}
+
+export function requestGameplay(sessionId: string): Promise<{ items: GameplayImageItem[] }> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${sessionId}/gameplay`,
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: {},
+      timeout: 20000,
+      success(res: { statusCode: number; data: unknown }) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && typeof res.data === "object") {
+          const body = res.data as { items?: GameplayImageItem[] };
+          resolve({ items: Array.isArray(body.items) ? body.items : [] });
+        } else {
+          reject(new Error(`requestGameplay ${res.statusCode}`));
+        }
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "requestGameplay network error"));
+      },
+    });
+  });
+}
+
+export function requestGameplayOne(sessionId: string, mechanicId: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}/api/session/${sessionId}/gameplay/${mechanicId}`,
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: {},
+      timeout: 20000,
+      success(res: { statusCode: number }) {
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve();
+        else reject(new Error(`requestGameplayOne ${res.statusCode}`));
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "requestGameplayOne network error"));
+      },
+    });
+  });
+}
+
+export function downloadGameplayFile(url: string, sessionId: string, mechanicId: string, fingerprint: string): Promise<string> {
+  const name = gameplayFileName(sessionId, mechanicId, fingerprint);
+  const filePath = name ? `${wx.env.USER_DATA_PATH}/${name}` : "";
+  return new Promise((resolve, reject) => {
+    if (!url || !filePath) {
+      reject(new Error("empty gameplay url"));
+      return;
+    }
+    try {
+      wx.getFileSystemManager().accessSync(filePath);
+      resolve(filePath);
+      return;
+    } catch (_e) {
+      // 本地还没有这张图
+    }
+    wx.downloadFile({
+      url,
+      filePath,
+      timeout: 60000,
+      success(res: { statusCode: number; filePath?: string; tempFilePath?: string }) {
+        if (res.statusCode !== 200) {
+          reject(new Error(`downloadGameplay ${res.statusCode}`));
+          return;
+        }
+        const saved = String(res.filePath || filePath || "");
+        if (saved.indexOf(name) >= 0) resolve(saved);
+        else reject(new Error("downloadGameplay missing mechanic file"));
+      },
+      fail(err: { errMsg?: string }) {
+        reject(new Error(err.errMsg || "downloadGameplay network error"));
       },
     });
   });

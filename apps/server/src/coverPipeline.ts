@@ -16,6 +16,8 @@ import {
 } from "@cq/gdd";
 import type { CoverStore } from "./coverStore.js";
 import type { ImageGenerator } from "./imageClient.js";
+import type { ImageGenerationQueue } from "./imageQueue.js";
+import type { SessionMutex } from "./sessionMutex.js";
 import type { SessionStore } from "./sessionStore.js";
 
 export interface PublicCover {
@@ -48,6 +50,8 @@ export class CoverPipeline {
     private readonly store: SessionStore,
     private readonly covers: CoverStore,
     private readonly image: ImageGenerator | null,
+    private readonly queue: ImageGenerationQueue,
+    private readonly lock: SessionMutex,
   ) {}
 
   publicCover(state: ConversationState, sessionId: string): PublicCover {
@@ -85,6 +89,10 @@ export class CoverPipeline {
   }
 
   async ensure(sessionId: string, opts?: { force?: boolean }): Promise<PublicCover> {
+    return this.lock.run(sessionId, () => this.ensureLocked(sessionId, opts));
+  }
+
+  private async ensureLocked(sessionId: string, opts?: { force?: boolean }): Promise<PublicCover> {
     const loaded = await this.store.load(sessionId);
     if (!loaded) return { status: "idle", fingerprint: "" };
     const state = normalizeConversationState(structuredClone(loaded) as ConversationState);
@@ -115,7 +123,21 @@ export class CoverPipeline {
     if (!this.inflight.has(key)) {
       loaded.cover = { fingerprint, prompt, status: "pending" };
       await this.store.save(sessionId, loaded);
-      const job = this.run(sessionId, fingerprint, prompt).finally(() => {
+      const jobId = `cover:${sessionId}:${fingerprint}`;
+      const job = new Promise<void>((resolve) => {
+        const accepted = this.queue.enqueue({
+          id: jobId,
+          priority: 0,
+          run: async () => {
+            try {
+              await this.generateCover(sessionId, fingerprint, prompt);
+            } finally {
+              resolve();
+            }
+          },
+        });
+        if (!accepted) resolve();
+      }).finally(() => {
         this.inflight.delete(key);
       });
       this.inflight.set(key, job);
@@ -128,29 +150,33 @@ export class CoverPipeline {
     return coverImagePath("share", shareId);
   }
 
-  private async run(sessionId: string, fingerprint: string, prompt: string): Promise<void> {
+  private async generateCover(sessionId: string, fingerprint: string, prompt: string): Promise<void> {
     if (!this.image) return;
     try {
       const img = await this.image.generate(prompt);
       this.covers.writeSession(sessionId, img.bytes);
-      const latest = await this.store.load(sessionId);
-      if (!latest) return;
-      const live = normalizeConversationState(structuredClone(latest) as ConversationState);
-      harvestIntoState(live);
-      scrubUngroundedState(live);
-      if (coverFingerprint(toGddModel(live)) !== fingerprint) return;
-      latest.cover = { fingerprint, prompt, status: "ready", mime: img.mime, generatedAt: Date.now() };
-      await this.store.save(sessionId, latest);
-      console.log(`[cover] ready session=${sessionId} bytes=${img.bytes.length} mime=${img.mime}`);
-      this.onSessionCoverReady?.(sessionId);
+      await this.lock.run(sessionId, async () => {
+        const latest = await this.store.load(sessionId);
+        if (!latest) return;
+        const live = normalizeConversationState(structuredClone(latest) as ConversationState);
+        harvestIntoState(live);
+        scrubUngroundedState(live);
+        if (coverFingerprint(toGddModel(live)) !== fingerprint) return;
+        latest.cover = { fingerprint, prompt, status: "ready", mime: img.mime, generatedAt: Date.now() };
+        await this.store.save(sessionId, latest);
+        console.log(`[cover] ready session=${sessionId} bytes=${img.bytes.length} mime=${img.mime}`);
+        this.onSessionCoverReady?.(sessionId);
+      });
     } catch (err) {
       console.error("[cover] generate failed:", err);
-      const latest = await this.store.load(sessionId);
-      if (!latest) return;
-      if (latest.cover?.fingerprint === fingerprint) {
-        latest.cover = { fingerprint, prompt, status: "failed", mime: latest.cover.mime };
-        await this.store.save(sessionId, latest);
-      }
+      await this.lock.run(sessionId, async () => {
+        const latest = await this.store.load(sessionId);
+        if (!latest) return;
+        if (latest.cover?.fingerprint === fingerprint) {
+          latest.cover = { fingerprint, prompt, status: "failed", mime: latest.cover.mime };
+          await this.store.save(sessionId, latest);
+        }
+      });
     }
   }
 }

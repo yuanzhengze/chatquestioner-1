@@ -17,6 +17,10 @@ import { initSse, sendEvent, endSse } from "./sse.js";
 import { SSE_EVENTS } from "./wire.js";
 import { CoverStore, coverDirFromData } from "./coverStore.js";
 import { CoverPipeline, coverImagePath, shouldAutoEnsureCover } from "./coverPipeline.js";
+import { GameplayStore, gameplayDirFromData } from "./gameplayStore.js";
+import { GameplayPipeline } from "./gameplayPipeline.js";
+import { ImageGenerationQueue } from "./imageQueue.js";
+import { SessionMutex } from "./sessionMutex.js";
 import type { ImageGenerator } from "./imageClient.js";
 
 export interface ServerDeps {
@@ -39,6 +43,12 @@ export interface ServerDeps {
   shareDir?: string;
   /** 封面落盘目录。缺省 shareDir/covers */
   coverDir?: string;
+  /** 玩法图落盘目录。缺省 shareDir/gameplay */
+  gameplayDir?: string;
+  /** 封面和玩法图共用的生图并发。缺省 2。 */
+  imageConcurrency?: number;
+  /** 玩法图尺寸。缺省 1536x864（严格 16:9）。 */
+  gameplayImageSize?: string;
   /** 封面生图。未配置则封面保持色块。 */
   image?: ImageGenerator;
 }
@@ -86,7 +96,18 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   const dataRoot = deps.shareDir ?? resolve(process.cwd(), "data");
   const shareStore: ShareStore = new FileShareStore(dataRoot);
   const covers = new CoverStore(deps.coverDir ?? coverDirFromData(dataRoot));
-  const coverPipeline = new CoverPipeline(deps.store, covers, deps.image ?? null);
+  const sessionLock = new SessionMutex();
+  const imageQueue = new ImageGenerationQueue(deps.imageConcurrency ?? 2);
+  const coverPipeline = new CoverPipeline(deps.store, covers, deps.image ?? null, imageQueue, sessionLock);
+  const gameplayFiles = new GameplayStore(deps.gameplayDir ?? gameplayDirFromData(dataRoot));
+  const gameplayPipeline = new GameplayPipeline(
+    deps.store,
+    gameplayFiles,
+    deps.image ?? null,
+    imageQueue,
+    deps.gameplayImageSize ?? "1536x864",
+    sessionLock,
+  );
 
   async function rewriteSessionShares(sessionId: string, state: ConversationState): Promise<void> {
     const syn = buildSynthesis(state);
@@ -291,6 +312,44 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     return coverPipeline.ensure(req.params.id, { force: true });
   });
 
+  app.get<{ Params: { id: string } }>("/api/session/:id/gameplay", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
+    const pub = await gameplayPipeline.list(req.params.id);
+    if (!pub) return reply.code(404).send({ error: "session not found" });
+    return pub;
+  });
+
+  app.post<{ Params: { id: string } }>("/api/session/:id/gameplay", async (req, reply) => {
+    if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid session id" });
+    const pub = await gameplayPipeline.startAll(req.params.id);
+    if (!pub) return reply.code(404).send({ error: "session not found" });
+    return pub;
+  });
+
+  app.post<{ Params: { id: string; mechanicId: string } }>(
+    "/api/session/:id/gameplay/:mechanicId",
+    async (req, reply) => {
+      if (!SAFE_ID.test(req.params.id) || !SAFE_ID.test(req.params.mechanicId)) {
+        return reply.code(400).send({ error: "invalid id" });
+      }
+      const pub = await gameplayPipeline.startOne(req.params.id, req.params.mechanicId);
+      if (!pub) return reply.code(404).send({ error: "session not found" });
+      return pub;
+    },
+  );
+
+  app.get<{ Params: { id: string; mechanicId: string } }>(
+    "/api/session/:id/gameplay/:mechanicId",
+    async (req, reply) => {
+      if (!SAFE_ID.test(req.params.id) || !SAFE_ID.test(req.params.mechanicId)) {
+        return reply.code(400).send({ error: "invalid id" });
+      }
+      const bytes = gameplayFiles.read(req.params.id, req.params.mechanicId);
+      if (!bytes) return reply.code(404).send({ error: "gameplay image not found" });
+      return reply.header("Cache-Control", "private, max-age=86400").type(covers.mimeOf(bytes)).send(bytes);
+    },
+  );
+
   app.post<{ Params: { id: string }; Body: { lineId?: string; lineText?: string; sectionId?: string; sectionTitle?: string } }>(
     "/api/session/:id/patch",
     async (req, reply) => {
@@ -392,6 +451,9 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           if (shouldAutoEnsureCover(res.state, covers.has("session", req.params.id))) {
             coverPipeline.schedule(req.params.id);
           }
+          void gameplayPipeline.startAll(req.params.id).catch((err) => {
+            console.error("[gameplay] ensure failed:", err);
+          });
         }
         if (res.patchCommitted) {
           await rewriteSessionShares(req.params.id, res.state);

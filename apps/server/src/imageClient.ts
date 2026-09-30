@@ -4,7 +4,7 @@ export interface ImageBytes {
 }
 
 export interface ImageGenerator {
-  generate(prompt: string): Promise<ImageBytes>;
+  generate(prompt: string, options?: { size?: string }): Promise<ImageBytes>;
 }
 
 function guessMime(buf: Buffer): ImageBytes["mime"] {
@@ -18,12 +18,12 @@ export class OpenAiImageClient implements ImageGenerator {
     private readonly opts: { baseURL: string; apiKey: string; model: string; size: string },
   ) {}
 
-  async generate(prompt: string): Promise<ImageBytes> {
+  async generate(prompt: string, options?: { size?: string }): Promise<ImageBytes> {
     const body = {
       model: this.opts.model,
       prompt,
       n: 1,
-      size: this.opts.size,
+      size: options?.size || this.opts.size,
       response_format: "b64_json" as const,
     };
     let json = await this.post(body);

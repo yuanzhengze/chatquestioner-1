@@ -74,6 +74,15 @@ function listViewportHeight(contentPx, windowPx) {
   return Math.min(box, Math.round(win * 0.52));
 }
 
+function gameplayFileName(sessionId, mechanicId, revision) {
+  var clean = function (v) { return String(v || "").replace(/[^A-Za-z0-9_-]/g, ""); };
+  var session = clean(sessionId);
+  var mechanic = clean(mechanicId);
+  var rev = clean(revision);
+  if (!session || !mechanic || !rev) return "";
+  return "nb-gp-" + session + "-" + mechanic + "-" + rev + ".png";
+}
+
 function coverFileName(sessionId) {
   var id = String(sessionId || "").replace(/[^A-Za-z0-9_-]/g, "");
   return id ? "nb-cover-" + id + ".png" : "";
@@ -98,6 +107,7 @@ function resolveCoverDownload(sessionId, requestedPath, result) {
 
 module.exports.recordCard = recordCard;
 module.exports.listViewportHeight = listViewportHeight;
+module.exports.gameplayFileName = gameplayFileName;
 module.exports.coverFileName = coverFileName;
 module.exports.coverFileMatches = coverFileMatches;
 module.exports.resolveCoverDownload = resolveCoverDownload;

@@ -30,11 +30,32 @@
   </view>
 
   <view wx:if="{{gameplayMoments.length}}" class="moments">
-    <view class="card-title moments-heading">关键瞬间</view>
+    <view class="moments-heading">
+      <view class="card-title">关键瞬间</view>
+    </view>
     <scroll-view scroll-x class="moments-row" show-scrollbar="{{false}}">
       <view class="moments-lead"></view>
       <view wx:for="{{gameplayMoments}}" wx:key="id" class="moment">
-        <view class="moment-shot"></view>
+        <view class="moment-shot">
+          <image
+            wx:if="{{item.localUrl && (item.imageStatus === 'ready' || item.imageStatus === 'stale')}}"
+            class="moment-photo"
+            src="{{item.localUrl}}"
+            mode="aspectFill"
+            data-url="{{item.localUrl}}"
+            bindtap="onPreviewGameplay"
+          />
+          <view wx:if="{{item.imageStatus === 'queued'}}" class="moment-state">等待生成</view>
+          <view wx:if="{{item.imageStatus === 'pending'}}" class="moment-state">正在生成玩法画面…</view>
+          <view wx:if="{{item.imageStatus === 'failed'}}" class="moment-state">没画出来</view>
+          <view wx:if="{{item.imageStatus === 'stale'}}" class="moment-flag">已过期</view>
+          <view
+            wx:if="{{!fromShare && (item.imageStatus === 'ready' || item.imageStatus === 'failed' || item.imageStatus === 'stale')}}"
+            class="moment-redo"
+            data-id="{{item.id}}"
+            catchtap="onRegenGameplay"
+          >重新生成</view>
+        </view>
         <view class="card-title moment-caption">{{item.title}}</view>
         <view wx:if="{{item.description}}" class="card-line-text moment-caption moment-desc">{{item.description}}</view>
       </view>
