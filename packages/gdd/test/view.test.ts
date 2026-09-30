@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emptyGddModel, toGddView, splitInteractionChain, coverPromptFromModel, coverFingerprint, fnv1aHex } from "../src/index.js";
+import { emptyGddModel, toGddView, coverPromptFromModel, coverFingerprint, fnv1aHex } from "../src/index.js";
 
 function sample() {
   const m = emptyGddModel();
@@ -26,32 +26,23 @@ function sample() {
 }
 
 describe("toGddView", () => {
-  it("从 GddModel 派生 DNA、分镜、循环，不另起采访字段", () => {
+  it("从 GddModel 派生预览，不另起采访字段", () => {
     const v = toGddView(sample());
-    expect(v.dna.map((c) => c.id)).toEqual(["fantasy", "emotion", "diff", "play"]);
-    expect(v.dna.find((c) => c.id === "play")?.text).toBe("手机 · 平面");
-    expect(v.storyboard.map((f) => f.text)).toEqual(["划线", "同色猫", "连消除并响起呼噜"]);
-    expect(v.loopNodes.map((n) => n.id)).toEqual(["micro", "mid", "macro"]);
+    expect(v.profile.formatLine).toBe("单人 · 手机 · 2D · 竖屏");
     expect(v.delight).toContain("猫爪");
     expect(v.growthSteps.map((s) => s.id)).toEqual(["near", "after", "unlocks"]);
     expect(v.cover.prompt).toContain("水彩暖色");
     expect(v.cover.prompt).toContain("不要出现任何文字");
     expect(v.cover.prompt).not.toContain("发光料理");
     expect(v.cover.fingerprint).toMatch(/^[0-9a-f]+$/);
+    expect(v.gameplayMoments).toEqual([]);
   });
 
-  it("chain 不够两段时用 verb/target/feedback 补帧", () => {
-    const m = emptyGddModel();
-    m.interaction = { verb: "点击", target: "空田", chain: "种田", feedback: "作物破土" };
-    const v = toGddView(m);
-    expect(v.storyboard.map((f) => f.title)).toEqual(["主要操作", "操作对象", "即时反馈"]);
-  });
-
-  it("空模型不造假芯片和分镜", () => {
+  it("空模型不造假预览", () => {
     const v = toGddView(emptyGddModel());
-    expect(v.dna).toEqual([]);
-    expect(v.storyboard).toEqual([]);
-    expect(v.loopNodes).toEqual([]);
+    expect(v.profile.genres).toEqual([]);
+    expect(v.profile.experienceTags).toEqual([]);
+    expect(v.profile.formatLine).toBe("");
     expect(v.growthSteps).toEqual([]);
     expect(v.gameplayMoments).toEqual([]);
     expect(v.growthNone).toBe(false);
@@ -162,15 +153,5 @@ describe("关键瞬间 = 核心机制", () => {
     expect(a[1].id).toBe(`${fnv1aHex("甲：一")}-2`);
     expect(a[0].id).not.toBe("0");
     expect(a[1].id).not.toBe("1");
-  });
-});
-
-describe("splitInteractionChain", () => {
-  it("认识箭头和然后/之后", () => {
-    expect(splitInteractionChain("点员工 然后 升级工位 之后 碎片时间")).toEqual([
-      "点员工",
-      "升级工位",
-      "碎片时间",
-    ]);
   });
 });

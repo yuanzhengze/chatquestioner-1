@@ -29,6 +29,17 @@
     <view class="regen {{coverPending ? 'off' : ''}}" bindtap="onRegenCover">{{coverPending ? '封面生成中' : '重新生成封面'}}</view>
   </view>
 
+  <view wx:if="{{profileGenres.length || profileTags.length || profileFormat}}" class="profile">
+    <view class="card-title profile-title">游戏类型</view>
+    <view wx:if="{{profileGenres.length}}" class="profile-row profile-genres">
+      <view wx:for="{{profileGenres}}" wx:key="*this" class="chip genre">{{item}}</view>
+    </view>
+    <view wx:if="{{profileTags.length}}" class="profile-row profile-tags">
+      <view wx:for="{{profileTags}}" wx:key="*this" class="chip">{{item}}</view>
+    </view>
+    <view wx:if="{{profileFormat}}" class="profile-format">{{profileFormat}}</view>
+  </view>
+
   <view wx:if="{{gameplayMoments.length}}" class="moments">
     <view class="moments-heading">
       <view class="card-title">关键瞬间</view>
@@ -64,51 +75,6 @@
   </view>
 
   <view wx:if="{{draft}}" class="draft-bar">这是草稿，还有没写全的部分。可以分享，也可以回去继续聊。</view>
-
-  <view wx:if="{{dna.length}}" class="block dna-block">
-    <view class="label">游戏基因</view>
-    <scroll-view scroll-x class="dna-row" enable-flex>
-      <view
-        wx:for="{{dna}}"
-        wx:key="id"
-        class="dna-chip {{dnaOpen === item.id ? 'on' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="onDnaTap"
-      >
-        <view class="dna-kicker">{{item.label}}</view>
-        <view class="dna-short">{{item.text}}</view>
-      </view>
-    </scroll-view>
-    <view wx:if="{{dnaFull}}" class="dna-full">{{dnaFull}}</view>
-  </view>
-
-  <view wx:if="{{storyboard.length}}" class="block">
-    <view class="label">你怎么玩</view>
-    <view class="frame">
-      <view class="frame-kicker">{{frameTitle}}</view>
-      <view class="frame-text">{{frameText}}</view>
-      <view class="frame-nav">
-        <view class="frame-dots">
-          <view wx:for="{{storyboard}}" wx:key="index" class="dot {{index === storyIndex ? 'on' : ''}}"></view>
-        </view>
-        <view wx:if="{{storyboard.length > 1}}" class="next" bindtap="onNextFrame">下一步</view>
-      </view>
-    </view>
-  </view>
-
-  <view wx:if="{{loopNodes.length}}" class="block">
-    <view class="label">一局怎么转</view>
-    <view class="rings">
-      <view
-        wx:for="{{loopNodes}}"
-        wx:key="id"
-        class="ring {{loopOpen === item.id ? 'on' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="onLoopTap"
-      >{{item.label}}</view>
-    </view>
-    <view wx:if="{{loopText}}" class="loop-text">{{loopText}}</view>
-  </view>
 
   <view wx:if="{{!fromShare && sections.length}}" class="patch-hint">点一句，再点修改。</view>
   <view

@@ -1,23 +1,7 @@
+import { gameProfileFromModel, type GameProfile } from "./gameProfile.js";
 import { asGddText, type GddModel } from "./model.js";
 
 export type CoverStatus = "idle" | "pending" | "ready" | "failed";
-
-export interface GddViewChip {
-  id: string;
-  label: string;
-  text: string;
-}
-
-export interface StoryboardFrame {
-  title: string;
-  text: string;
-}
-
-export interface LoopNode {
-  id: "micro" | "mid" | "macro";
-  label: string;
-  text: string;
-}
 
 export interface GrowthStep {
   id: string;
@@ -35,9 +19,7 @@ export interface GameplayMoment {
 export interface GddView {
   title: string;
   pitch: string;
-  dna: GddViewChip[];
-  storyboard: StoryboardFrame[];
-  loopNodes: LoopNode[];
+  profile: GameProfile;
   delight: string;
   growthSteps: GrowthStep[];
   growthNone: boolean;
@@ -66,13 +48,6 @@ export function fnv1aHex(raw: string): string {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0).toString(16);
-}
-
-export function splitInteractionChain(chain: string): string[] {
-  return text(chain)
-    .split(/\s*(?:→|->|➔|然后|之后)\s*/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 
 export function coverFingerprint(m: GddModel): string {
@@ -110,40 +85,6 @@ export function coverPromptFromModel(m: GddModel): string {
   const dim = text(m.presentation?.dimension);
   if (where || dim) lines.push(`呈现：${[where, dim].filter(Boolean).join("，")}`);
   return lines.join("\n");
-}
-
-export function storyboardFrames(m: GddModel): StoryboardFrame[] {
-  const parts = splitInteractionChain(m.interaction?.chain || "");
-  if (parts.length >= 2) {
-    return parts.slice(0, 4).map((t, i) => ({ title: `第 ${i + 1} 步`, text: t }));
-  }
-  const inter = m.interaction || { verb: "", target: "", feedback: "", chain: "" };
-  const fallback: StoryboardFrame[] = [];
-  if (filled(inter.verb)) fallback.push({ title: "主要操作", text: text(inter.verb) });
-  if (filled(inter.target)) fallback.push({ title: "操作对象", text: text(inter.target) });
-  if (filled(inter.feedback)) fallback.push({ title: "即时反馈", text: text(inter.feedback) });
-  if (fallback.length >= 2) return fallback.slice(0, 4);
-  const one = text(inter.chain) || text(m.coreAction);
-  return one ? [{ title: "你怎么玩", text: one }] : [];
-}
-
-export function dnaChips(m: GddModel): GddViewChip[] {
-  const chips: GddViewChip[] = [];
-  const fantasy = text(m.constitution?.coreFantasy) || text(m.coreFantasy);
-  if (fantasy) chips.push({ id: "fantasy", label: "幻想", text: fantasy });
-  if (filled(m.coreEmotion)) chips.push({ id: "emotion", label: "情感", text: text(m.coreEmotion) });
-  if (filled(m.differentiator)) chips.push({ id: "diff", label: "不同", text: text(m.differentiator) });
-  const play = [text(m.presentation?.where), text(m.presentation?.dimension)].filter(Boolean).join(" · ");
-  if (play) chips.push({ id: "play", label: "在哪玩", text: play });
-  return chips;
-}
-
-export function loopNodes(m: GddModel): LoopNode[] {
-  const nodes: LoopNode[] = [];
-  if (filled(m.loop?.micro)) nodes.push({ id: "micro", label: "头几秒", text: text(m.loop.micro) });
-  if (filled(m.loop?.mid)) nodes.push({ id: "mid", label: "一局", text: text(m.loop.mid) });
-  if (filled(m.loop?.macro)) nodes.push({ id: "macro", label: "再玩下去", text: text(m.loop.macro) });
-  return nodes;
 }
 
 /**
@@ -199,9 +140,7 @@ export function toGddView(m: GddModel, cover: { status?: CoverStatus; imageUrl?:
   return {
     title: text(m.title) || "未命名游戏",
     pitch: text(m.pitch),
-    dna: dnaChips(m),
-    storyboard: storyboardFrames(m),
-    loopNodes: loopNodes(m),
+    profile: gameProfileFromModel(m),
     delight: text(m.coreDelight),
     growthSteps: steps,
     growthNone: Boolean(g.none) && steps.length === 0,

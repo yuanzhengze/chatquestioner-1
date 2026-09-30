@@ -80,7 +80,8 @@ describe("cover pipeline", () => {
     const body = got.json();
     expect(body.gddModel.title).toBe("城寨幽鸣");
     expect(body.gddView.title).toBe("城寨幽鸣");
-    expect(body.gddView.storyboard.map((f: { text: string }) => f.text)).toEqual(["搜刮", "潜行", "开枪逃跑"]);
+    expect(body.gddView.profile).toBeTruthy();
+    expect(Array.isArray(body.gddView.gameplayMoments)).toBe(true);
     expect(body.gddView.cover.status).toBe("idle");
     expect(body.gddView.cover.imageUrl).toBeUndefined();
     expect(image.calls).toBe(0);
@@ -160,7 +161,8 @@ describe("cover pipeline", () => {
     const kicked = await app.inject({ method: "POST", url: `/api/session/${created.id}/cover` });
     expect(kicked.json().status).toBe("failed");
     const got = await app.inject({ method: "GET", url: `/api/session/${created.id}` });
-    expect(got.json().gddView.storyboard.length).toBeGreaterThan(0);
+    expect(got.json().gddView.title).toBe("城寨幽鸣");
+    expect(got.json().gddView.profile).toBeTruthy();
     await app.close();
   });
 

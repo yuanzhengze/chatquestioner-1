@@ -1,5 +1,5 @@
 import { API_BASE, FX_CHROME, GDD_DRAFT_KEY, GDD_PATCH_KEY, LOGO_SRC } from "../../config";
-import { attachShareCover, createShare, downloadCover, downloadGameplayFile, getCoverMeta, getGameplay, getShare, requestCover, requestGameplay, requestGameplayOne } from "../../utils/api";
+import { attachShareCover, createShare, downloadCover, downloadGameplayFile, getCoverMeta, getGameplay, getSession, getShare, requestCover, requestGameplay, requestGameplayOne } from "../../utils/api";
 
 const { mdToHtml } = require("../../utils/md.js");
 const { parseGddPreview, fullDocBody } = require("../../utils/gddPreview.js");
@@ -63,16 +63,9 @@ Page({
     expandedId: "constitution",
     coverUrl: "",
     coverPending: false,
-    dna: [] as Array<{ id: string; label: string; text: string }>,
-    dnaOpen: "",
-    dnaFull: "",
-    storyboard: [] as Array<{ title: string; text: string }>,
-    storyIndex: 0,
-    frameTitle: "",
-    frameText: "",
-    loopNodes: [] as Array<{ id: string; label: string; text: string }>,
-    loopOpen: "",
-    loopText: "",
+    profileGenres: [] as string[],
+    profileTags: [] as string[],
+    profileFormat: "",
     gameplayMoments: [] as MomentCard[],
     selectedLineId: "",
     lineActionsOn: false,
@@ -102,6 +95,8 @@ Page({
   _gpLocal: {} as Record<string, string>,
   _fullDocGen: 0,
   _fullDocSettle: 0,
+  _profileTimer: 0 as number,
+  _profileTries: 0,
 
   onLoad(query: { s?: string }) {
     try {
@@ -181,6 +176,7 @@ Page({
     this.clearFullDocSettle();
     this.stopCoverWatch();
     this.stopGameplayWatch();
+    this.stopProfileWatch();
   },
 
   async loadShare(id: string) {
@@ -250,16 +246,9 @@ Page({
         expandedId: "constitution",
         coverUrl: "",
         coverPending: false,
-        dna: [],
-        dnaOpen: "",
-        dnaFull: "",
-        storyboard: [],
-        storyIndex: 0,
-        frameTitle: "",
-        frameText: "",
-        loopNodes: [],
-        loopOpen: "",
-        loopText: "",
+        profileGenres: [],
+        profileTags: [],
+        profileFormat: "",
         gameplayMoments: [],
         selectedLineId: "",
         lineActionsOn: false,
@@ -288,7 +277,7 @@ Page({
     } catch (_e) {
       sections = [];
     }
-    const storyboard = view.storyboard || [];
+    const profile = view.profile || { genres: [], experienceTags: [], formatLine: "" };
     this._markdown = markdown;
     this._model = model;
     this._complete = complete;
@@ -305,16 +294,9 @@ Page({
       expandedId: sections.length ? sections[0].id : "",
       coverUrl: "",
       coverPending: false,
-      dna: view.dna || [],
-      dnaOpen: "",
-      dnaFull: "",
-      storyboard,
-      storyIndex: 0,
-      frameTitle: storyboard[0] ? storyboard[0].title : "",
-      frameText: storyboard[0] ? storyboard[0].text : "",
-      loopNodes: view.loopNodes || [],
-      loopOpen: "",
-      loopText: "",
+      profileGenres: [],
+      profileTags: [],
+      profileFormat: profile.formatLine || "",
       gameplayMoments: blankMoments(view.gameplayMoments || []),
       selectedLineId: "",
       lineActionsOn: false,
@@ -333,6 +315,48 @@ Page({
     void this.makeShareCard(title, pitch);
     this.startCoverWatch();
     this.refreshGameplay(true);
+    this.startProfileWatch();
+  },
+
+  stopProfileWatch() {
+    if (this._profileTimer) clearTimeout(this._profileTimer);
+    this._profileTimer = 0;
+  },
+
+  startProfileWatch() {
+    if (this._fromShare || !this._sessionId) return;
+    this.stopProfileWatch();
+    this._profileTries = 0;
+    this.pollProfile();
+  },
+
+  pollProfile() {
+    const id = this._sessionId;
+    if (!id || this._fromShare) return;
+    void getSession(id).then((state) => {
+      if (id !== this._sessionId) return;
+      const cls = state.gameClassification as {
+        status?: string;
+        genres?: Array<{ label?: string }>;
+        tags?: Array<{ label?: string }>;
+        debug?: { error?: string; filtered?: unknown };
+      } | undefined;
+      if (cls && cls.status === "ready") {
+        this.setData({
+          profileGenres: (cls.genres || []).map((row) => String(row.label || "")).filter(Boolean),
+          profileTags: (cls.tags || []).map((row) => String(row.label || "")).filter(Boolean),
+        });
+        return;
+      }
+      if (cls && cls.status === "failed") return;
+      this._profileTries += 1;
+      if (this._profileTries > 40) return;
+      this._profileTimer = setTimeout(() => this.pollProfile(), 2000) as unknown as number;
+    }).catch(() => {
+      this._profileTries += 1;
+      if (this._profileTries > 40) return;
+      this._profileTimer = setTimeout(() => this.pollProfile(), 2000) as unknown as number;
+    });
   },
 
   startShare(): Promise<{ id: string; title: string }> {
@@ -588,39 +612,6 @@ Page({
         this.setData({ coverPending: false });
         wx.showToast({ title: "封面没生成，文档还在", icon: "none" });
       });
-  },
-
-  onDnaTap(e: { currentTarget: { dataset: { id?: string } } }) {
-    const id = e.currentTarget.dataset.id;
-    if (!id) return;
-    if (this.data.dnaOpen === id) {
-      this.setData({ dnaOpen: "", dnaFull: "" });
-      return;
-    }
-    const chip = (this.data.dna || []).find((c) => c.id === id);
-    this.setData({ dnaOpen: id, dnaFull: chip ? chip.text : "" });
-  },
-
-  onNextFrame() {
-    const frames = this.data.storyboard || [];
-    if (frames.length < 2) return;
-    const next = (this.data.storyIndex + 1) % frames.length;
-    this.setData({
-      storyIndex: next,
-      frameTitle: frames[next].title,
-      frameText: frames[next].text,
-    });
-  },
-
-  onLoopTap(e: { currentTarget: { dataset: { id?: string } } }) {
-    const id = e.currentTarget.dataset.id;
-    if (!id) return;
-    if (this.data.loopOpen === id) {
-      this.setData({ loopOpen: "", loopText: "" });
-      return;
-    }
-    const node = (this.data.loopNodes || []).find((n) => n.id === id);
-    this.setData({ loopOpen: id, loopText: node ? node.text : "" });
   },
 
   onToggleSection(e: { currentTarget: { dataset: { id?: string } } }) {

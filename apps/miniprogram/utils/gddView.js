@@ -15,13 +15,6 @@ function fnv1aHex(raw) {
   return (h >>> 0).toString(16);
 }
 
-function splitInteractionChain(chain) {
-  return String(chain || "")
-    .split(/\s*(?:→|->|➔|然后|之后)\s*/g)
-    .map(function (s) { return s.trim(); })
-    .filter(Boolean);
-}
-
 function coverFingerprint(m) {
   var c = m.constitution && typeof m.constitution === "object" ? m.constitution : {};
   var pres = m.presentation && typeof m.presentation === "object" ? m.presentation : {};
@@ -60,43 +53,25 @@ function coverPromptFromModel(m) {
   return lines.join("\n");
 }
 
-function storyboardFrames(m) {
-  var inter = m.interaction && typeof m.interaction === "object" ? m.interaction : {};
-  var parts = splitInteractionChain(inter.chain);
-  if (parts.length >= 2) {
-    return parts.slice(0, 4).map(function (t, i) {
-      return { title: "第 " + (i + 1) + " 步", text: t };
-    });
-  }
-  var fallback = [];
-  if (filled(inter.verb)) fallback.push({ title: "主要操作", text: text(inter.verb) });
-  if (filled(inter.target)) fallback.push({ title: "操作对象", text: text(inter.target) });
-  if (filled(inter.feedback)) fallback.push({ title: "即时反馈", text: text(inter.feedback) });
-  if (fallback.length >= 2) return fallback.slice(0, 4);
-  var one = text(inter.chain) || text(m.coreAction);
-  return one ? [{ title: "你怎么玩", text: one }] : [];
-}
-
-function dnaChips(m) {
-  var c = m.constitution && typeof m.constitution === "object" ? m.constitution : {};
+function formatProfile(m) {
   var pres = m.presentation && typeof m.presentation === "object" ? m.presentation : {};
-  var chips = [];
-  var fantasy = text(c.coreFantasy) || text(m.coreFantasy);
-  if (fantasy) chips.push({ id: "fantasy", label: "幻想", text: fantasy });
-  if (filled(m.coreEmotion)) chips.push({ id: "emotion", label: "情感", text: text(m.coreEmotion) });
-  if (filled(m.differentiator)) chips.push({ id: "diff", label: "不同", text: text(m.differentiator) });
-  var play = [text(pres.where), text(pres.dimension)].filter(Boolean).join(" · ");
-  if (play) chips.push({ id: "play", label: "在哪玩", text: play });
-  return chips;
-}
-
-function loopNodes(m) {
-  var loop = m.loop && typeof m.loop === "object" ? m.loop : {};
-  var nodes = [];
-  if (filled(loop.micro)) nodes.push({ id: "micro", label: "头几秒", text: text(loop.micro) });
-  if (filled(loop.mid)) nodes.push({ id: "mid", label: "一局", text: text(loop.mid) });
-  if (filled(loop.macro)) nodes.push({ id: "macro", label: "再玩下去", text: text(loop.macro) });
-  return nodes;
+  var players = { "自己玩": "单人", "要和别人一起": "多人" }[text(pres.players)] || "";
+  var platform = { "电脑": "PC", "手机": "手机", "网页": "网页" }[text(pres.where)] || "";
+  var dimension = { "平面": "2D", "能转视角的立体": "3D" }[text(pres.dimension)] || "";
+  var orientation = { "横屏": "横屏", "竖屏": "竖屏" }[text(pres.orientation)] || "";
+  var format = {};
+  if (players) format.players = players;
+  if (platform) format.platform = platform;
+  if (dimension) format.dimension = dimension;
+  if (orientation) format.orientation = orientation;
+  return {
+    genres: [],
+    gameplayTags: [],
+    experienceTags: [],
+    tags: [],
+    format: format,
+    formatLine: [players, platform, dimension, orientation].filter(Boolean).join(" · "),
+  };
 }
 
 function parseCoreMechanic(raw) {
@@ -152,9 +127,7 @@ function toGddView(m, cover) {
   return {
     title: text(m.title) || "未命名游戏",
     pitch: text(m.pitch),
-    dna: dnaChips(m),
-    storyboard: storyboardFrames(m),
-    loopNodes: loopNodes(m),
+    profile: formatProfile(m),
     delight: text(m.coreDelight),
     growthSteps: steps,
     growthNone: Boolean(g.none) && steps.length === 0,
@@ -170,4 +143,3 @@ function toGddView(m, cover) {
 
 module.exports.toGddView = toGddView;
 module.exports.coverFingerprint = coverFingerprint;
-module.exports.splitInteractionChain = splitInteractionChain;

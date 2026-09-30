@@ -19,6 +19,7 @@ import { CoverStore, coverDirFromData } from "./coverStore.js";
 import { CoverPipeline, coverImagePath, shouldAutoEnsureCover } from "./coverPipeline.js";
 import { GameplayStore, gameplayDirFromData } from "./gameplayStore.js";
 import { GameplayPipeline } from "./gameplayPipeline.js";
+import { ProfilePipeline } from "./profilePipeline.js";
 import { ImageGenerationQueue } from "./imageQueue.js";
 import { SessionMutex } from "./sessionMutex.js";
 import type { ImageGenerator } from "./imageClient.js";
@@ -100,6 +101,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   const imageQueue = new ImageGenerationQueue(deps.imageConcurrency ?? 2);
   const coverPipeline = new CoverPipeline(deps.store, covers, deps.image ?? null, imageQueue, sessionLock);
   const gameplayFiles = new GameplayStore(deps.gameplayDir ?? gameplayDirFromData(dataRoot));
+  const profilePipeline = new ProfilePipeline(deps.store, deps.llm, sessionLock);
   const gameplayPipeline = new GameplayPipeline(
     deps.store,
     gameplayFiles,
@@ -219,6 +221,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       }
     })();
     if (!syn) return state;
+    profilePipeline.schedule(req.params.id);
     return {
       ...state,
       gddMarkdown: syn.gddMarkdown,
@@ -454,6 +457,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           void gameplayPipeline.startAll(req.params.id).catch((err) => {
             console.error("[gameplay] ensure failed:", err);
           });
+          profilePipeline.schedule(req.params.id);
         }
         if (res.patchCommitted) {
           await rewriteSessionShares(req.params.id, res.state);

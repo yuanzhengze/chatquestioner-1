@@ -148,6 +148,22 @@ export interface ConversationState {
     mime?: string;
     generatedAt?: number;
   };
+  /** 模型从 Steam 词表里选出的类型和标签。字节只在会话 JSON。 */
+  gameClassification?: {
+    fingerprint: string;
+    status: "pending" | "ready" | "failed";
+    source: "model";
+    genres: Array<{ tagId: number; label: string; category: string; evidence: string; confidence: number; evidenceFields: string[] }>;
+    tags: Array<{ tagId: number; label: string; category: string; evidence: string; confidence: number; evidenceFields: string[] }>;
+    debug: {
+      retried: boolean;
+      raw?: string;
+      retryRaw?: string;
+      filtered: Array<{ tagId: number; label: string; reason: string }>;
+      error?: string;
+    };
+    generatedAt?: number;
+  };
   /** 玩法图元数据。字节在 data/gameplay，按 session + mechanic 分文件，不进 JSON。 */
   gameplayImages?: {
     lineup: string[];
@@ -246,6 +262,20 @@ export function normalizeConversationState(state: ConversationState): Conversati
     state.engineering = {
       platform: [], modalities: [], mechanics: [], intentTerms: [], signatureTerms: [],
     };
+  }
+  if (state.gameClassification) {
+    const bag = state.gameClassification;
+    const ok = bag.status === "pending" || bag.status === "ready" || bag.status === "failed";
+    if (!bag.fingerprint || !ok || bag.source !== "model") delete state.gameClassification;
+    else {
+      const keep = (rows: unknown) => Array.isArray(rows)
+        ? rows.filter((row) => row && typeof row === "object" && Number.isFinite(Number((row as { tagId?: number }).tagId)))
+        : [];
+      bag.genres = keep(bag.genres) as NonNullable<ConversationState["gameClassification"]>["genres"];
+      bag.tags = keep(bag.tags) as NonNullable<ConversationState["gameClassification"]>["tags"];
+      if (!bag.debug || typeof bag.debug !== "object") bag.debug = { retried: false, filtered: [] };
+      if (!Array.isArray(bag.debug.filtered)) bag.debug.filtered = [];
+    }
   }
   if (state.cover) {
     const c = state.cover;
