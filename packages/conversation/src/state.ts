@@ -133,6 +133,12 @@ export interface ConversationState {
   difficulty: DifficultyState;
   content: ContentState;
   history: ChatMessage[];
+  /**
+   * 用户最近一次真正改了共创或文档的时间（毫秒）。
+   * 只打开、点「修改」、取消、封面、玩法图、游戏类型分类都不改它。
+   * 旧会话没有这个字段时不补成现在。
+   */
+  contentUpdatedAt?: number;
   lastOptions?: TurnOption[];
   readyForSynthesis?: boolean;
   /** 定稿（过 completeness）才为 true；中途半成品仍可以是 false */
@@ -284,6 +290,9 @@ export function normalizeConversationState(state: ConversationState): Conversati
   if (state.mechanicIds && (typeof state.mechanicIds !== "object" || Array.isArray(state.mechanicIds))) {
     delete state.mechanicIds;
   }
+  if (typeof state.contentUpdatedAt !== "number" || !Number.isFinite(state.contentUpdatedAt) || state.contentUpdatedAt <= 0) {
+    delete state.contentUpdatedAt;
+  }
   if (state.iterationOrigin !== "cocreation" && state.iterationOrigin !== "document_patch") {
     delete state.iterationOrigin;
   }
@@ -335,4 +344,10 @@ export function normalizeConversationState(state: ConversationState): Conversati
     };
   }
   return state;
+}
+
+/** 这一轮真的改了共创或文档。打开、派生图、分类不要调用。 */
+export function markContentUpdated(state: ConversationState, now = Date.now()): void {
+  const prev = state.contentUpdatedAt;
+  state.contentUpdatedAt = typeof prev === "number" && prev >= now ? prev + 1 : now;
 }

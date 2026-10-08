@@ -59,6 +59,7 @@ Page({
   refreshList() {
     const gen = this._listGen + 1;
     this._listGen = gen;
+    /** 和共创页历史侧栏同一个顺序：sessionIndex 按内容更新时间排。 */
     const items = (sessionIndex.load().items || []) as Array<{ id: string; title?: string }>;
     this.paintCached(items);
     void Promise.all(items.map((it) => this.loadCard(it))).then((cards) => {

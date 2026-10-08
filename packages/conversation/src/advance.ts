@@ -15,7 +15,7 @@ import {
 import { parseTurnOutput, STATE_SENTINEL, designOptionsOnly, recoverOptionsFromProse, type ParsedTurn, type TurnOption } from "./turn.js";
 import { mergeStateDelta } from "./merge.js";
 import { nextStage, buildGuideStageHint, askStageOf, markStageAsked, CONVERGENCE_STAGE } from "./stages.js";
-import { normalizeConversationState, type ConversationState, type OptionPhase } from "./state.js";
+import { markContentUpdated, normalizeConversationState, type ConversationState, type OptionPhase } from "./state.js";
 import { buildKnowledgeContext, type Retriever } from "./retrieval.js";
 import { buildClarifySystemPrompt } from "./clarifySkill.js";
 import { harvestIntoState, showDraftBar } from "./harvest.js";
@@ -382,6 +382,7 @@ async function finish(
   state.optionPhase = outPhase;
   state.lastOptions = outOptions?.length ? outOptions : [];
   state.readyForSynthesis = readyForSynthesis;
+  markContentUpdated(state);
   return { reply: visible, state, readyForSynthesis, warnings, options: outOptions };
 }
 
@@ -398,7 +399,9 @@ async function advancePatch(
   trace.expectedOutputType = choice ? "none" : "patch";
 
   if (choice === "apply") {
+    const beforeDoc = JSON.stringify(toGddModel(state));
     applyPendingPatch(state);
+    if (JSON.stringify(toGddModel(state)) !== beforeDoc) markContentUpdated(state);
     const reply = patchApplyReply(state);
     restorePatchPhase(state);
     deps.onToken?.(reply);

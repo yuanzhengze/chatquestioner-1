@@ -198,10 +198,14 @@ Page({
     if (!id) return;
     const hasUser = this.data.messages.some((m) => m.role === "user" && String(m.content || "").trim());
     if (!hasUser) return;
+    const rawStamp = this._state && (this._state as { contentUpdatedAt?: unknown }).contentUpdatedAt;
+    const contentUpdatedAt = typeof rawStamp === "number" && Number.isFinite(rawStamp) && rawStamp > 0
+      ? rawStamp
+      : undefined;
     sessionIndex.upsert({
       id,
       title: sessionIndex.titleFrom(this._state, this.data.messages),
-      updatedAt: Date.now(),
+      contentUpdatedAt,
       lastOptions: this._lastOptions && this._lastOptions.length
         ? this._lastOptions
         : liveOptions(this.data.messages),
@@ -898,6 +902,7 @@ Page({
   },
 
   refreshIndexHint() {
+    /** 和「我的」同一个顺序：sessionIndex 按内容更新时间排，不按最近打开排。 */
     const idx = sessionIndex.load();
     const cache = this._histCache || {};
     this.setData({

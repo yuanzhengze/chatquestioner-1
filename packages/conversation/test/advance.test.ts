@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createInitialState } from "../src/state.js";
+import { createInitialState, normalizeConversationState } from "../src/state.js";
 import { advance } from "../src/advance.js";
 import { STATE_SENTINEL } from "../src/turn.js";
 import { EXTRACT_PROMPT_TAG } from "../src/extract.js";
@@ -1360,5 +1360,75 @@ describe("定稿后从文档点「修改」", () => {
     expect(cancelled.state.lastOptions?.map((o) => o.label)).toEqual(["天气改节奏", "天气改目标"]);
     const conv = await advance(cancelled.state, WEATHER_CARDS[0].detail, { llm, systemPrompt: SYS });
     expect(conv.options).toEqual(CONVERGENCE_OPTIONS);
+  });
+});
+
+describe("历史排序只认内容更新时间", () => {
+  it("旧会话没有这个时间时，读出来不补成现在", () => {
+    const fresh = normalizeConversationState(createInitialState());
+    expect(fresh.contentUpdatedAt).toBeUndefined();
+    const kept = createInitialState();
+    kept.contentUpdatedAt = 333;
+    expect(normalizeConversationState(kept).contentUpdatedAt).toBe(333);
+    const broken = createInitialState();
+    broken.contentUpdatedAt = Number.NaN;
+    expect(normalizeConversationState(broken).contentUpdatedAt).toBeUndefined();
+  });
+
+  it("共创页发出去的一轮会更新内容时间", async () => {
+    const s = accepted();
+    s.contentUpdatedAt = 111;
+    const llm = scriptedLlm([
+      turn("你更想先定哪一块？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "先定操作", detail: "先把手感定下来" },
+          { id: "B", label: "先定世界", detail: "先把地方定下来" },
+        ],
+      }),
+    ]);
+    const res = await advance(s, "继续聊操作", { llm, systemPrompt: SYS });
+    expect(res.state.contentUpdatedAt).toBeGreaterThan(111);
+  });
+
+  it("点修改、提议、再改改、取消都不改内容时间；应用改了字段才改", async () => {
+    const llm = scriptedLlm([
+      turn("将改：核心动作 → 点击空田种菜。", {
+        state_delta: { coreAction: "点击空田种菜" },
+        affected_lines: ["coreAction"],
+      }),
+      turn("将改：核心动作 → 点击空田浇水。", {
+        state_delta: { coreAction: "点击空田浇水" },
+        affected_lines: ["coreAction"],
+      }),
+    ]);
+    const s = accepted();
+    s.coreAction = "点击空田播种";
+    s.readyForSynthesis = true;
+    s.contentUpdatedAt = 222;
+    s.history = [{ role: "assistant", content: "先看文档。" }];
+    const { beginLinePatch } = await import("../src/patch.js");
+    beginLinePatch(s, { lineId: "coreAction", lineText: "核心动作：点击空田播种", sectionTitle: "怎么玩" });
+    expect(s.contentUpdatedAt).toBe(222);
+
+    const asked = await advance(s, "改成种菜", { llm, systemPrompt: SYS });
+    expect(asked.state.coreAction).toBe("点击空田播种");
+    expect(asked.state.contentUpdatedAt).toBe(222);
+
+    const tweaked = await advance(asked.state, PATCH_OPTIONS[1].detail, { llm, systemPrompt: SYS });
+    expect(tweaked.state.coreAction).toBe("点击空田播种");
+    expect(tweaked.state.contentUpdatedAt).toBe(222);
+
+    const askedAgain = await advance(tweaked.state, "改成浇水", { llm, systemPrompt: SYS });
+    expect(askedAgain.state.coreAction).toBe("点击空田播种");
+    expect(askedAgain.state.contentUpdatedAt).toBe(222);
+
+    const cancelled = await advance(structuredClone(askedAgain.state), PATCH_OPTIONS[2].detail, { llm, systemPrompt: SYS });
+    expect(cancelled.state.coreAction).toBe("点击空田播种");
+    expect(cancelled.state.contentUpdatedAt).toBe(222);
+
+    const applied = await advance(askedAgain.state, PATCH_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(applied.state.coreAction).toBe("点击空田浇水");
+    expect(applied.state.contentUpdatedAt).toBeGreaterThan(222);
   });
 });
