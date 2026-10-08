@@ -95,10 +95,24 @@ page { background: var(--bg-canvas); color: var(--text); }
   color: var(--brand);
   font-size: 20rpx;
 }
+.cover-mark {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-left: auto;
+  flex-shrink: 0;
+}
 .cover-logo {
   width: 96rpx;
   height: 96rpx;
   flex-shrink: 0;
+}
+.cover-mark-name {
+  font-size: 24rpx;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
 }
 
 .cover-title {
@@ -116,12 +130,6 @@ page { background: var(--bg-canvas); color: var(--text); }
   color: var(--text-2);
 }
 
-.cover-brand {
-  margin-top: 36rpx;
-  font-size: 22rpx;
-  letter-spacing: 0.06em;
-  color: var(--brand);
-}
 
 .share-banner {
   margin-bottom: 20rpx;

@@ -38,7 +38,7 @@ describe("routes", () => {
     expect(r.statusCode).toBe(200);
     const body = r.json();
     expect(body.id).toMatch(/[0-9a-f-]{36}/);
-    expect(body.opening).toContain("NewBee");
+    expect(body.opening).toContain("ForgeaX");
     expect(body.opening).not.toContain("10 轮");
     expect(body.options).toBeUndefined();
     // 关键：此刻不应有任何持久化（未发首句）。

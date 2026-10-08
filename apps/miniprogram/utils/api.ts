@@ -1,4 +1,4 @@
-import { API_BASE } from "../config";
+import { API_BASE, noteDevNetworkFail } from "../config";
 import { Utf8StreamDecoder } from "./utf8";
 import { shared } from "./shared";
 import type { SseHandlers, StageInfo, TurnOption } from "./types";
@@ -70,6 +70,7 @@ export function createSession(): Promise<{ id: string; opening: string; options?
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "createSession network error"));
       },
     });
@@ -90,6 +91,7 @@ export function getSession(id: string): Promise<Record<string, unknown>> {
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "getSession network error"));
       },
     });
@@ -137,6 +139,7 @@ export function startLinePatch(
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "startLinePatch network error"));
       },
     });
@@ -157,6 +160,7 @@ export function deleteSession(id: string): Promise<void> {
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "deleteSession network error"));
       },
     });
@@ -191,6 +195,7 @@ export function createShare(
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "createShare network error"));
       },
     });
@@ -236,6 +241,7 @@ export function getShare(id: string): Promise<{
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "getShare network error"));
       },
     });
@@ -257,6 +263,7 @@ export function getCoverMeta(sessionId: string): Promise<{ status: string; image
         reject(new Error(`getCoverMeta failed: ${res.statusCode}`));
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "getCoverMeta network error"));
       },
     });
@@ -280,6 +287,7 @@ export function requestCover(sessionId: string): Promise<{ status: string; image
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "requestCover network error"));
       },
     });
@@ -301,6 +309,7 @@ export function downloadCover(url: string): Promise<string> {
         else reject(new Error(`downloadCover ${res.statusCode}`));
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "downloadCover network error"));
       },
     });
@@ -344,6 +353,7 @@ export function downloadCoverFile(url: string, sessionId: string): Promise<strin
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "downloadCover network error"));
       },
     });
@@ -367,6 +377,7 @@ export function attachShareCover(shareId: string, sessionId: string): Promise<st
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "attachShareCover network error"));
       },
     });
@@ -398,6 +409,7 @@ export function getGameplay(sessionId: string): Promise<{ items: GameplayImageIt
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "getGameplay network error"));
       },
     });
@@ -421,6 +433,7 @@ export function requestGameplay(sessionId: string): Promise<{ items: GameplayIma
         }
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "requestGameplay network error"));
       },
     });
@@ -440,6 +453,7 @@ export function requestGameplayOne(sessionId: string, mechanicId: string): Promi
         else reject(new Error(`requestGameplayOne ${res.statusCode}`));
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "requestGameplayOne network error"));
       },
     });
@@ -475,6 +489,7 @@ export function downloadGameplayFile(url: string, sessionId: string, mechanicId:
         else reject(new Error("downloadGameplay missing mechanic file"));
       },
       fail(err: { errMsg?: string }) {
+        noteDevNetworkFail(err);
         reject(new Error(err.errMsg || "downloadGameplay network error"));
       },
     });
@@ -507,6 +522,7 @@ export function sendMessage(
     },
     fail(err: { errMsg?: string }) {
       if (/abort/i.test(err.errMsg || "")) return;
+      noteDevNetworkFail(err);
       handlers.onError?.(err.errMsg || "sendMessage failed");
       if (!gotDone) onDone(false);
     },

@@ -286,7 +286,7 @@ function resolveSystem(
   const writingSummary = canWriteSummary(state) && phase === "interview" && !generating;
   if (phase === "patch") {
     const prompt = deps.systemPrompt
-      ?? `你是 NewBee。用户要点改文档里的一处。只问怎么改；他说明之后由系统列出将改的地方。不要说手风琴，不要定稿三选，不要采访下一节。`;
+      ?? `你是 ForgeaX。用户要点改文档里的一处。只问怎么改；他说明之后由系统列出将改的地方。不要说手风琴，不要定稿三选，不要采访下一节。`;
     return `${prompt}\n\n[宿主] 正在改文档里的一处。禁止再问要不要走引导。禁止对照旧稿写「不再需要 / 而是」。`;
   }
   const prompt = buildClarifySystemPrompt({

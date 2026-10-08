@@ -21,6 +21,7 @@ data/
 !packages/knowledge/data/
 !packages/knowledge/data/**
 *.local
+apps/miniprogram/config.local.js
 
 # os / editor
 .DS_Store

@@ -1,14 +1,14 @@
 <view class="mine">
   <view class="hero">
     <image class="hero-logo" src="{{logoSrc}}" mode="aspectFit" />
-    <view class="hero-name">NewBee</view>
-    <view class="hero-sub">ForgeaX 前置共创</view>
+    <view class="hero-name">ForgeaX</view>
+    <view class="hero-sub">游戏创意前置共创</view>
   </view>
 
   <view class="card">
     <view class="login" bindtap="onLogin">
       <view class="login-title">登录</view>
-      <view class="login-hint">开发期不绑定微信账号</view>
+      <view class="login-hint">暂时不用登录也能共创</view>
     </view>
   </view>
 
@@ -65,7 +65,7 @@
       <view class="row-go">></view>
     </view>
     <view class="row" bindtap="onOpenAbout">
-      <view class="row-label">关于 NewBee</view>
+      <view class="row-label">关于 ForgeaX</view>
       <view class="row-go">></view>
     </view>
     <view class="row" bindtap="onSettings">
@@ -87,9 +87,9 @@
 
 <view wx:if="{{showAbout}}" class="mask" catchtap="onCloseSheets">
   <view class="sheet" catchtap="noop">
-    <view class="sheet-title">关于 NewBee</view>
+    <view class="sheet-title">关于 ForgeaX</view>
     <view class="sheet-body">
-      <text class="sheet-text">NewBee 把一句脑洞聊成一份能做的游戏文档，再手动交给 ForgeaX。</text>
+      <text class="sheet-text">{{slogan}}</text>
       <view class="url" bindtap="onCopyLink">{{siteUrl}}</view>
     </view>
     <button class="btn primary sheet-btn" hover-class="press" bindtap="onCopyLink">复制开源链接</button>

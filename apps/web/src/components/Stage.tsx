@@ -47,7 +47,7 @@ export function Stage({ session }: { session: UseSession }) {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>NewBee · 游戏共创</h1>
+        <h1>ForgeaX · 游戏共创</h1>
         <div className="header-spacer" />
         {session.error && <span className="err">出错：{session.error}</span>}
         <button className="drawer-toggle" onClick={() => setDrawerOpen((o) => !o)}>已识别 ▸</button>

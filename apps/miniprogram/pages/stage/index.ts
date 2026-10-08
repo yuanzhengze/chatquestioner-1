@@ -24,7 +24,7 @@ const {
   followPlan,
 } = require("../../utils/messageOptions.js");
 
-const WAKING = "正在唤醒 NewBee…";
+const WAKING = "正在唤醒 ForgeaX…";
 
 /** 和 app.wxss 的 --dur-fly 对齐。占位收起、芯片飞行、把尾巴带进屏幕，共用这一段。 */
 const FLY_MS = 320;
@@ -1258,7 +1258,7 @@ Page({
   },
 
   sharePayload(shareId: string) {
-    const title = this.data.gddTitle || "NewBee 游戏文档";
+    const title = this.data.gddTitle || "ForgeaX 游戏文档";
     const payload: { title: string; path: string; imageUrl?: string } = {
       title,
       path: shareId ? `/pages/gdd/index?s=${shareId}` : "/pages/gdd/index",
@@ -1268,7 +1268,7 @@ Page({
   },
 
   onShareAppMessage() {
-    const title = this.data.gddTitle || "NewBee 游戏文档";
+    const title = this.data.gddTitle || "ForgeaX 游戏文档";
     if (!this.data.showGdd || !this.data.gddMarkdown) {
       return { title, path: "/pages/home/index", imageUrl: LOGO_SRC };
     }

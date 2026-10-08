@@ -66,7 +66,7 @@ async function start(): Promise<void> {
     avatarDir: resolve(repoRoot, "apps/web/public/avatar"),
   });
   await app.listen({ port: cfg.PORT, host: "0.0.0.0" });
-  console.log(`[server] listening on http://localhost:${cfg.PORT}`);
+  console.log(`[server] listening on 0.0.0.0:${cfg.PORT}`);
 }
 
 start().catch((err) => {

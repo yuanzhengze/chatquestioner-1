@@ -3,8 +3,10 @@ import { OPENING_MESSAGE, TURN_DIRECTIVE, buildTurnDirective, interpretGuidance,
 import { STATE_SENTINEL } from "../src/turn.js";
 
 describe("提示词常量", () => {
-  it("OPENING_MESSAGE 是 stage 0 破冰白，含 NewBee 自我介绍且不含术语", () => {
-    expect(OPENING_MESSAGE).toContain("NewBee");
+  it("OPENING_MESSAGE 是 stage 0 破冰白，含 ForgeaX 自我介绍且不含术语", () => {
+    expect(OPENING_MESSAGE).toContain("我是 ForgeaX，你的游戏共创伙伴");
+    expect(OPENING_MESSAGE).toContain("做游戏就像捏泥巴");
+    expect(OPENING_MESSAGE).not.toContain("NewBee");
     expect(OPENING_MESSAGE).toContain("脑洞");
     expect(OPENING_MESSAGE).not.toContain("核心循环");
     expect(OPENING_MESSAGE).not.toContain("10 轮");

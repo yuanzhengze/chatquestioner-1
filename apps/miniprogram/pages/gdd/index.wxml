@@ -17,12 +17,14 @@
     <image wx:if="{{coverUrl}}" class="cover-img" src="{{coverUrl}}" mode="aspectFill" binderror="onCoverError" />
     <view class="cover-shade">
       <view class="cover-top">
-        <view class="cover-badge">{{coverUrl ? '封面' : (coverPending ? '封面生成中' : '封面')}}</view>
-        <image class="cover-logo" src="{{logoSrc}}" mode="aspectFit" />
+        <view wx:if="{{coverPending}}" class="cover-badge">封面生成中</view>
+        <view class="cover-mark">
+          <image class="cover-logo" src="{{logoSrc}}" mode="aspectFit" />
+          <text class="cover-mark-name">ForgeaX</text>
+        </view>
       </view>
       <view class="cover-title">{{title}}</view>
       <view wx:if="{{pitch}}" class="cover-pitch">{{pitch}}</view>
-      <view class="cover-brand">NewBee × ForgeaX</view>
     </view>
   </view>
   <view wx:if="{{!fromShare}}" class="cover-actions">
@@ -74,7 +76,7 @@
     </scroll-view>
   </view>
 
-  <view wx:if="{{draft}}" class="draft-bar">这是草稿，还有没写全的部分。可以分享，也可以回去继续聊。</view>
+  <view wx:if="{{draft}}" class="draft-bar">这是草稿，还有没写全的部分，可以回去继续聊。</view>
 
   <view wx:if="{{!fromShare && sections.length}}" class="patch-hint">点一句，再点修改。</view>
   <view

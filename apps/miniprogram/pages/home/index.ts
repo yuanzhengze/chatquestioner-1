@@ -4,6 +4,7 @@ const legal = require("../../utils/legal.js");
 const { applyTabBar } = require("../../utils/tabBar.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
+const { SLOGAN_LINE_1, SLOGAN_LINE_2, SLOGAN_HIGHLIGHT } = require("../../utils/brandCopy.js");
 
 const IDEAS = [
   { id: "i1", text: "做一个晚上只能玩十分钟的解压游戏" },
@@ -23,7 +24,10 @@ Page({
     logoSrc: LOGO_SRC,
     gatePoster: LOGO_SRC,
     posterFailed: false,
-    subline: "ForgeaX 前置共创 · 产出游戏产品文档",
+    sloganLine1: SLOGAN_LINE_1,
+    sloganLine2: SLOGAN_LINE_2,
+    sloganHighlight: SLOGAN_HIGHLIGHT,
+    subline: "从一句脑洞聊起，在对话里把想法聊清楚，收成一份游戏产品文档。",
     agreed: false,
     hasLast: false,
     showLegal: false,

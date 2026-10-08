@@ -18,7 +18,7 @@ export function ContextStream({ messages, busy }: Props) {
         const streamingPlaceholder = m.role === "assistant" && i === lastIdx && !m.content && busy;
         return (
           <div key={i} className={`bubble ${m.role}`}>
-            <div className="bubble-role">{m.role === "user" ? "你" : "NewBee"}</div>
+            <div className="bubble-role">{m.role === "user" ? "你" : "ForgeaX"}</div>
             <div className="bubble-text">
               {m.content
                 ? <Markdown content={m.content} final={!(m.role === "assistant" && i === lastIdx && busy)} />

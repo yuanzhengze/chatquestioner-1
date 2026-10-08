@@ -15,15 +15,13 @@
           <image class="mark-logo" src="{{logoSrc}}" mode="aspectFit" />
         </view>
         <view class="brand-copy">
-          <view class="wordmark">NewBee</view>
-          <view class="kicker">ForgeaX 前置共创</view>
+          <view class="wordmark">ForgeaX</view>
+          <view class="kicker">游戏创意前置共创</view>
         </view>
       </view>
 
       <view class="window">
-        <view class="window-bar">
-          <view class="window-cap">Logo</view>
-        </view>
+        <view class="window-bar"></view>
         <view class="window-body">
           <image
             wx:if="{{!posterFailed}}"
@@ -41,28 +39,32 @@
           <view class="eyebrow-bar"></view>
           <text>灵感引导 · 游戏文档</text>
         </view>
-        <view class="title">把一句脑洞，聊成一份<text class="em">能做的游戏</text></view>
+        <view class="title">
+          <view class="title-line">{{sloganLine1}}</view>
+          <view class="title-line">{{sloganLine2}}<text class="em">{{sloganHighlight}}</text></view>
+        </view>
         <view class="sub">{{subline}}</view>
       </view>
 
       <view class="actions">
-        <view class="consent" bindtap="onToggleAgree">
-          <view class="box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
-          <view class="consent-text">
-            我已阅读并同意
-            <text class="link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
-            与
-            <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
-          </view>
-        </view>
         <button class="btn primary" hover-class="press" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
         <button wx:if="{{hasLast}}" class="btn ghost" hover-class="press" bindtap="onNewSession">新的共创</button>
         <button class="btn ghost" hover-class="press" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
       </view>
 
       <view class="hint" bindtap="onSeeExamples">
-        <view class="hint-chevron"></view>
+        <view class="hint-float"><view class="hint-chevron"></view></view>
         <view class="hint-text">上滑看示例</view>
+      </view>
+
+      <view class="consent" bindtap="onToggleAgree">
+        <view class="box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
+        <view class="consent-text">
+          我已阅读并同意
+          <text class="link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
+          与
+          <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
+        </view>
       </view>
     </view>
   </swiper-item>
@@ -70,12 +72,12 @@
   <swiper-item>
     <scroll-view scroll-y class="screen two">
       <view class="hint back" bindtap="onSeeCover">
-        <view class="hint-chevron up"></view>
+        <view class="hint-float up"><view class="hint-chevron up"></view></view>
         <view class="hint-text">下滑回封面</view>
       </view>
       <view class="section">
         <view class="section-label">示例脑洞</view>
-        <view class="section-hint">点一下会带到共创页，预填进输入框，不会自动发送。</view>
+        <view class="section-hint">点一下预填到共创输入框，不会自动发送。</view>
         <view
           wx:for="{{ideas}}"
           wx:key="id"
@@ -87,7 +89,7 @@
 
       <view class="section">
         <view class="section-label">示例案例</view>
-        <view class="section-hint">不是真实用户作品，只用来示范文档会长什么样。</view>
+        <view class="section-hint">示范文档长什么样，不是真实用户作品。</view>
         <view
           wx:for="{{cases}}"
           wx:key="id"
@@ -121,7 +123,7 @@
   <view class="sheet" catchtap="noop">
     <view class="sheet-title">ForgeaX 开源项目</view>
     <view class="sheet-body">
-      <text class="sheet-text">开发期小程序还不能直接打开外部网页（需要企业主体业务域名）。先复制链接，到系统浏览器打开。</text>
+      <text class="sheet-text">小程序里暂时打不开外部网页，复制链接后到浏览器打开。</text>
       <view class="url">{{siteUrl}}</view>
     </view>
     <button class="btn primary sheet-btn" hover-class="press" bindtap="onCopyLink">复制链接</button>

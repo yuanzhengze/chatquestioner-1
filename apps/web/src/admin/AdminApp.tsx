@@ -13,7 +13,7 @@ export function AdminApp() {
   return (
     <div className="admin">
       <header className="admin-header">
-        <h1>NewBee 后台</h1>
+        <h1>ForgeaX 后台</h1>
         <nav className="tabs">
           <button className={tab === "sessions" ? "tab active" : "tab"} onClick={() => setTab("sessions")}>
             会话

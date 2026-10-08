@@ -396,7 +396,7 @@ Page({
   },
 
   sharePayload(shareId: string) {
-    const title = this.data.title || "NewBee 游戏文档";
+    const title = this.data.title || "ForgeaX 游戏文档";
     const payload: { title: string; path: string; imageUrl?: string } = {
       title,
       path: shareId ? `/pages/gdd/index?s=${shareId}` : "/pages/gdd/index",
@@ -406,7 +406,7 @@ Page({
   },
 
   onShareAppMessage() {
-    const title = this.data.title || "NewBee 游戏文档";
+    const title = this.data.title || "ForgeaX 游戏文档";
     if (this._fromShare || !this._markdown) return { title, path: "/pages/gdd/index", imageUrl: LOGO_SRC };
     if (!this._shareId) void this.startShare().catch(() => "");
     if (!this._shareImage) void this.makeShareCard(title, this.data.pitch || "");

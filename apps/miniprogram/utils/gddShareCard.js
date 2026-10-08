@@ -81,7 +81,7 @@ function drawShareCard(ctx, chrome, title, pitch, logo) {
   }
   ctx.fillStyle = chrome.brand;
   ctx.font = "20px sans-serif";
-  ctx.fillText("NewBee × ForgeaX", 28, SHARE_H - 36);
+  ctx.fillText("ForgeaX", 28, SHARE_H - 36);
 }
 
 function loadShareLogo(canvas, src) {

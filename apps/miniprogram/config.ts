@@ -1,12 +1,102 @@
 /**
- * 开发期 API 根地址。
- * - 模拟器：127.0.0.1 即可
- * - 真机：改成电脑的局域网 IP，例如 http://192.168.1.8:8420
- * 封面图也走这个根（/api/session/:id/cover），不要让小程序直连 LiteLLM。
- * 本仓库 project.config.json 已设 urlCheck: false，模拟器一般不用再勾「不校验合法域名」。
- * 真机/正式版还要把该 API 域名配进 request / downloadFile 合法域名。
+ * 小程序 API 根地址的唯一入口。会话、补丁、封面、玩法图、分享、分类都用 API_BASE。
+ * 开发者工具用 127.0.0.1。真机开发版用 config.local.js 的 LAN_API_BASE（该文件不进 Git）。
+ * 正式版和体验版用 PRODUCTION_API_BASE，不回退到局域网。
+ * 封面和玩法图由服务端返回相对路径，再在这里拼上 API_BASE。
  */
-export const API_BASE = "http://127.0.0.1:8420";
+const { resolveApiBase } = require("./configBase.js") as {
+  resolveApiBase: (input: {
+    platform?: string;
+    envVersion?: string;
+    lanBase?: string;
+    productionBase?: string;
+    devtoolsBase?: string;
+  }) => { base: string; where: "devtools" | "device" | "production" };
+};
+
+/** 正式版、体验版的 HTTPS API。域名确定前留空，不会改去连开发机。 */
+export const PRODUCTION_API_BASE = "";
+
+const DEVTOOLS_API_BASE = "http://127.0.0.1:8420";
+
+type WxRuntime = {
+  getDeviceInfo?: () => { platform?: string };
+  getSystemInfoSync?: () => { platform?: string };
+  getAccountInfoSync?: () => { miniProgram?: { envVersion?: string } };
+};
+
+function readLanBase(): string {
+  try {
+    const local = require("./config.local.js") as { LAN_API_BASE?: string };
+    return typeof local.LAN_API_BASE === "string" ? local.LAN_API_BASE.trim() : "";
+  } catch (_e) {
+    return "";
+  }
+}
+
+function readRuntime(): { platform: string; envVersion: string } {
+  let wxapi: WxRuntime | undefined;
+  try {
+    wxapi = wx as WxRuntime;
+  } catch (_e) {
+    wxapi = undefined;
+  }
+  let platform = "";
+  let envVersion = "";
+  if (!wxapi) return { platform, envVersion };
+  try {
+    if (typeof wxapi.getDeviceInfo === "function") platform = String(wxapi.getDeviceInfo().platform || "");
+  } catch (_e) {
+    platform = "";
+  }
+  if (!platform && typeof wxapi.getSystemInfoSync === "function") {
+    try {
+      platform = String(wxapi.getSystemInfoSync().platform || "");
+    } catch (_e) {
+      platform = "";
+    }
+  }
+  try {
+    envVersion = String(wxapi.getAccountInfoSync?.().miniProgram?.envVersion || "");
+  } catch (_e) {
+    envVersion = "";
+  }
+  return { platform, envVersion };
+}
+
+const runtime = readRuntime();
+const resolved = resolveApiBase({
+  platform: runtime.platform,
+  envVersion: runtime.envVersion,
+  lanBase: readLanBase(),
+  productionBase: PRODUCTION_API_BASE,
+  devtoolsBase: DEVTOOLS_API_BASE,
+});
+
+export const API_BASE = resolved.base;
+export const API_WHERE = resolved.where;
+
+function devLogEnabled(): boolean {
+  return runtime.envVersion === "develop" || runtime.envVersion === "";
+}
+
+/** 开发版启动时打一行，正式版和体验版不打。 */
+export function logApiBase(): void {
+  if (!devLogEnabled()) return;
+  if (API_WHERE === "device" && !API_BASE) {
+    console.log("API_BASE: (empty) (device) 请在 config.local.js 填写 LAN_API_BASE");
+    return;
+  }
+  console.log(`API_BASE: ${API_BASE} (${API_WHERE})`);
+}
+
+/** 开发版请求失败时打出当前根地址。正式用户看不到这行。 */
+export function noteDevNetworkFail(err?: { errMsg?: string }): void {
+  if (!devLogEnabled()) return;
+  const msg = String(err?.errMsg || "");
+  if (/abort/i.test(msg)) return;
+  console.log(`API_BASE: ${API_BASE || "(empty)"} (${API_WHERE}) request failed: ${msg || "network fail"}`);
+}
 
 /** 导航栏 / Tab / canvas 不能写 CSS 变量。对照 forgeax-codex-design-system.html 的 dark 语义。 */
 export const FX_CHROME = {

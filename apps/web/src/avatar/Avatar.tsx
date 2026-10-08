@@ -42,7 +42,7 @@ export function Avatar({ view, onEmoteEnded, size = 360 }: Props) {
     return (
       <div className="avatar-halo">
         <div className="avatar" style={box}>
-          <img className="avatar-layer" src={assetUrls(top.primitive).poster} alt="NewBee" />
+          <img className="avatar-layer" src={assetUrls(top.primitive).poster} alt="ForgeaX" />
         </div>
       </div>
     );

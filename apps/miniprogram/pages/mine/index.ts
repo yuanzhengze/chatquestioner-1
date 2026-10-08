@@ -6,6 +6,7 @@ const { applyTabBar } = require("../../utils/tabBar.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
 const { recordCard, listViewportHeight, coverFileMatches } = require("../../utils/gddPreview.js");
+const { SLOGAN } = require("../../utils/brandCopy.js");
 
 function absUrl(path: string): string {
   const p = String(path || "").trim();
@@ -26,6 +27,7 @@ type HistCard = {
 Page({
   data: {
     logoSrc: LOGO_SRC,
+    slogan: SLOGAN,
     siteUrl: FORGEAX_SITE_URL,
     historyItems: [] as HistCard[],
     histOpen: false,
@@ -264,11 +266,11 @@ Page({
   },
 
   onSettings() {
-    wx.showToast({ title: "设置尚未接入", icon: "none" });
+    wx.showToast({ title: "设置还没开放", icon: "none" });
   },
 
   onLogin() {
-    wx.showToast({ title: "开发期不绑定微信账号", icon: "none" });
+    wx.showToast({ title: "暂时不用登录也能共创", icon: "none" });
   },
 
   onCloseSheets() {
