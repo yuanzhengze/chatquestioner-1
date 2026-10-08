@@ -19,4 +19,13 @@ describe("小程序预览直接用派生的关键瞬间", () => {
   it("没有机制时两边都是空", () => {
     expect(toMiniView(emptyGddModel()).gameplayMoments).toEqual([]);
   });
+
+  it("改过的一条机制带着原来的 id，两边一致", () => {
+    const m = emptyGddModel();
+    m.mechanics = ["点选摆珠：改成拖拽", "整理桌面：先把材料摆齐"];
+    m.mechanicIds = ["oldbead1", ""];
+    const mini = toMiniView(m).gameplayMoments;
+    expect(mini).toEqual(toGddView(m).gameplayMoments);
+    expect(mini[0].id).toBe("oldbead1");
+  });
 });

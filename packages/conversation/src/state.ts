@@ -18,6 +18,13 @@ export interface PatchContext {
   sectionTitle?: string;
   resumePhase: Exclude<OptionPhase, "patch">;
   resumeOptions: TurnOption[];
+  /** 点的是某一条核心机制时，记下点下去那一刻的原文。写回只换这一条。 */
+  targetText?: string;
+  /** 用户这次说的修改要求。再改改说法时换成新的那句。 */
+  request?: string;
+  /** 点进来之前共创页那次修改的进度。取消或应用后，没走完的那次共创照原样接上。 */
+  resumeOrigin?: "cocreation";
+  resumeAsked?: boolean;
   pendingDelta?: Record<string, unknown>;
   affectedLineIds?: string[];
   awaitingConfirm?: boolean;
@@ -132,6 +139,17 @@ export interface ConversationState {
   gddComplete?: boolean;
   /** 预览顶上的草稿条。跟有没有合格口头总结走，不跟 gddComplete。 */
   gddDraftBar?: boolean;
+  /** 走过定稿出过文档。之后再开口是在现有文档上改，不再按节采访。中途要来的草稿不算。 */
+  gddFinalized?: boolean;
+  /**
+   * 定稿后这一次修改从哪里发起。cocreation：共创页输入框；document_patch：文档页点某一条「修改」。
+   * 只看入口，不看用户说得够不够具体。
+   */
+  iterationOrigin?: "cocreation" | "document_patch";
+  /** 共创页这次修改已经出过一轮采访三选。再开口只给定稿三选，直到用户点定稿、改一块或再挖挖。 */
+  revisionAsked?: boolean;
+  /** 核心机制原文指纹 → 稳定 id。点改一条机制后，这一条的身份和玩法图仍跟着它。 */
+  mechanicIds?: Record<string, string>;
   /** 已经在该阶段上问过至少一轮，避免字段被顺带填上就跳节 */
   askedStages: number[];
   /** 当前该弹采访选项、收敛三选，还是补一块的设计选项 */
@@ -263,6 +281,15 @@ export function normalizeConversationState(state: ConversationState): Conversati
       platform: [], modalities: [], mechanics: [], intentTerms: [], signatureTerms: [],
     };
   }
+  if (state.mechanicIds && (typeof state.mechanicIds !== "object" || Array.isArray(state.mechanicIds))) {
+    delete state.mechanicIds;
+  }
+  if (state.iterationOrigin !== "cocreation" && state.iterationOrigin !== "document_patch") {
+    delete state.iterationOrigin;
+  }
+  if (state.patchContext && state.optionPhase === "patch") state.iterationOrigin = "document_patch";
+  else if (state.iterationOrigin === "document_patch") delete state.iterationOrigin;
+  if (state.iterationOrigin !== "cocreation") delete state.revisionAsked;
   if (state.gameClassification) {
     const bag = state.gameClassification;
     const ok = bag.status === "pending" || bag.status === "ready" || bag.status === "failed";

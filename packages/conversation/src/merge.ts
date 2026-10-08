@@ -1,6 +1,6 @@
 import type { ConversationState, EngineeringSignals, LoopState, PresentationState, DifficultyState, ContentState } from "./state.js";
 import type { KeywordPools, Constitution, ContentFlags } from "@cq/gdd";
-import { asGddText, composeInteractionChain, isConcreteInteractionChain } from "@cq/gdd";
+import { asGddText, composeInteractionChain, isConcreteInteractionChain, stripListNumber } from "@cq/gdd";
 
 /** 一轮 LLM 抽取的状态增量（全可选，camelCase 对齐 ConversationState）。 */
 export interface StateDelta {
@@ -51,6 +51,12 @@ function uniqMerge(existing: string[], incoming?: string[]): string[] {
     if (t && !out.includes(t)) out.push(t);
   }
   return out;
+}
+
+/** 机制正文不带展示序号，模型写成「1. xxx」也去掉。 */
+function mechanicTexts(incoming?: string[]): string[] | undefined {
+  if (!Array.isArray(incoming)) return incoming;
+  return incoming.map((item) => stripListNumber(item));
 }
 
 function setIf<T>(value: T | undefined, apply: (v: T) => void): void {
@@ -109,10 +115,10 @@ export function mergeStateDelta(
   state.risks = uniqMerge(state.risks, delta.risks);
   if (opts?.replaceLists) {
     if (Array.isArray(delta.juice)) state.juice = uniqMerge([], delta.juice);
-    if (Array.isArray(delta.mechanics)) state.mechanics = uniqMerge([], delta.mechanics);
+    if (Array.isArray(delta.mechanics)) state.mechanics = uniqMerge([], mechanicTexts(delta.mechanics));
   } else {
     state.juice = uniqMerge(state.juice, delta.juice);
-    state.mechanics = uniqMerge(state.mechanics, delta.mechanics);
+    state.mechanics = uniqMerge(state.mechanics, mechanicTexts(delta.mechanics));
   }
 
   if (Array.isArray(delta.constitution)) {
@@ -288,7 +294,7 @@ export function mergeFillEmpty(state: ConversationState, delta: StateDelta): Con
   state.avoidReferences = uniqMerge(state.avoidReferences, delta.avoidReferences);
   state.juice = uniqMerge(state.juice, delta.juice);
   state.risks = uniqMerge(state.risks, delta.risks);
-  state.mechanics = uniqMerge(state.mechanics, delta.mechanics);
+  state.mechanics = uniqMerge(state.mechanics, mechanicTexts(delta.mechanics));
 
   if (Array.isArray(delta.constitution)) {
     state.constitution = uniqMerge(state.constitution, delta.constitution);

@@ -67,6 +67,8 @@ export interface GddModel {
   growth: { none: boolean; unlocks: string; nearGoal: string; afterTenMin: string };
   loop: { micro: string; mid: string; macro: string; longTerm: string };
   mechanics: string[];
+  /** 与 mechanics 一一对应的稳定 id。单条改写后身份不变；缺省时按原文算。 */
+  mechanicIds?: string[];
   reward: string;
   winRule: string;
   loseRule: string;
@@ -163,6 +165,22 @@ export function asGddText(v: unknown): string {
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   if (Array.isArray(v)) return v.map(asGddText).filter(Boolean).join("、");
   return "";
+}
+
+const LIST_NUMBER = /^\s*(?:\d{1,2}\s*[.．、)）](?!\d)|[（(]\d{1,2}[)）])\s*/;
+
+/**
+ * 去掉开头的展示序号「1. / 1、/ 1) / 1．/ （1）」，叠了几层就去几层。
+ * 序号由展示层按位置生成，不进机制正文。「3 秒冻结」「1.5 倍速」这类数字不动。
+ */
+export function stripListNumber(value: unknown): string {
+  let out = asGddText(value);
+  while (LIST_NUMBER.test(out)) {
+    const next = out.replace(LIST_NUMBER, "");
+    if (!next || next === out) break;
+    out = next;
+  }
+  return out;
 }
 
 /** 把「核心幻想：…」这类已确认行写入对应宪法栏；对不上的（失败/爽点/难度）返回 false。 */

@@ -6,8 +6,18 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface LlmUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+}
+
+export interface LlmStreamOptions {
+  /** 开发环境耗时记录用。客户端拿得到用量就回报，拿不到就不调用。 */
+  onUsage?: (usage: LlmUsage) => void;
+}
+
 export interface LlmClient {
-  stream(messages: ChatMessage[]): AsyncIterable<string>;
+  stream(messages: ChatMessage[], opts?: LlmStreamOptions): AsyncIterable<string>;
 }
 
 export const OPENING_MESSAGE =
@@ -236,7 +246,7 @@ const TURN_DIRECTIVE_HEAD = `
 
 每一轮，你必须依次输出两部分：
 
-1) 面向用户的人话回复。引导模式下遵循共情承接 → 动态投喂 2~3 个定制创意 → 单步收敛提问。
+1) 面向用户的人话回复。引导模式下遵循共情承接 → 动态投喂 2~3 个定制创意 → 单步收敛提问。定稿后改文档时以宿主硬约束为准。
    闲聊用普通文本，行内重点用 **加粗**，重点整段用首行带 💡/❓/📌 的 > 引用块。
    绝不在这部分出现任何 JSON、字段名或英文键名。
 
@@ -270,7 +280,7 @@ const TURN_DIRECTIVE_INTERVIEW = `
 - may_write_summary 为 false。禁止写暂定名、一句话亮点、📌 概念总结。不要抄收敛模板。定稿三选由宿主弹出，不要自己给。JSON 里出现定稿项也不会当收口。大约 10 轮只是给用户的范围，不是收口条件。
 - 用户点「就按这个定稿，写成设计文档」或说「现在就生成」之前，不要宣布已经写成文档。
 - 用户点「就按这个定稿，写成设计文档」或说「现在就生成」：若宿主这轮出文档，不要 options、不要再问缺口。采访中途要文档时，下一轮继续当前节，不要跳到定稿。
-- 用户点「改一块 / 再挖挖」或出文档后再开口：本轮只给 2–3 个针对他这句的实质方向。下一轮宿主会再弹出定稿/改一块/再挖挖。
+- 用户点「改一块 / 再挖挖」或定稿后在共创页再开口：围绕他这句新想法问一轮，给 2–3 个实质方向，哪怕他已经说得很具体。问过之后宿主直接弹出定稿/改一块/再挖挖，不再问第二轮。
 - 禁止对用户说「系统马上弹卡片 / 请稍等几秒会弹出结果页」。结果入口由宿主显示，你承诺也不会出现。
 `.trim();
 
@@ -279,7 +289,7 @@ const TURN_DIRECTIVE_SUMMARY = `
 - 用户点「就按这个定稿，写成设计文档」或说「现在就生成」之前，不要宣布已经写成文档。
 - 人话一旦出现「暂定游戏名 / 概念总结 / 一句话亮点」，同一轮 state_delta 必须写入 workingTitle、pitch、coreExperience、loop.fiveMin、differentiator、mechanics（≥2）、winRule。不要只写在人话里。口头总结这一轮宿主还不出文档。
 - 用户点「就按这个定稿，写成设计文档」或说「现在就生成」：宿主出文档，本轮不要 options、不要再问缺口。采访中途要文档时，下一轮继续当前节。
-- 用户点「改一块 / 再挖挖」或出文档后再开口：本轮只给 2–3 个针对他这句的实质方向。下一轮宿主会再弹出定稿/改一块/再挖挖。
+- 用户点「改一块 / 再挖挖」或定稿后在共创页再开口：围绕他这句新想法问一轮，给 2–3 个实质方向，哪怕他已经说得很具体。问过之后宿主直接弹出定稿/改一块/再挖挖，不再问第二轮。
 - 禁止对用户说「系统马上弹卡片 / 请稍等几秒会弹出结果页」。结果入口由宿主显示，你承诺也不会出现。
 `.trim();
 

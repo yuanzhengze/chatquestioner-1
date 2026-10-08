@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emptyGddModel, toGddView, coverPromptFromModel, coverFingerprint, fnv1aHex } from "../src/index.js";
+import { emptyGddModel, toGddView, coverPromptFromModel, coverFingerprint, fnv1aHex, stripListNumber } from "../src/index.js";
 
 function sample() {
   const m = emptyGddModel();
@@ -153,5 +153,27 @@ describe("关键瞬间 = 核心机制", () => {
     expect(a[1].id).toBe(`${fnv1aHex("甲：一")}-2`);
     expect(a[0].id).not.toBe("0");
     expect(a[1].id).not.toBe("1");
+  });
+});
+
+describe("stripListNumber", () => {
+  it("去掉开头的展示序号，叠了几层去几层", () => {
+    expect(stripListNumber("1. 相邻交换：拖动零件")).toBe("相邻交换：拖动零件");
+    expect(stripListNumber("1.相邻交换")).toBe("相邻交换");
+    expect(stripListNumber("1、相邻交换")).toBe("相邻交换");
+    expect(stripListNumber("1) 相邻交换")).toBe("相邻交换");
+    expect(stripListNumber("1）相邻交换")).toBe("相邻交换");
+    expect(stripListNumber("1．相邻交换")).toBe("相邻交换");
+    expect(stripListNumber("（2）相邻交换")).toBe("相邻交换");
+    expect(stripListNumber("10. 相邻交换")).toBe("相邻交换");
+    expect(stripListNumber("1. 1. 1. 相邻交换")).toBe("相邻交换");
+  });
+
+  it("正文里有意义的数字不动", () => {
+    expect(stripListNumber("3 秒时间冻结：玩家按住时全场静止")).toBe("3 秒时间冻结：玩家按住时全场静止");
+    expect(stripListNumber("1.5 倍速：连击后加速")).toBe("1.5 倍速：连击后加速");
+    expect(stripListNumber("3、5、7 号格子会亮")).toBe("3、5、7 号格子会亮");
+    expect(stripListNumber("2048 合成：同数合并")).toBe("2048 合成：同数合并");
+    expect(stripListNumber("相邻交换：第 1. 步先拖")).toBe("相邻交换：第 1. 步先拖");
   });
 });

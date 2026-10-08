@@ -90,6 +90,7 @@ Page({
   _coverTimer: 0 as number,
   _coverTries: 0,
   _coverRegen: false,
+  _coverRemote: "",
   _gpTimer: 0 as number,
   _gpTries: 0,
   _gpLocal: {} as Record<string, string>,
@@ -227,6 +228,7 @@ Page({
     this.stopCoverWatch();
     this.stopGameplayWatch();
     this._gpLocal = {};
+    this._coverRemote = "";
     if (!markdown) {
       this._markdown = "";
       this._model = null;
@@ -414,22 +416,21 @@ Page({
   },
 
   onCoverError() {
+    this._coverRemote = "";
     this.setData({ coverUrl: "", coverPending: false });
   },
 
+  /** 下载完再原位换图。同一张图不重复下载，正在显示的旧图在新图到手前不清空。 */
   revealCover(remote: string) {
     const url = absUrl(remote);
-    if (!url) {
-      this.setData({ coverPending: false });
-      return;
-    }
-    this.setData({ coverPending: true });
+    if (!url || url === this._coverRemote) return;
+    this._coverRemote = url;
     void downloadCover(url)
       .then((local) => {
-        this.setData({ coverUrl: local, coverPending: false });
+        if (this._coverRemote === url) this.setData({ coverUrl: local });
       })
       .catch(() => {
-        this.setData({ coverUrl: url, coverPending: false });
+        if (this._coverRemote === url) this.setData({ coverUrl: url });
       });
   },
 
@@ -567,13 +568,21 @@ Page({
   },
 
   applyCoverMeta(meta: { status: string; imageUrl?: string }) {
+    if (meta.imageUrl) this.revealCover(meta.imageUrl);
     if (meta.status === "ready" && meta.imageUrl) {
       this.stopCoverWatch();
       this._coverRegen = false;
-      this.revealCover(meta.imageUrl);
+      this.setData({ coverPending: false });
       if (this._shareId && this._sessionId) {
         void attachShareCover(this._shareId, this._sessionId).catch(() => "");
       }
+      return;
+    }
+    /** 文档改过、封面没重画：旧图继续显示，不自动重画。 */
+    if (meta.status === "stale") {
+      this.stopCoverWatch();
+      this._coverRegen = false;
+      this.setData({ coverPending: false });
       return;
     }
     if (meta.status === "failed") {

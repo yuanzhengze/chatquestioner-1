@@ -1,6 +1,17 @@
+import { asGddText, coreMechanicId, stripListNumber } from "@cq/gdd";
+import { mechanicIdOf, toGddModel } from "./compile.js";
 import { PATCH_OPTIONS } from "./llm.js";
 import { mergeStateDelta, type StateDelta } from "./merge.js";
 import type { ConversationState, OptionPhase, PatchContext } from "./state.js";
+
+/** 预览里的第 N 条核心机制。一条就是一个修改单元。 */
+const MECHANIC_ITEM = /^mechanics\.(\d+)$/;
+
+interface MechanicEdit {
+  lineId: string;
+  from: string;
+  to: string;
+}
 
 export interface PatchIntent {
   lineId: string;
@@ -128,11 +139,83 @@ export function isKnownLineId(lineId: string): boolean {
   return false;
 }
 
+/** 单条机制不走整表路径，见 mechanicEdits。只有「机制：（未写）」那一行才写整表。 */
 export function pathsForLine(lineId: string): string[] {
   const id = String(lineId || "").trim();
-  if (/^mechanics(\.\d+)?$/.test(id)) return ["mechanics"];
+  if (MECHANIC_ITEM.test(id)) return [];
   if (/^highlights(\.\d+)?$/.test(id)) return ["juice"];
   return STATIC_PATHS[id] ? [...STATIC_PATHS[id]] : [];
+}
+
+function mechanicIndex(lineId: string): number {
+  const hit = String(lineId || "").trim().match(MECHANIC_ITEM);
+  return hit ? Number(hit[1]) : -1;
+}
+
+/** 点下去的那一条：先认行文里的原句，对不上再按位置取。 */
+export function mechanicTarget(state: ConversationState, lineId: string, lineText: string): string {
+  const shown = toGddModel(state).mechanics;
+  const typed = stripListNumber(lineText);
+  if (typed && shown.includes(typed)) return typed;
+  const idx = mechanicIndex(lineId);
+  return idx >= 0 ? shown[idx] || "" : "";
+}
+
+function readMechanicEdit(
+  delta: Record<string, unknown>,
+  lineId: string,
+  shown: string[],
+  sole: boolean,
+): string {
+  const edits = delta.mechanic_edits ?? delta.mechanicEdits;
+  if (isRecord(edits)) {
+    const value = stripListNumber(edits[lineId]);
+    if (value) return value;
+  }
+  /** 模型没按要求、还是交了整表：只从里面取目标这一条，其余条目不写回。 */
+  if (!sole || !Array.isArray(delta.mechanics)) return "";
+  const list = delta.mechanics.map((item) => stripListNumber(item)).filter(Boolean);
+  if (list.length === 1) return list[0];
+  const idx = mechanicIndex(lineId);
+  if (list.length === shown.length && idx >= 0) return list[idx] || "";
+  const fresh = list.filter((item) => !shown.includes(item));
+  return fresh.length === 1 ? fresh[0] : "";
+}
+
+/** fromRaw 是存下来的原文（旧会话可能带着序号），身份按 compile 同一条规则取。 */
+function keepMechanicIdentity(state: ConversationState, fromRaw: string, to: string): void {
+  const ids = { ...(state.mechanicIds || {}) };
+  const stable = mechanicIdOf(ids, fromRaw);
+  delete ids[coreMechanicId(fromRaw)];
+  delete ids[coreMechanicId(stripListNumber(fromRaw))];
+  const toKey = coreMechanicId(to);
+  if (toKey !== stable) ids[toKey] = stable;
+  else delete ids[toKey];
+  if (Object.keys(ids).length) state.mechanicIds = ids;
+  else delete state.mechanicIds;
+}
+
+/** 只换目标那一条。其他机制按原值留着。写回的正文不带展示序号。 */
+function applyMechanicEdits(state: ConversationState, edits: MechanicEdit[]): void {
+  for (const edit of edits) {
+    const from = stripListNumber(edit?.from);
+    const to = stripListNumber(edit?.to);
+    if (!from || !to || from === to) continue;
+    let base: unknown[] = Array.isArray(state.mechanics) ? [...state.mechanics] : [];
+    let idx = base.findIndex((item) => stripListNumber(item) === from);
+    if (idx < 0) {
+      /** 文档里看到的机制可能是编译时从工程信号或核心动作补出来的，先把看到的这张表落成正文。 */
+      const shown = toGddModel(state).mechanics;
+      idx = shown.indexOf(from);
+      if (idx < 0) continue;
+      base = [...shown];
+    }
+    const fromRaw = asGddText(base[idx]);
+    const taken = base.some((item, i) => i !== idx && stripListNumber(item) === to);
+    base[idx] = to;
+    state.mechanics = base as string[];
+    if (!taken) keepMechanicIdentity(state, fromRaw, to);
+  }
 }
 
 function readLoopValue(delta: Record<string, unknown>, stateKey: string): unknown {
@@ -207,10 +290,15 @@ export function asFinalCopy(value: unknown): unknown {
   return value;
 }
 
-/** 丢掉未知键；只保留清单行对应的 ConversationState 路径。 */
+/**
+ * 丢掉未知键；只保留清单行对应的 ConversationState 路径。
+ * 单条机制按 targets 里的原句记成 mechanicEdits，写回时只换这一条。
+ */
 export function filterPatchDelta(
   raw: Record<string, unknown> | undefined,
   lineIds: string[],
+  targets: Record<string, string> = {},
+  shown: string[] = [],
 ): StateDelta {
   const delta = isRecord(raw) ? raw : {};
   const allowed = new Set<string>();
@@ -223,6 +311,15 @@ export function filterPatchDelta(
     if (value === undefined) continue;
     setPath(out, path, asFinalCopy(value));
   }
+  const items = lineIds.filter((id) => MECHANIC_ITEM.test(id));
+  const edits: MechanicEdit[] = [];
+  for (const id of items) {
+    const from = targets[id] || "";
+    if (!from) continue;
+    const to = stripListNumber(asFinalCopy(readMechanicEdit(delta, id, shown, items.length === 1)));
+    if (to && to !== from) edits.push({ lineId: id, from, to });
+  }
+  if (edits.length) out.mechanicEdits = edits;
   return out as StateDelta;
 }
 
@@ -230,14 +327,20 @@ export function resolveAffectedLineIds(
   tapped: string,
   claimed: string[] | undefined,
   delta: Record<string, unknown> | undefined,
+  hasMechanics = false,
 ): string[] {
   const known = new Set<string>();
   if (isKnownLineId(tapped)) known.add(tapped);
+  const tappedItem = MECHANIC_ITEM.test(tapped);
   for (const id of claimed || []) {
-    if (isKnownLineId(id)) known.add(id);
+    if (!isKnownLineId(id)) continue;
+    /** 已有机制时不接受整表；点的是一条机制时，别的机制也不跟着改。 */
+    if (id === "mechanics" && hasMechanics) continue;
+    if (tappedItem && id.startsWith("mechanics") && id !== tapped) continue;
+    known.add(id);
   }
-  if (!claimed?.length && Array.isArray((delta as StateDelta | undefined)?.mechanics)) {
-    known.add(tapped.startsWith("mechanics") ? tapped : "mechanics");
+  if (!claimed?.length && !hasMechanics && Array.isArray((delta as StateDelta | undefined)?.mechanics)) {
+    known.add("mechanics");
   }
   return [...known];
 }
@@ -272,10 +375,22 @@ export function beginLinePatch(state: ConversationState, intent: PatchIntent): C
     resumeOptions,
     awaitingConfirm: false,
   };
+  const resumeOrigin = existing ? existing.resumeOrigin : (state.iterationOrigin === "cocreation" ? "cocreation" : undefined);
+  if (resumeOrigin) {
+    ctx.resumeOrigin = resumeOrigin;
+    if (existing ? existing.resumeAsked : state.revisionAsked) ctx.resumeAsked = true;
+  }
+  if (MECHANIC_ITEM.test(lineId)) {
+    const target = mechanicTarget(state, lineId, ctx.lineText);
+    if (target) ctx.targetText = target;
+  }
   state.patchContext = ctx;
   state.optionPhase = "patch";
+  state.iterationOrigin = "document_patch";
+  delete state.revisionAsked;
   state.lastOptions = [];
-  const reply = patchAskReply(intent);
+  /** 机制那一行在页面上带着「2.」，问的时候只给原句，免得模型把序号抄进新正文。 */
+  const reply = patchAskReply(ctx.targetText ? { ...intent, lineText: ctx.targetText } : intent);
   state.history.push({ role: "assistant", content: reply });
   return state;
 }
@@ -285,6 +400,8 @@ export function restorePatchPhase(state: ConversationState): void {
   const resumePhase = ctx?.resumePhase ?? "interview";
   const resumeOptions = ctx?.resumeOptions ? ctx.resumeOptions.map((o) => ({ ...o })) : [];
   delete state.patchContext;
+  delete state.iterationOrigin;
+  delete state.revisionAsked;
   if (resumePhase === "convergence" || resumePhase === "awaitingEdit") {
     state.optionPhase = "awaitingEdit";
     state.lastOptions = [];
@@ -292,14 +409,20 @@ export function restorePatchPhase(state: ConversationState): void {
   }
   state.optionPhase = resumePhase;
   state.lastOptions = resumeOptions.length ? resumeOptions : [];
+  if (ctx?.resumeOrigin === "cocreation") {
+    state.iterationOrigin = "cocreation";
+    if (ctx.resumeAsked) state.revisionAsked = true;
+  }
 }
 
 export function applyPendingPatch(state: ConversationState): void {
   const ctx = state.patchContext;
   if (!ctx) return;
-  const ids = resolveAffectedLineIds(ctx.lineId, ctx.affectedLineIds, ctx.pendingDelta);
-  const filtered = filterPatchDelta(ctx.pendingDelta, ids);
-  mergeStateDelta(state, filtered, { replaceLists: true });
+  const pending = isRecord(ctx.pendingDelta) ? ctx.pendingDelta : {};
+  const { mechanicEdits, ...rest } = pending;
+  const ids = ctx.affectedLineIds?.length ? ctx.affectedLineIds : [ctx.lineId];
+  mergeStateDelta(state, filterPatchDelta(rest, ids), { replaceLists: true });
+  applyMechanicEdits(state, Array.isArray(mechanicEdits) ? (mechanicEdits as MechanicEdit[]) : []);
 }
 
 export function stashPatchProposal(
@@ -309,8 +432,15 @@ export function stashPatchProposal(
 ): string[] {
   const ctx = state.patchContext;
   if (!ctx) return [];
-  const ids = resolveAffectedLineIds(ctx.lineId, claimed, delta);
-  ctx.pendingDelta = filterPatchDelta(delta, ids) as Record<string, unknown>;
+  const shown = toGddModel(state).mechanics;
+  const ids = resolveAffectedLineIds(ctx.lineId, claimed, delta, shown.length > 0);
+  const targets: Record<string, string> = {};
+  for (const id of ids) {
+    if (!MECHANIC_ITEM.test(id)) continue;
+    const target = id === ctx.lineId && ctx.targetText ? ctx.targetText : shown[mechanicIndex(id)] || "";
+    if (target) targets[id] = target;
+  }
+  ctx.pendingDelta = filterPatchDelta(delta, ids, targets, shown) as Record<string, unknown>;
   ctx.affectedLineIds = ids;
   ctx.awaitingConfirm = true;
   state.patchContext = ctx;
@@ -334,11 +464,18 @@ export function patchHostGuard(state: ConversationState): string {
   const where = ctx?.sectionTitle ? `「${ctx.sectionTitle}」` : "文档";
   const line = ctx?.lineText ? `原文：${ctx.lineText}` : "";
   const id = ctx?.lineId ? `行 id：${ctx.lineId}` : "";
+  const shown = toGddModel(state).mechanics;
+  const listing = shown.length
+    ? `\n现行核心机制（行 id：原文）：\n${shown.map((text, i) => `mechanics.${i}：${text}`).join("\n")}`
+    : "";
+  const mechanicRule = ctx && MECHANIC_ITEM.test(ctx.lineId)
+    ? `用户点的是核心机制里的 ${ctx.lineId} 这一条。只改这一条：把改完后的整句写进 state_delta.mechanic_edits，键就是 "${ctx.lineId}"。整句不要带「1.」「2、」这类列表序号。不要写 mechanics 整表，其他机制一个字都不要动，也不要列进 affected_lines。`
+    : `要顺带改某一条核心机制，就写 state_delta.mechanic_edits：{"mechanics.N": "改完后的整句"}，整句不要带列表序号，并把这个行 id 列进 affected_lines。不要写 mechanics 整表。`;
   return `\n\n[宿主硬约束] 用户正在改${where}的一处。${id} ${line}
 只处理这一处意图。人话不要说「手风琴」「字段」「第几节」；宿主会自己列出将改的地方。
 state_delta 每个字段只写改完后的现行正文，当作文档里从来就是这样。禁止对照旧稿：不要写「不再需要 / 不再是 / 原来 / 之前 / 而是通过 / 改为」。被换掉的旧设定不要再出现。相关玩法句一并列入 affected_lines，全部写成新正文。
 禁止定稿三选，禁止「改一块 / 再挖挖」，禁止 JSON options，禁止人话 A./B./C.。
-JSON 只含 state_delta（仅这些字段）和 affected_lines（行 id 数组）。未知键不要写。mechanics 若改动，交整表且只含现行条目。`;
+JSON 只含 state_delta（仅这些字段，以及 mechanic_edits）和 affected_lines（行 id 数组）。未知键不要写。${mechanicRule}${listing}`;
 }
 
 const LINE_LABELS: Record<string, string> = {
@@ -407,12 +544,18 @@ const LINE_LABELS: Record<string, string> = {
 
 export function labelForLine(lineId: string): string {
   const id = String(lineId || "").trim();
-  if (/^mechanics(\.\d+)?$/.test(id)) return "机制";
+  const idx = mechanicIndex(id);
+  if (idx >= 0) return `核心机制第 ${idx + 1} 条`;
+  if (id === "mechanics") return "机制";
   if (/^highlights(\.\d+)?$/.test(id)) return "高光瞬间";
   return LINE_LABELS[id] || "这一处";
 }
 
 function previewDeltaValue(delta: Record<string, unknown> | undefined, lineId: string): string {
+  if (MECHANIC_ITEM.test(lineId)) {
+    const edits = Array.isArray(delta?.mechanicEdits) ? (delta.mechanicEdits as MechanicEdit[]) : [];
+    return asGddText(edits.find((edit) => edit?.lineId === lineId)?.to);
+  }
   const filtered = filterPatchDelta(delta, [lineId]);
   for (const path of pathsForLine(lineId)) {
     const v = readPath(filtered as Record<string, unknown>, path);
@@ -424,7 +567,7 @@ function previewDeltaValue(delta: Record<string, unknown> | undefined, lineId: s
   return "";
 }
 
-export function patchProposalReply(state: ConversationState): string {
+function changeLines(state: ConversationState): string[] {
   const ctx = state.patchContext;
   const ids = ctx?.affectedLineIds?.length
     ? ctx.affectedLineIds
@@ -433,17 +576,24 @@ export function patchProposalReply(state: ConversationState): string {
   for (const id of ids) {
     const label = labelForLine(id);
     const next = previewDeltaValue(ctx?.pendingDelta, id);
-    const clipped = next.length > 48 ? `${next.slice(0, 48)}…` : next;
-    lines.push(clipped ? `- ${label}：改成「${clipped}」` : `- ${label}`);
+    lines.push(next ? `- ${label}：改成「${next}」` : `- ${label}`);
   }
+  return lines;
+}
+
+export function patchProposalReply(state: ConversationState): string {
+  const lines = changeLines(state);
   if (!lines.length) {
     return "按你刚才说的，文档里相关的话会换成新的说法。下面选一下要不要改进去。";
   }
   return `按你刚才说的，文档里会改这些地方：\n\n${lines.join("\n")}`;
 }
 
-export function patchApplyReply(): string {
-  return "已经按你说的改好了，回预览看。";
+/** 写回之后的回执。要在 restorePatchPhase 清掉 patchContext 之前调用。 */
+export function patchApplyReply(state?: ConversationState): string {
+  const lines = state ? changeLines(state) : [];
+  if (!lines.length) return "已经按你说的改好了，回预览看。";
+  return `已经按你说的改好了：\n\n${lines.join("\n")}\n\n回预览看。`;
 }
 
 export function patchCancelReply(): string {

@@ -19,6 +19,19 @@ function gap(v) {
   return v || "（未写）";
 }
 
+var LIST_NUMBER = /^\s*(?:\d{1,2}\s*[.．、)）](?!\d)|[（(]\d{1,2}[)）])\s*/;
+
+/** 与 @cq/gdd stripListNumber 一致：机制正文不带展示序号，序号由下面渲染时按位置加。 */
+function stripListNumber(v) {
+  var out = asString(v);
+  while (LIST_NUMBER.test(out)) {
+    var next = out.replace(LIST_NUMBER, "");
+    if (!next || next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 function looksLikeViewpoint(s) {
   return /人称|视角|手电筒|第一人称|第三人称|FPS/i.test(s) && !/电脑|手机|网页|PC/i.test(s);
 }
@@ -131,7 +144,7 @@ function gddFromState(state) {
   var mid = asString(loop.fiveMin) || asString(state.coreAction);
   var macro = asString(loop.thirtyMin) || asString(loop.longTerm) || asString(state.winRule);
   var longTerm = asString(loop.longTerm);
-  var mechanics = collapseNearDup(asList(state.mechanics).concat(asList(eng.mechanics)), 6);
+  var mechanics = collapseNearDup(asList(state.mechanics).concat(asList(eng.mechanics)).map(stripListNumber), 6);
   if (!mechanics.length && asString(state.coreAction)) mechanics = [asString(state.coreAction)];
   var whereRaw = asString(pres.where);
   var where = (whereRaw && !looksLikeViewpoint(whereRaw)) ? whereRaw : "";

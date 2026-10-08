@@ -26,6 +26,12 @@ export interface PublicCover {
   imageUrl?: string;
 }
 
+/** 盘上这张图的版本。旧会话没有 generatedAt 时退回它的指纹。 */
+export function coverFileStamp(meta: ConversationState["cover"]): string {
+  if (meta?.generatedAt) return String(meta.generatedAt);
+  return meta?.fingerprint || "cover";
+}
+
 export function coverImagePath(kind: "session" | "share", id: string, fingerprint?: string): string {
   const q = fingerprint ? `?f=${encodeURIComponent(fingerprint)}` : "";
   return kind === "session" ? `/api/session/${id}/cover${q}` : `/api/share/${id}/cover${q}`;
@@ -54,26 +60,25 @@ export class CoverPipeline {
     private readonly lock: SessionMutex,
   ) {}
 
+  /**
+   * 封面属于会话。盘上有图就给图：文档改了只是 stale，重画中和重画失败也先留着旧图。
+   * 地址只跟这张图本身走（generatedAt），同一张图换状态不换地址。
+   */
   publicCover(state: ConversationState, sessionId: string): PublicCover {
     harvestIntoState(state);
     scrubUngroundedState(state);
     const model = toGddModel(state);
     const fingerprint = coverFingerprint(model);
     const meta = state.cover;
-    if (
-      meta?.status === "ready"
-      && meta.fingerprint === fingerprint
-      && this.covers.has("session", sessionId)
-    ) {
-      const stamp = meta.generatedAt ? `${fingerprint}.${meta.generatedAt}` : fingerprint;
-      return { status: "ready", fingerprint, imageUrl: coverImagePath("session", sessionId, stamp) };
+    const imageUrl = this.covers.has("session", sessionId)
+      ? coverImagePath("session", sessionId, coverFileStamp(meta))
+      : undefined;
+    if (meta?.fingerprint === fingerprint) {
+      if (meta.status === "ready" && imageUrl) return { status: "ready", fingerprint, imageUrl };
+      if (meta.status === "pending") return { status: "pending", fingerprint, imageUrl };
+      if (meta.status === "failed") return { status: "failed", fingerprint, imageUrl };
     }
-    if (meta?.status === "pending" && meta.fingerprint === fingerprint) {
-      return { status: "pending", fingerprint };
-    }
-    if (meta?.status === "failed" && meta.fingerprint === fingerprint) {
-      return { status: "failed", fingerprint };
-    }
+    if (imageUrl) return { status: "stale", fingerprint, imageUrl };
     return { status: "idle", fingerprint };
   }
 
@@ -109,19 +114,20 @@ export class CoverPipeline {
       && loaded.cover.fingerprint === fingerprint
       && this.covers.has("session", sessionId)
     ) {
-      const stamp = loaded.cover.generatedAt ? `${fingerprint}.${loaded.cover.generatedAt}` : fingerprint;
-      return { status: "ready", fingerprint, imageUrl: coverImagePath("session", sessionId, stamp) };
+      return { status: "ready", fingerprint, imageUrl: coverImagePath("session", sessionId, coverFileStamp(loaded.cover)) };
     }
 
+    /** mime 和 generatedAt 描述的是盘上那张图，换状态时不能丢。 */
+    const file = { mime: loaded.cover?.mime, generatedAt: loaded.cover?.generatedAt };
     if (!this.image) {
-      loaded.cover = { fingerprint, prompt, status: "failed" };
+      loaded.cover = { fingerprint, prompt, status: "failed", ...file };
       await this.store.save(sessionId, loaded);
       return { status: "failed", fingerprint };
     }
 
     const key = `${sessionId}:${fingerprint}`;
     if (!this.inflight.has(key)) {
-      loaded.cover = { fingerprint, prompt, status: "pending" };
+      loaded.cover = { fingerprint, prompt, status: "pending", ...file };
       await this.store.save(sessionId, loaded);
       const jobId = `cover:${sessionId}:${fingerprint}`;
       const job = new Promise<void>((resolve) => {
@@ -161,9 +167,15 @@ export class CoverPipeline {
         const live = normalizeConversationState(structuredClone(latest) as ConversationState);
         harvestIntoState(live);
         scrubUngroundedState(live);
-        if (coverFingerprint(toGddModel(live)) !== fingerprint) return;
-        latest.cover = { fingerprint, prompt, status: "ready", mime: img.mime, generatedAt: Date.now() };
+        const generatedAt = Date.now();
+        /** 盘上已经换成这张新图了。文档在画图期间又改了，就记成这一版的 ready，对外是 stale。 */
+        if (!latest.cover || latest.cover.fingerprint === fingerprint) {
+          latest.cover = { fingerprint, prompt, status: "ready", mime: img.mime, generatedAt };
+        } else {
+          latest.cover = { ...latest.cover, mime: img.mime, generatedAt };
+        }
         await this.store.save(sessionId, latest);
+        if (coverFingerprint(toGddModel(live)) !== fingerprint) return;
         console.log(`[cover] ready session=${sessionId} bytes=${img.bytes.length} mime=${img.mime}`);
         this.onSessionCoverReady?.(sessionId);
       });
@@ -173,7 +185,7 @@ export class CoverPipeline {
         const latest = await this.store.load(sessionId);
         if (!latest) return;
         if (latest.cover?.fingerprint === fingerprint) {
-          latest.cover = { fingerprint, prompt, status: "failed", mime: latest.cover.mime };
+          latest.cover = { ...latest.cover, fingerprint, prompt, status: "failed" };
           await this.store.save(sessionId, latest);
         }
       });

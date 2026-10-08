@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createInitialState } from "../src/state.js";
 import { advance } from "../src/advance.js";
 import { STATE_SENTINEL } from "../src/turn.js";
+import { EXTRACT_PROMPT_TAG } from "../src/extract.js";
 import { scriptedLlm } from "./fixtures/scriptedLlm.js";
 import { CONSENT_OPTIONS, CONSENT_AFTER_IDEA, DECLINED_ACK, CONVERGENCE_OPTIONS, PATCH_OPTIONS } from "../src/llm.js";
 import { isComplete, isSubstantive, renderGdd } from "@cq/gdd";
@@ -922,6 +923,28 @@ describe("advance", () => {
     expect(applied.state.lastOptions || []).toEqual([]);
   });
 
+  it("点改第 2 条机制：回执实时完整，写进历史的也是同一段全文；应用后只换这一条", async () => {
+    const long = "整理桌面：开局先把散珠按颜色扫进三个小碟，再把纸胶带和小镊子摆回右手边，桌面清爽以后才开始接下一单。";
+    const llm = scriptedLlm([
+      turn("会改第 2 条。", { state_delta: { mechanic_edits: { "mechanics.1": long } }, affected_lines: ["mechanics.1"] }),
+    ]);
+    const s = accepted();
+    s.mechanics = ["点选摆珠：先选颜色再点空位。", "整理桌面：先把材料摆齐。", "订单展示：盖章贴进展示页。"];
+    s.readyForSynthesis = true;
+    s.optionPhase = "awaitingEdit";
+    s.history = [{ role: "assistant", content: "先看文档。" }];
+    const { beginLinePatch } = await import("../src/patch.js");
+    beginLinePatch(s, { lineId: "mechanics.1", lineText: `2. ${s.mechanics[1]}`, sectionTitle: "怎么玩" });
+    let streamed = "";
+    const asked = await advance(s, "整理要按颜色分碟", { llm, systemPrompt: SYS, onToken: (t) => { streamed += t; } });
+    expect(asked.reply).toContain(long);
+    expect(streamed).toContain(long);
+    expect(asked.reply).not.toMatch(/…|\.\.\./);
+    expect(asked.state.history[asked.state.history.length - 1].content).toBe(asked.reply);
+    const applied = await advance(asked.state, PATCH_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(applied.state.mechanics).toEqual(["点选摆珠：先选颜色再点空位。", long, "订单展示：盖章贴进展示页。"]);
+  });
+
   it("取消不写；再改改仍停在补丁相", async () => {
     const llm = scriptedLlm([
       turn("将改核心动作。", { state_delta: { coreAction: "种菜" }, affected_lines: ["coreAction"] }),
@@ -1013,5 +1036,329 @@ describe("advance", () => {
     s.history = [{ role: "user", content: "我想做食堂游戏" }];
     await advance(s, "食堂", { llm, systemPrompt: SYS, onWritingGdd: () => { told = true; } });
     expect(told).toBe(false);
+  });
+});
+
+/** 只数对话轮的调用，不数出稿抽取。 */
+function countingLlm(rawTurns: string[]) {
+  const inner = scriptedLlm(rawTurns);
+  const box = { turns: 0 };
+  const llm = {
+    async *stream(messages: Parameters<typeof inner.stream>[0]) {
+      if (!String(messages[0]?.content || "").includes(EXTRACT_PROMPT_TAG)) box.turns += 1;
+      yield* inner.stream(messages);
+    },
+  };
+  return { llm, box };
+}
+
+function finalizedDoc() {
+  const s = accepted();
+  s.stage = 10;
+  s.spark = "天鹅颈";
+  s.pitch = "潮玩拔鹅";
+  s.coreEmotion = "紧张";
+  s.readyForSynthesis = true;
+  s.gddFinalized = true;
+  s.optionPhase = "awaitingEdit";
+  s.lastOptions = [];
+  s.summaryEligibleFrom = 0;
+  s.history = [
+    { role: "user", content: "天鹅颈，潮玩拔鹅，紧张" },
+    { role: "assistant", content: "> 📌 **暂定名**：《天鹅颈刺客》\n> 📌 **一句话亮点**：潮玩拔鹅。" },
+    { role: "user", content: CONVERGENCE_OPTIONS[0].detail },
+    { role: "assistant", content: "文档落盘了。" },
+  ];
+  return s;
+}
+
+const WEATHER_CARDS = [
+  { id: "A", label: "天气改节奏", detail: "下雨时鹅跑得更慢" },
+  { id: "B", label: "天气改目标", detail: "暴雨夜只出隐藏款" },
+];
+
+describe("定稿后的快速迭代", () => {
+  it("模糊的新想法只问一轮；回答后下一步必定是定稿三选，不出第二轮采访", async () => {
+    const llm = scriptedLlm([
+      turn("天气想影响哪一块？", { state_delta: {}, options: WEATHER_CARDS }),
+      turn("那天气还要不要影响画面？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "下雨画面变暗", detail: "整屏压一层雨幕" },
+          { id: "B", label: "画面不变", detail: "只改规则" },
+        ],
+      }),
+      turn("记下了，雨天还有雾？", { state_delta: {} }),
+    ]);
+    const asked = await advance(finalizedDoc(), "我想让这个游戏后期加入天气变化", { llm, systemPrompt: SYS });
+    expect(asked.options?.map((o) => o.label)).toEqual(["天气改节奏", "天气改目标"]);
+    expect(asked.state.optionPhase).toBe("supplement");
+    expect(asked.state.iterationOrigin).toBe("cocreation");
+    expect(asked.state.revisionAsked).toBe(true);
+
+    const answered = await advance(asked.state, WEATHER_CARDS[0].detail, { llm, systemPrompt: SYS });
+    expect(answered.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(answered.state.optionPhase).toBe("convergence");
+
+    const typed = await advance(answered.state, "雨天再加点雾", { llm, systemPrompt: SYS });
+    expect(typed.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(typed.state.optionPhase).toBe("convergence");
+  });
+
+  it("非常明确的新想法也先采访一轮，回答后才给定稿三选", async () => {
+    const llm = scriptedLlm([
+      turn("雨天滑倒是只惩罚，还是也能被利用？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "只是惩罚", detail: "滑倒丢一颗珠" },
+          { id: "B", label: "可以借力", detail: "顺着滑一段冲过终点" },
+        ],
+      }),
+      turn("记下了，雨天滑倒可以借力冲刺。", { state_delta: {} }),
+    ]);
+    const asked = await advance(finalizedDoc(), "第三关开始加入雨天，雨天里鹅会滑倒", { llm, systemPrompt: SYS });
+    expect(asked.options?.map((o) => o.label)).toEqual(["只是惩罚", "可以借力"]);
+    expect(asked.options).not.toEqual(CONVERGENCE_OPTIONS);
+    expect(asked.state.optionPhase).toBe("supplement");
+    const conv = await advance(asked.state, asked.options![1].detail, { llm, systemPrompt: SYS });
+    expect(conv.options).toEqual(CONVERGENCE_OPTIONS);
+    expect(conv.state.optionPhase).toBe("convergence");
+  });
+
+  it("模型只确认不出卡时，宿主补出方向卡；第一轮绝不直接给定稿三选", async () => {
+    const { llm, box } = countingLlm([
+      turn("好，后期第三关开始加入雨天，雨天里鹅会滑倒。", { state_delta: {} }),
+      turn("好，后期第三关开始加入雨天，雨天里鹅会滑倒。", { state_delta: {}, options: WEATHER_CARDS }),
+    ]);
+    const res = await advance(finalizedDoc(), "第三关开始加入雨天，雨天里鹅会滑倒", { llm, systemPrompt: SYS });
+    expect(box.turns).toBe(2);
+    expect(res.reply).toBe("好，后期第三关开始加入雨天，雨天里鹅会滑倒。");
+    expect(res.options?.map((o) => o.label)).toEqual(["天气改节奏", "天气改目标"]);
+    expect(res.options).not.toEqual(CONVERGENCE_OPTIONS);
+    expect(res.state.optionPhase).toBe("supplement");
+  });
+
+  it("点定稿才更新文档并结束这次修改；点改一块算新的一次修改，可以再问一轮", async () => {
+    const llm = scriptedLlm([
+      turn("天气想影响哪一块？", { state_delta: {}, options: WEATHER_CARDS }),
+      turn("记下了，下雨时鹅跑得更慢。", { state_delta: {} }),
+      turn("文档更新好了。", { state_delta: {} }),
+      turn("想改哪一块？", { state_delta: {}, options: WEATHER_CARDS }),
+    ]);
+    const asked = await advance(finalizedDoc(), "加点天气", { llm, systemPrompt: SYS });
+    const conv = await advance(asked.state, WEATHER_CARDS[0].detail, { llm, systemPrompt: SYS });
+    expect(conv.options).toEqual(CONVERGENCE_OPTIONS);
+    const updated = await advance(conv.state, CONVERGENCE_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(updated.readyForSynthesis).toBe(true);
+    expect(updated.state.optionPhase).toBe("awaitingEdit");
+    expect(updated.state.iterationOrigin).toBeUndefined();
+    expect(updated.state.revisionAsked).toBeUndefined();
+    expect(updated.state.gddFinalized).toBe(true);
+
+    const revise = await advance(conv.state, CONVERGENCE_OPTIONS[1].detail, { llm, systemPrompt: SYS });
+    expect(revise.state.optionPhase).toBe("supplement");
+    expect(revise.options?.map((o) => o.label)).toEqual(["天气改节奏", "天气改目标"]);
+  });
+
+  it("旧会话没有定稿标记时，出过文档且有合格总结也按快速迭代走", async () => {
+    const llm = scriptedLlm([
+      turn("天气想影响哪一块？", { state_delta: {}, options: WEATHER_CARDS }),
+      turn("还想加雾吗？", { state_delta: {}, options: WEATHER_CARDS }),
+    ]);
+    const legacy = finalizedDoc();
+    delete legacy.gddFinalized;
+    const asked = await advance(legacy, "加点天气", { llm, systemPrompt: SYS });
+    expect(asked.state.optionPhase).toBe("supplement");
+    const next = await advance(asked.state, WEATHER_CARDS[1].detail, { llm, systemPrompt: SYS });
+    expect(next.options).toEqual(CONVERGENCE_OPTIONS);
+  });
+
+  it("首次创作中途要来的草稿不算定稿，之后仍可连续采访", async () => {
+    const llm = scriptedLlm([
+      turn("先看草稿。", { state_delta: {} }),
+      turn("朋友玩完会用哪个词形容？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "解压", detail: "像被踩奶" },
+          { id: "B", label: "紧张", detail: "刚玩完还在抖" },
+        ],
+      }),
+      turn("那这只猫住在哪？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "猫咖", detail: "暖光的小店" },
+          { id: "B", label: "屋顶", detail: "夜里的天台" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 2;
+    s.spark = "猫咪帝国";
+    s.pitch = "猫RTS";
+    s.coreEmotion = "反差萌";
+    s.history = [{ role: "user", content: "猫咪帝国，猫RTS，反差萌" }];
+    const draft = await advance(s, "现在就生成", { llm, systemPrompt: SYS });
+    expect(draft.readyForSynthesis).toBe(true);
+    expect(draft.state.gddFinalized).toBeUndefined();
+    const first = await advance(draft.state, "继续问", { llm, systemPrompt: SYS });
+    expect(first.options?.[0].label).toBe("解压");
+    expect(first.state.optionPhase).toBe("interview");
+    const second = await advance(first.state, first.options![0].detail, { llm, systemPrompt: SYS });
+    expect(second.options?.[0].label).toBe("猫咖");
+    expect(second.state.optionPhase).toBe("interview");
+  });
+});
+
+describe("一轮只出一种卡", () => {
+  function kinds(res: Awaited<ReturnType<typeof advance>>) {
+    const t = res.trace!;
+    return {
+      expected: t.expectedOutputType,
+      rendered: t.renderedOutputType,
+      interview: t.generatedInterview,
+      draft: t.generatedDraft,
+      patch: t.generatedPatch,
+      calls: t.calls.map((c) => c.purpose),
+      discarded: t.discardedOutputTypes,
+    };
+  }
+
+  it("A 首次共创采访：只出 interview，一次模型调用", async () => {
+    const llm = scriptedLlm([
+      turn("朋友玩完会用哪个词形容？", {
+        state_delta: {},
+        options: [
+          { id: "A", label: "解压", detail: "像被踩奶" },
+          { id: "B", label: "紧张", detail: "刚玩完还在抖" },
+        ],
+      }),
+    ]);
+    const s = accepted();
+    s.stage = 2;
+    s.spark = "猫咪帝国";
+    const res = await advance(s, "猫咪帝国", { llm, systemPrompt: SYS });
+    expect(kinds(res)).toEqual({ expected: "interview", rendered: "interview", interview: true, draft: false, patch: false, calls: ["reply"], discarded: [] });
+  });
+
+  it("B 已有 GDD + 共创页新想法：只出 interview，不重抽整份文档", async () => {
+    const llm = scriptedLlm([turn("天气想影响哪一块？", { state_delta: {}, options: WEATHER_CARDS })]);
+    const res = await advance(finalizedDoc(), "我想让这个游戏后期加入天气变化", { llm, systemPrompt: SYS });
+    expect(kinds(res)).toEqual({ expected: "interview", rendered: "interview", interview: true, draft: false, patch: false, calls: ["reply"], discarded: [] });
+    expect(res.trace!.generatedDocument).toBe(false);
+  });
+
+  it("C 回答采访：只出 draft，不重抽整份文档", async () => {
+    const llm = scriptedLlm([
+      turn("天气想影响哪一块？", { state_delta: {}, options: WEATHER_CARDS }),
+      turn("记下了，下雨时鹅跑得更慢。", { state_delta: {} }),
+    ]);
+    const asked = await advance(finalizedDoc(), "加点天气", { llm, systemPrompt: SYS });
+    const res = await advance(asked.state, WEATHER_CARDS[0].detail, { llm, systemPrompt: SYS });
+    expect(kinds(res)).toEqual({ expected: "draft", rendered: "draft", interview: false, draft: true, patch: false, calls: ["reply"], discarded: [] });
+    expect(res.trace!.generatedDocument).toBe(false);
+  });
+
+  it("D 文档点改：只出 patch，一次模型调用", async () => {
+    const llm = scriptedLlm([
+      turn("好的。", { state_delta: { coreAction: "按住往上拔" }, affected_lines: ["coreAction"] }),
+    ]);
+    const s = finalizedDoc();
+    s.coreAction = "点击拔鹅";
+    const { beginLinePatch } = await import("../src/patch.js");
+    beginLinePatch(s, { lineId: "coreAction", lineText: "核心动作：点击拔鹅", sectionTitle: "怎么玩" });
+    const res = await advance(s, "改成按住往上拔", { llm, systemPrompt: SYS });
+    expect(kinds(res)).toEqual({ expected: "patch", rendered: "patch", interview: false, draft: false, patch: true, calls: ["patch"], discarded: [] });
+  });
+
+  it("点定稿那一轮才重抽整份文档", async () => {
+    const llm = scriptedLlm([
+      turn("天气想影响哪一块？", { state_delta: {}, options: WEATHER_CARDS }),
+      turn("记下了。", { state_delta: {} }),
+      turn("文档更新好了。", { state_delta: {} }),
+    ]);
+    const asked = await advance(finalizedDoc(), "加点天气", { llm, systemPrompt: SYS });
+    const conv = await advance(asked.state, WEATHER_CARDS[0].detail, { llm, systemPrompt: SYS });
+    const done = await advance(conv.state, CONVERGENCE_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(done.trace!.expectedOutputType).toBe("document");
+    expect(done.trace!.calls.map((c) => c.purpose)).toEqual(["reply", "extract"]);
+    expect(done.trace!.generatedDocument).toBe(true);
+  });
+});
+
+describe("定稿后从文档点「修改」", () => {
+  it("普通字段：不采访，确认修改意图后给补丁三选，应用后只改这个字段并给完整回执", async () => {
+    const { llm, box } = countingLlm([
+      turn("好的。", {
+        state_delta: { coreAction: "按住鹅颈往上拔，松手看它弹回去" },
+        affected_lines: ["coreAction"],
+        options: WEATHER_CARDS,
+      }),
+    ]);
+    const s = finalizedDoc();
+    s.coreAction = "点击洞口拔鹅";
+    const { beginLinePatch } = await import("../src/patch.js");
+    beginLinePatch(s, { lineId: "coreAction", lineText: "核心动作：点击洞口拔鹅", sectionTitle: "怎么玩" });
+    expect(s.iterationOrigin).toBe("document_patch");
+
+    const asked = await advance(s, "改成按住往上拔", { llm, systemPrompt: SYS });
+    expect(box.turns).toBe(1);
+    expect(asked.options).toEqual(PATCH_OPTIONS);
+    expect(asked.options).not.toEqual(WEATHER_CARDS);
+    expect(asked.reply).toContain("按住鹅颈往上拔，松手看它弹回去");
+    expect(asked.state.iterationOrigin).toBe("document_patch");
+    expect(asked.state.patchContext?.lineId).toBe("coreAction");
+    expect(asked.state.patchContext?.lineText).toBe("核心动作：点击洞口拔鹅");
+    expect(asked.state.patchContext?.request).toBe("改成按住往上拔");
+
+    const applied = await advance(asked.state, PATCH_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(box.turns).toBe(1);
+    expect(applied.state.coreAction).toBe("按住鹅颈往上拔，松手看它弹回去");
+    expect(applied.state.coreEmotion).toBe("紧张");
+    expect(applied.patchCommitted).toBe(true);
+    expect(applied.reply).toContain("已经按你说的改好了");
+    expect(applied.reply).toContain("按住鹅颈往上拔，松手看它弹回去");
+    expect(applied.state.iterationOrigin).toBeUndefined();
+    expect(applied.state.patchContext).toBeUndefined();
+    expect(applied.state.optionPhase).toBe("awaitingEdit");
+  });
+
+  it("mechanics.N：不采访，补丁三选后只改这一条机制", async () => {
+    const llm = scriptedLlm([
+      turn("好的。", { state_delta: { mechanic_edits: { "mechanics.1": "整理桌面：按颜色把材料分进小碟。" } }, affected_lines: ["mechanics.1"] }),
+    ]);
+    const s = finalizedDoc();
+    s.mechanics = ["点选摆珠：先选颜色再点空位。", "整理桌面：先把材料摆齐。", "订单展示：盖章贴进展示页。"];
+    const { beginLinePatch } = await import("../src/patch.js");
+    beginLinePatch(s, { lineId: "mechanics.1", lineText: `2. ${s.mechanics[1]}`, sectionTitle: "怎么玩" });
+    const asked = await advance(s, "整理要按颜色分碟", { llm, systemPrompt: SYS });
+    expect(asked.options).toEqual(PATCH_OPTIONS);
+    expect(asked.state.patchContext?.targetText).toBe("整理桌面：先把材料摆齐。");
+    const applied = await advance(asked.state, PATCH_OPTIONS[0].detail, { llm, systemPrompt: SYS });
+    expect(applied.state.mechanics).toEqual([
+      "点选摆珠：先选颜色再点空位。",
+      "整理桌面：按颜色把材料分进小碟。",
+      "订单展示：盖章贴进展示页。",
+    ]);
+    expect(applied.reply).toContain("核心机制第 2 条");
+  });
+
+  it("共创页采访到一半去文档点改，取消后接回原来那次共创，回答后仍只给定稿三选", async () => {
+    const llm = scriptedLlm([
+      turn("天气想影响哪一块？", { state_delta: {}, options: WEATHER_CARDS }),
+      turn("记下了，下雨时鹅跑得更慢。", { state_delta: {} }),
+    ]);
+    const asked = await advance(finalizedDoc(), "加点天气", { llm, systemPrompt: SYS });
+    const { beginLinePatch } = await import("../src/patch.js");
+    const patching = structuredClone(asked.state);
+    beginLinePatch(patching, { lineId: "coreAction", lineText: "核心动作：拔鹅", sectionTitle: "怎么玩" });
+    expect(patching.iterationOrigin).toBe("document_patch");
+    patching.lastOptions = PATCH_OPTIONS.map((o) => ({ ...o }));
+    const cancelled = await advance(patching, PATCH_OPTIONS[2].detail, { llm, systemPrompt: SYS });
+    expect(cancelled.state.iterationOrigin).toBe("cocreation");
+    expect(cancelled.state.revisionAsked).toBe(true);
+    expect(cancelled.state.optionPhase).toBe("supplement");
+    expect(cancelled.state.lastOptions?.map((o) => o.label)).toEqual(["天气改节奏", "天气改目标"]);
+    const conv = await advance(cancelled.state, WEATHER_CARDS[0].detail, { llm, systemPrompt: SYS });
+    expect(conv.options).toEqual(CONVERGENCE_OPTIONS);
   });
 });

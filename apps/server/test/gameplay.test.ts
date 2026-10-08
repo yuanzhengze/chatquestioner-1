@@ -5,7 +5,14 @@ import { join } from "node:path";
 import { buildServer } from "../src/server.js";
 import { FileSessionStore } from "../src/sessionStore.js";
 import { GameplayStore } from "../src/gameplayStore.js";
-import { createInitialState, type ConversationState } from "@cq/conversation";
+import {
+  applyPendingPatch,
+  beginLinePatch,
+  createInitialState,
+  restorePatchPhase,
+  stashPatchProposal,
+  type ConversationState,
+} from "@cq/conversation";
 import { gameplayMomentsFromModel } from "@cq/gdd";
 import { toGddModel } from "@cq/conversation";
 import { fakeLlm } from "./fixtures/fakeLlm.js";
@@ -216,6 +223,47 @@ describe("gameplay images", () => {
       items: Array<{ status: string }>;
     };
     expect(reopened.items.map((item) => item.status)).toEqual(["stale", "stale"]);
+  });
+
+  it("在预览里点改第 2 条机制：id 不变，只有这一张图过期", async () => {
+    const store = new FileSessionStore(dir);
+    const image: ImageGenerator = {
+      async generate() {
+        return { bytes: TINY_PNG, mime: "image/png" };
+      },
+    };
+    const app = buildServer({
+      llm: fakeLlm([]),
+      store,
+      systemPrompt: "SYS",
+      shareDir: dir,
+      gameplayDir: join(dir, "gameplay"),
+      imageConcurrency: 1,
+      image,
+    });
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json() as { id: string };
+    const mechanics = ["点选摆珠：先选颜色再点空位。", "整理桌面：先把材料摆齐。", "订单展示：盖章贴进展示页。"];
+    await seed(store, created.id, mechanics);
+    await app.inject({ method: "POST", url: `/api/session/${created.id}/gameplay` });
+    const read = async () => ((await app.inject({ method: "GET", url: `/api/session/${created.id}/gameplay` })).json() as {
+      items: Array<{ mechanicId: string; status: string; imageUrl?: string }>;
+    }).items;
+    const before = await until(read, (items) => items.length === 3 && items.every((item) => item.status === "ready"));
+
+    const saved = await store.load(created.id);
+    beginLinePatch(saved!, { lineId: "mechanics.1", lineText: `2. ${mechanics[1]}`, sectionTitle: "怎么玩" });
+    stashPatchProposal(saved!, { mechanic_edits: { "mechanics.1": "2. 整理桌面：按颜色把材料分进小碟。" } }, ["mechanics.1"]);
+    applyPendingPatch(saved!);
+    restorePatchPhase(saved!);
+    expect(saved!.mechanics[1]).toBe("整理桌面：按颜色把材料分进小碟。");
+    await store.save(created.id, saved!);
+
+    const after = (await read()) as Array<{ mechanicId: string; status: string; imageUrl?: string }>;
+    expect(after.map((item) => item.mechanicId)).toEqual((before as Array<{ mechanicId: string }>).map((item) => item.mechanicId));
+    expect(after.map((item) => item.status)).toEqual(["ready", "stale", "ready"]);
+    expect(after[1].imageUrl).toBeTruthy();
+    expect(momentsOf((await store.load(created.id))!)[1].description).toBe("按颜色把材料分进小碟。");
+    await app.close();
   });
 
   it("单张重新生成只打这一张", async () => {

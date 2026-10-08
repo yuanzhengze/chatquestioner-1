@@ -222,6 +222,62 @@ describe("cover pipeline", () => {
     await app.close();
   });
 
+  it("改过文档后旧封面继续给图；重新生成时旧图还在，新图好了才换地址", async () => {
+    const store = new FileSessionStore(dir);
+    let release: () => void = () => {};
+    const image = {
+      calls: 0,
+      hold: false,
+      async generate() {
+        image.calls += 1;
+        if (image.hold) await new Promise<void>((resolve) => { release = resolve; });
+        return { bytes: TINY_PNG, mime: "image/png" as const };
+      },
+    };
+    const app = buildServer({
+      llm: fakeLlm([]),
+      store,
+      systemPrompt: "SYS",
+      exportDir: join(dir, "exports"),
+      shareDir: dir,
+      image,
+    });
+    const created = (await app.inject({ method: "POST", url: "/api/session" })).json();
+    await seedReady(store, created.id);
+    await app.inject({ method: "POST", url: `/api/session/${created.id}/cover` });
+    const first = (await waitCover(app, created.id)) as { imageUrl?: string };
+    expect(first.imageUrl).toBeTruthy();
+
+    const saved = await store.load(created.id);
+    saved!.coreEmotion = "完全换了一种心情";
+    await store.save(created.id, saved!);
+
+    const doc = (await app.inject({ method: "GET", url: `/api/session/${created.id}` })).json();
+    expect(doc.gddView.cover.status).toBe("stale");
+    expect(doc.gddView.cover.imageUrl).toBe(first.imageUrl);
+    const meta = (await app.inject({ method: "GET", url: `/api/session/${created.id}/cover?meta=1` })).json();
+    expect(meta.status).toBe("stale");
+    expect(meta.imageUrl).toBe(first.imageUrl);
+    expect((await app.inject({ method: "GET", url: `/api/session/${created.id}/cover` })).statusCode).toBe(200);
+    expect(image.calls).toBe(1);
+
+    image.hold = true;
+    const kicked = await app.inject({ method: "POST", url: `/api/session/${created.id}/cover` });
+    expect(kicked.json().status).toBe("pending");
+    const waiting = (await app.inject({ method: "GET", url: `/api/session/${created.id}/cover?meta=1` })).json();
+    expect(waiting.status).toBe("pending");
+    expect(waiting.imageUrl).toBe(first.imageUrl);
+    expect((await app.inject({ method: "GET", url: `/api/session/${created.id}/cover` })).statusCode).toBe(200);
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    release();
+    const fresh = (await waitCover(app, created.id)) as { imageUrl?: string };
+    expect(fresh.imageUrl).toBeTruthy();
+    expect(fresh.imageUrl).not.toBe(first.imageUrl);
+    expect(image.calls).toBe(2);
+    await app.close();
+  });
+
   it("shouldAutoEnsureCover：有过封面后不再自动生图", () => {
     const s = createInitialState();
     expect(shouldAutoEnsureCover(s, false)).toBe(true);

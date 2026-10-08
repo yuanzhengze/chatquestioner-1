@@ -58,3 +58,13 @@ export function hasQualifiedSummaryInWindow(state: ConversationState): boolean {
 export function canShowConvergence(state: ConversationState): boolean {
   return hasQualifiedSummaryInWindow(state);
 }
+
+/**
+ * 已经定稿出过文档。之后再开口走快速迭代，不再按节采访。
+ * 旧会话没有 gddFinalized 时，按原来认定「定稿后」的同一条规则：出过文档，且收敛窗口里有合格总结。
+ * 采访中途要来的草稿不算，仍按首次创作继续问。
+ */
+export function hasFinalDoc(state: ConversationState): boolean {
+  if (state.gddFinalized === true) return true;
+  return state.readyForSynthesis === true && canShowConvergence(state);
+}

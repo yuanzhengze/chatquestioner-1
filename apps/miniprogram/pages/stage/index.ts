@@ -117,6 +117,7 @@ Page({
     this._openGddTimer = 0 as number;
     this._coverTimer = 0 as number;
     this._coverTries = 0;
+    this._coverRemote = "";
     this._shareId = "";
     this._sharePromise = null as Promise<{ id: string; title: string }> | null;
     this._shareImage = "";
@@ -281,6 +282,7 @@ Page({
     if (switched) {
       /** 封面和分享卡归属于会话。换会话时先清掉，否则 refreshResult 会把上一条的封面留给这一条。 */
       this.stopCoverWatch();
+      this._coverRemote = "";
       this._shareId = "";
       this._sharePromise = null;
       this._shareImage = "";
@@ -1130,9 +1132,9 @@ Page({
     this._coverWatching = false;
   },
 
+  /** 已经有图也问一次：用户可能在文档页重画过封面，卡片要换成同一张。 */
   watchCover() {
     if (!this._sessionId || !this.data.showGdd) return;
-    if (this.data.gddCoverState === "ready" && this.data.gddCoverUrl) return;
     if (this._coverWatching) return;
     this._coverWatching = true;
     this._coverTries = 0;
@@ -1160,18 +1162,26 @@ Page({
         if (id !== this._sessionId || !this.data.showGdd) return;
         const slot = coverSlot(meta);
         if (slot === "ready") {
-          this.stopCoverWatch();
           const remote = absUrl(meta.imageUrl || "");
-          void downloadCover(remote)
-            .then((local) => {
-              if (id !== this._sessionId) return;
-              this.setData({ gddCoverUrl: local, gddCoverState: "ready" });
-            })
-            .catch(() => {
-              if (id !== this._sessionId) return;
-              this.setData({ gddCoverUrl: remote, gddCoverState: "ready" });
-            });
-          if (this._shareId) void attachShareCover(this._shareId, id).catch(() => "");
+          if (remote !== this._coverRemote || !this.data.gddCoverUrl) {
+            this._coverRemote = remote;
+            void downloadCover(remote)
+              .then((local) => {
+                if (id !== this._sessionId || this._coverRemote !== remote) return;
+                this.setData({ gddCoverUrl: local, gddCoverState: "ready" });
+              })
+              .catch(() => {
+                if (id !== this._sessionId || this._coverRemote !== remote) return;
+                this.setData({ gddCoverUrl: remote, gddCoverState: "ready" });
+              });
+          }
+          /** 新图还在画：旧图先留着，继续等。 */
+          if (meta.status === "pending") {
+            this.scheduleCoverPoll();
+            return;
+          }
+          this.stopCoverWatch();
+          if (meta.status === "ready" && this._shareId) void attachShareCover(this._shareId, id).catch(() => "");
           return;
         }
         if (slot === "failed") {
@@ -1191,6 +1201,7 @@ Page({
   },
 
   onCoverImageError() {
+    this._coverRemote = "";
     this.setData({ gddCoverUrl: "", gddCoverState: "failed" });
   },
 

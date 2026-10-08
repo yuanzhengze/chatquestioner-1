@@ -13,3 +13,4 @@ export * from "./extract.js";
 export * from "./prompt.js";
 export * from "./clarifySkill.js";
 export * from "./retrieval.js";
+export * from "./trace.js";

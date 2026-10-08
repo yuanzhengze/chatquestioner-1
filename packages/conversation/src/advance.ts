@@ -22,7 +22,7 @@ import { harvestIntoState, showDraftBar } from "./harvest.js";
 import { extractDiscussedIntoState, groundedDeltaWithReply, scrubUngroundedState } from "./extract.js";
 import { toGddModel } from "./compile.js";
 import { isComplete, isSubstantive } from "@cq/gdd";
-import { canShowConvergence, canWriteSummary, formatSummaryEligibility, openSummaryWindow } from "./gates.js";
+import { canShowConvergence, canWriteSummary, formatSummaryEligibility, hasFinalDoc, openSummaryWindow } from "./gates.js";
 import {
   applyPendingPatch,
   clearPatchProposal,
@@ -34,6 +34,7 @@ import {
   restorePatchPhase,
   stashPatchProposal,
 } from "./patch.js";
+import { finishTurnTrace, newTurnTrace, tracedLlm, type TurnOutputType, type TurnTrace } from "./trace.js";
 
 export interface AdvanceDeps {
   llm: LlmClient;
@@ -60,6 +61,23 @@ export interface AdvanceResult {
   openPreview?: boolean;
   /** 点「应用这些改动」并已写入清单字段。 */
   patchCommitted?: boolean;
+  /** 开发环境耗时记录：这一轮调了几次模型、各自多久、生成了哪种卡、显示了哪种。 */
+  trace?: TurnTrace;
+}
+
+type Trace = ReturnType<typeof newTurnTrace>;
+
+function sameOptions(a: TurnOption[] | undefined, b: TurnOption[]): boolean {
+  return Boolean(a?.length) && a!.length === b.length && a!.every((o, i) => o.label === b[i].label);
+}
+
+function renderedOutputOf(res: AdvanceResult, expected: TurnOutputType): TurnOutputType {
+  if (sameOptions(res.options, PATCH_OPTIONS)) return "patch";
+  if (sameOptions(res.options, CONVERGENCE_OPTIONS)) return "draft";
+  if (sameOptions(res.options, CONSENT_OPTIONS)) return "none";
+  if ((res.options?.length ?? 0) >= 2) return "interview";
+  if (expected === "document" && res.readyForSynthesis) return "document";
+  return "none";
 }
 
 /** 缺合法 options 时只补 JSON。已流给用户的人话不准改，纠偏不进用户可见历史。宿主不代写方向。 */
@@ -73,9 +91,45 @@ const HOST_REPAIR =
 
 const OPTION_REPAIR_LIMIT = 2;
 
-function hostTurnGuard(state: ConversationState, phase: OptionPhase, generating: boolean): string {
+/**
+ * 共创页上对已定稿文档的一次修改，固定一轮采访、一轮定稿。
+ * open：这次修改的采访轮，必须出采访三选。close：已经采访过，这一轮只给定稿三选。
+ * 文档页点行修改走 patch，不进这里。
+ */
+type IterateStep = "open" | "close";
+
+const ITERATE_HINT = `[内部进度，禁止对用户说出本段]
+文档已经定稿。用户在共创页提了一个新想法，现在是在现有文档上改，不再按节采访，也不追问完整度缺口。`;
+
+function iterateGuard(step: IterateStep): string {
+  if (step === "close") {
+    return `\n\n[宿主硬约束] 这次修改已经问过了，现在必须收口。人话用一两句确认会怎么改，不要再提问，不要给 JSON options，宿主会弹出定稿三选。不要写暂定名、一句话亮点或概念总结。改了的设定写入 state_delta。`;
+  }
+  return `\n\n[宿主硬约束] 文档已经定稿，用户在共创页提了一个新想法。这一轮必须围绕他刚说的这个想法，问一个最值得他决定的设计方向，并在 JSON options 给 2–3 个彼此真正不同的实质方向（id A/B/C）。即使他已经说得很具体，也要问这一次。
+不要补问整份文档的缺口，不要按节采访，不要写暂定名、一句话亮点或概念总结。禁止定稿/生成文档/改一块/再挖挖。他已经说出的设定写入 state_delta。`;
+}
+
+/** 真的点了某个选项（或只打了它的字母）。打字里碰巧有「再加点」不算点了「再挖挖」。 */
+function tappedOption(text: string, options: TurnOption[] | undefined): boolean {
+  const t = (text || "").trim();
+  if (!t) return false;
+  if (/^[A-Ca-c]$/.test(t)) return true;
+  return Boolean(options?.some((o) => o.label === t || o.detail === t));
+}
+
+/** 采访轮只出方向卡；模型补卡也补不出来时，宁可这轮没有卡，也不提前给定稿三选。 */
+function iterateCards(step: IterateStep, reply: string, parsedOptions: TurnOption[] | undefined): { options?: TurnOption[]; phase: OptionPhase } {
+  if (step === "open") {
+    const asked = designOptionsOnly(recoverOptionsFromProse(reply)) ?? designOptionsOnly(parsedOptions);
+    return { options: asked && asked.length >= 2 ? asked : undefined, phase: "supplement" };
+  }
+  return { options: CONVERGENCE_OPTIONS, phase: "convergence" };
+}
+
+function hostTurnGuard(state: ConversationState, phase: OptionPhase, generating: boolean, iterate?: IterateStep): string {
   if (state.guidance !== "accepted") return "";
   if (phase === "patch") return patchHostGuard(state);
+  if (iterate) return iterateGuard(iterate);
   const verdict = `\n\n${formatSummaryEligibility(state)}`;
   if (generating) {
     return `${verdict}\n\n[宿主硬约束] 用户这轮要出或更新设计文档。禁止 JSON options，禁止人话 A./B./C.。不要再问新的设计缺口。人话只确认已记下。`;
@@ -92,41 +146,30 @@ function hostTurnGuard(state: ConversationState, phase: OptionPhase, generating:
   return `${verdict}\n\n[宿主硬约束] may_write_summary 为 false。JSON options 必须 2–3 项实质方向（id A/B/C）。禁止定稿/生成文档/改一块/再挖挖。禁止只写在人话里。禁止写暂定名 / 一句话亮点 / 📌 概念总结。`;
 }
 
-function storedPhase(state: ConversationState, alreadyHadDoc: boolean): OptionPhase {
-  if (state.optionPhase) return state.optionPhase;
-  if (canShowConvergence(state)) return alreadyHadDoc ? "awaitingEdit" : "convergence";
-  return "interview";
-}
-
-/** 本轮助手该处于哪一档选项。 */
+/** 首次创作这一轮该处于哪一档选项。定稿后的修改走 IterateStep。 */
 function resolveOptionPhase(
   prev: ConversationState,
-  alreadyHadDoc: boolean,
   generating: boolean,
   convChoice: ReturnType<typeof interpretConvergenceChoice>,
   current: ConversationState,
 ): OptionPhase {
   if (prev.optionPhase === "patch" || current.optionPhase === "patch") return "patch";
-  const prevPhase = storedPhase(prev, alreadyHadDoc);
-  const afterFinalize = alreadyHadDoc && canShowConvergence(current);
   if (generating) {
     return convChoice === "finalize" || canShowConvergence(current) ? "awaitingEdit" : "interview";
   }
   if (convChoice === "revise" || convChoice === "explore") return "supplement";
-  if (afterFinalize) {
-    if (prevPhase === "supplement") return "convergence";
-    return "supplement";
-  }
   if (canShowConvergence(current)) return "convergence";
   return "interview";
 }
 
+/** strict：共创页定稿后的采访轮，模型写成总结也要补出方向卡。 */
 function outputNeedsRepair(
   parsed: ParsedTurn,
   requireOptions: boolean,
   _state: ConversationState,
+  strict = false,
 ): boolean {
-  if (looksLikeConceptSummary(parsed.reply)) return false;
+  if (!strict && looksLikeConceptSummary(parsed.reply)) return false;
   if (requireOptions && (designOptionsOnly(parsed.options)?.length ?? 0) < 2) return true;
   return false;
 }
@@ -136,9 +179,10 @@ function preferParsed(
   second: ParsedTurn,
   requireOptions: boolean,
   state: ConversationState,
+  strict = false,
 ): ParsedTurn {
   let pick = first;
-  if (!outputNeedsRepair(second, requireOptions, state)) pick = second;
+  if (!outputNeedsRepair(second, requireOptions, state, strict)) pick = second;
   else if (requireOptions && (second.options?.length ?? 0) > (first.options?.length ?? 0)) pick = second;
   else if (first.warnings.length && !second.warnings.length) pick = second;
   const reply = first.reply.trim() ? first.reply : pick.reply;
@@ -230,6 +274,7 @@ function resolveSystem(
   stage?: number,
   phase: OptionPhase = "interview",
   generating = false,
+  iterate?: IterateStep,
 ): string {
   if (deps.systemPrompt) return deps.systemPrompt;
   if (!deps.skillDir) {
@@ -237,7 +282,7 @@ function resolveSystem(
   }
   const mode = state.guidance === "declined" ? "freeform" : "guide";
   const promptStage = stage ?? (mode === "guide" ? askStageOf(state) : state.stage);
-  const converging = phase === "convergence" || generating;
+  const converging = phase === "convergence" || generating || Boolean(iterate);
   const writingSummary = canWriteSummary(state) && phase === "interview" && !generating;
   if (phase === "patch") {
     const prompt = deps.systemPrompt
@@ -248,7 +293,7 @@ function resolveSystem(
     skillDir: deps.skillDir,
     mode,
     stage: promptStage,
-    stageHint: mode === "guide" ? buildGuideStageHint(state, converging) : undefined,
+    stageHint: mode === "guide" ? (iterate ? ITERATE_HINT : buildGuideStageHint(state, converging)) : undefined,
     converging,
     allowSummary: writingSummary,
   });
@@ -284,6 +329,8 @@ async function finish(
   alreadyHadDoc = false,
   phase: OptionPhase = "interview",
   generating = false,
+  iterate?: IterateStep,
+  trace?: Trace,
 ): Promise<AdvanceResult> {
   if (state.guidance === "accepted" && typeof promptedStage === "number") {
     markStageAsked(state, promptedStage);
@@ -291,8 +338,13 @@ async function finish(
   state.history.push({ role: "assistant", content: reply });
   harvestIntoState(state);
   const wantsDoc = historyWantsPreview(state.history, userInput, state.lastOptions);
-  if (llm && wantsDoc && (generating || alreadyHadDoc)) {
-    await extractDiscussedIntoState(state, llm, { overwrite: true });
+  /**
+   * 整份文档重抽只在出文档那一轮做。共创页的采访轮和定稿三选那一轮不重抽：
+   * 这两轮只出卡，文档等用户点定稿才更新；重抽一次要多等二三十秒。
+   */
+  if (llm && wantsDoc && (generating || (alreadyHadDoc && !iterate))) {
+    if (trace) trace.generatedDocument = true;
+    await extractDiscussedIntoState(state, trace ? tracedLlm(llm, "extract", trace) : llm, { overwrite: true });
     harvestIntoState(state);
   }
   scrubUngroundedState(state);
@@ -305,17 +357,28 @@ async function finish(
   state.gddComplete = complete;
   const readyForSynthesis = isSubstantive(model) && wantsDoc && (generating || alreadyHadDoc);
   state.gddDraftBar = readyForSynthesis && showDraftBar({ history: state.history, readyForSynthesis });
-  const picked = cardsForReply(
-    reply,
-    options,
-    phase,
-    generating,
-    state.guidance === "declined",
-  );
+  const picked = iterate
+    ? iterateCards(iterate, reply, options)
+    : cardsForReply(
+      reply,
+      options,
+      phase,
+      generating,
+      state.guidance === "declined",
+    );
   const outPhase = picked.phase;
   const outOptions = picked.options;
   const visible = reply;
 
+  if (iterate) {
+    state.iterationOrigin = "cocreation";
+    state.revisionAsked = true;
+  }
+  if (generating && readyForSynthesis) {
+    delete state.iterationOrigin;
+    delete state.revisionAsked;
+    if (outPhase === "awaitingEdit") state.gddFinalized = true;
+  }
   state.optionPhase = outPhase;
   state.lastOptions = outOptions?.length ? outOptions : [];
   state.readyForSynthesis = readyForSynthesis;
@@ -327,14 +390,17 @@ async function advancePatch(
   state: ConversationState,
   userInput: string,
   deps: AdvanceDeps,
+  trace: Trace,
 ): Promise<AdvanceResult> {
   const choice = interpretPatchChoice(userInput, prev.lastOptions);
   const hadDoc = Boolean(prev.readyForSynthesis);
+  trace.currentPhase = "patch";
+  trace.expectedOutputType = choice ? "none" : "patch";
 
   if (choice === "apply") {
     applyPendingPatch(state);
+    const reply = patchApplyReply(state);
     restorePatchPhase(state);
-    const reply = patchApplyReply();
     deps.onToken?.(reply);
     state.history.push({ role: "assistant", content: reply });
     const model = toGddModel(state);
@@ -396,16 +462,19 @@ async function advancePatch(
     ...state.history,
   ];
   let streamed = "";
-  const raw = await collectStream(deps.llm, messages, (t) => {
+  const raw = await collectStream(tracedLlm(deps.llm, "patch", trace), messages, (t) => {
     streamed += t;
   });
   let parsed = parseTurnOutput(raw);
   if (streamed.trim()) parsed = { ...parsed, reply: streamed.trim() };
+  trace.generatedInterview = Boolean(designOptionsOnly(parsed.options)?.length);
+  if (state.patchContext) state.patchContext.request = userInput;
   stashPatchProposal(
     state,
     parsed.control.stateDelta as Record<string, unknown>,
     parsed.control.affectedLines,
   );
+  trace.generatedPatch = true;
   const reply = patchProposalReply(state);
   deps.onToken?.(reply);
   state.history.push({ role: "assistant", content: reply });
@@ -420,10 +489,47 @@ async function advancePatch(
   };
 }
 
+/** 一轮只该出一种卡。先按状态机定好，再去调模型。 */
+function expectedOutputOf(
+  state: ConversationState,
+  phase: OptionPhase,
+  generating: boolean,
+  writingSummary: boolean,
+  iterate?: IterateStep,
+): TurnOutputType {
+  if (state.guidance === "declined") return "none";
+  if (generating) return "document";
+  if (iterate) return iterate === "open" ? "interview" : "draft";
+  if (phase === "convergence" || writingSummary) return "draft";
+  return "interview";
+}
+
 export async function advance(
   prev: ConversationState,
   userInput: string,
   deps: AdvanceDeps,
+): Promise<AdvanceResult> {
+  const trace = newTurnTrace();
+  trace.iterationOrigin = prev.iterationOrigin;
+  const res = await advanceTurn(prev, userInput, deps, trace);
+  trace.renderedOutputType = renderedOutputOf(res, trace.expectedOutputType);
+  if (trace.renderedOutputType === "draft" || looksLikeConceptSummary(res.reply)) trace.generatedDraft = true;
+  const generated: Array<[TurnOutputType, boolean]> = [
+    ["interview", trace.generatedInterview],
+    ["draft", trace.generatedDraft],
+    ["patch", trace.generatedPatch],
+  ];
+  trace.discardedOutputTypes = generated
+    .filter(([type, made]) => made && type !== trace.renderedOutputType)
+    .map(([type]) => type);
+  return { ...res, trace: finishTurnTrace(trace) };
+}
+
+async function advanceTurn(
+  prev: ConversationState,
+  userInput: string,
+  deps: AdvanceDeps,
+  trace: Trace,
 ): Promise<AdvanceResult> {
   const state: ConversationState = normalizeConversationState(structuredClone(prev));
   state.history.push({ role: "user", content: userInput });
@@ -447,7 +553,7 @@ export async function advance(
   }
 
   if (prev.optionPhase === "patch" || state.optionPhase === "patch") {
-    return advancePatch(prev, state, userInput, deps);
+    return advancePatch(prev, state, userInput, deps, trace);
   }
 
   let knowledgeBlock = "";
@@ -467,15 +573,28 @@ export async function advance(
     state.summaryEligibleFrom = 0;
   }
   const generating = convChoice === "finalize" || Boolean(wantsDocNow && !alreadyHadDoc);
-  let phase = resolveOptionPhase(prev, alreadyHadDoc, generating, convChoice, state);
+  /**
+   * 定稿后从共创页开口：按入口分流，不看这句说得够不够具体。
+   * 这次共创已经采访过就只给定稿三选；点「改一块 / 再挖挖」算新的一次修改，重新采访一轮。
+   */
+  const asked = prev.iterationOrigin === "cocreation" && prev.revisionAsked === true;
+  const reopen = (convChoice === "revise" || convChoice === "explore") && tappedOption(userInput, prev.lastOptions);
+  const iterate: IterateStep | undefined = !generating && state.guidance === "accepted" && hasFinalDoc(state)
+    ? (asked && !reopen ? "close" : "open")
+    : undefined;
+  const phase: OptionPhase = iterate
+    ? (iterate === "close" ? "convergence" : "supplement")
+    : resolveOptionPhase(prev, generating, convChoice, state);
 
   const promptedStage = state.guidance === "accepted" ? askStageOf(state) : state.stage;
   const writingSummary = canWriteSummary(state) && phase === "interview" && !generating;
-  const systemPrompt = resolveSystem(state, deps, promptedStage, phase, generating);
+  trace.currentPhase = phase;
+  trace.expectedOutputType = expectedOutputOf(state, phase, generating, writingSummary, iterate);
+  const systemPrompt = resolveSystem(state, deps, promptedStage, phase, generating, iterate);
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: `${systemPrompt}\n\n${buildTurnDirective(writingSummary)}${knowledgeBlock}${hostTurnGuard(state, phase, generating)}`,
+      content: `${systemPrompt}\n\n${buildTurnDirective(writingSummary)}${knowledgeBlock}${hostTurnGuard(state, phase, generating, iterate)}`,
     },
     ...state.history,
   ];
@@ -488,7 +607,7 @@ export async function advance(
     deps.onWritingGdd?.();
   };
   let raw = await collectStream(
-    deps.llm,
+    tracedLlm(deps.llm, "reply", trace),
     messages,
     (t) => {
       streamed += t;
@@ -500,26 +619,31 @@ export async function advance(
   if (streamed.trim()) parsed = { ...parsed, reply: streamed.trim() };
   const summaryTurn = looksLikeConceptSummary(parsed.reply);
   const questionTurn = isQuestionReply(parsed.reply);
-  const requireOptions = state.guidance === "accepted"
-    && !generating
-    && !summaryTurn
-    && phase !== "patch"
-    && (
-      phase === "supplement"
-      || (phase === "interview" && !writingSummary)
-      || (questionTurn && phase !== "awaitingEdit")
-    );
-  if (outputNeedsRepair(parsed, requireOptions, state)) {
+  /** 共创页的采访轮必须有方向卡，缺了就补；收口轮不补。 */
+  const strict = iterate === "open";
+  const requireOptions = iterate
+    ? strict
+    : state.guidance === "accepted"
+      && !generating
+      && !summaryTurn
+      && phase !== "patch"
+      && (
+        phase === "supplement"
+        || (phase === "interview" && !writingSummary)
+        || (questionTurn && phase !== "awaitingEdit")
+      );
+  if (outputNeedsRepair(parsed, requireOptions, state, strict)) {
     const first = parsed;
     const convo: ChatMessage[] = [...messages, { role: "assistant", content: raw }];
-    for (let i = 0; i < OPTION_REPAIR_LIMIT && outputNeedsRepair(parsed, requireOptions, state); i++) {
+    for (let i = 0; i < OPTION_REPAIR_LIMIT && outputNeedsRepair(parsed, requireOptions, state, strict); i++) {
       convo.push({ role: "user", content: HOST_REPAIR });
-      const repairedRaw = await collectStream(deps.llm, convo);
+      const repairedRaw = await collectStream(tracedLlm(deps.llm, "repair", trace), convo);
       convo.push({ role: "assistant", content: repairedRaw });
-      parsed = preferParsed(parsed, parseTurnOutput(repairedRaw), requireOptions, state);
+      parsed = preferParsed(parsed, parseTurnOutput(repairedRaw), requireOptions, state, strict);
     }
     parsed = { ...parsed, reply: first.reply.trim() ? first.reply : parsed.reply };
   }
+  trace.generatedInterview = Boolean(designOptionsOnly(parsed.options)?.length);
   mergeStateDelta(
     state,
     groundedDeltaWithReply(
@@ -541,5 +665,7 @@ export async function advance(
     alreadyHadDoc,
     phase,
     generating,
+    iterate,
+    trace,
   );
 }

@@ -75,6 +75,9 @@ function buildSynthesis(state: ConversationState, opts?: { requireComplete?: boo
   };
 }
 
+/** 开发环境每轮打一行耗时记录。生产或 TURN_TRACE=0 时不打。 */
+const TURN_TRACE = process.env.NODE_ENV !== "production" && process.env.TURN_TRACE !== "0" && process.env.VITEST !== "true";
+
 /** 合法 session id：仅字母数字、下划线、连字符（randomUUID 输出可通过）。防路径穿越。 */
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 const MAX_SHARE_MD = 200_000;
@@ -297,7 +300,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       const pub = coverPipeline.publicCover(state, req.params.id);
       const wantMeta = req.query.meta === "1" || req.query.meta === "true";
       if (wantMeta) return pub;
-      if (pub.status === "ready") {
+      if (pub.imageUrl) {
         const bytes = covers.read("session", req.params.id);
         if (bytes) return sendCover(reply, bytes);
       }
@@ -397,6 +400,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
       // 首句 lazy 创建：load 为空说明这是该 id 的第一条消息（/api/session 没落库）。
       // 用开场白初始化 state 并按指定 id 入库，之后再正常推进。
+      const turnStart = Date.now();
       let state = await deps.store.load(req.params.id);
       if (!state) {
         const fresh = createInitialState();
@@ -479,6 +483,14 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
           readyForSynthesis: res.readyForSynthesis,
           openPreview: res.openPreview === true,
         });
+        if (TURN_TRACE && res.trace) {
+          console.log(`[turn-trace] ${JSON.stringify({
+            turnId: randomUUID(),
+            sessionId: req.params.id,
+            ...res.trace,
+            serverMs: Date.now() - turnStart,
+          })}`);
+        }
       } catch (err) {
         console.error("[server] turn failed:", err);
         sendEvent(reply, SSE_EVENTS.error, {

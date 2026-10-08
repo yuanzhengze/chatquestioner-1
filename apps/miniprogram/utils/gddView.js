@@ -92,12 +92,13 @@ function parseCoreMechanic(raw) {
 
 function gameplayMoments(m) {
   var list = Array.isArray(m.mechanics) ? m.mechanics : [];
+  var ids = Array.isArray(m.mechanicIds) ? m.mechanicIds : [];
   var seen = {};
   var out = [];
   for (var i = 0; i < list.length; i++) {
     var raw = text(list[i]);
     if (!raw) continue;
-    var base = fnv1aHex(raw);
+    var base = text(ids[i]) || fnv1aHex(raw);
     var n = (seen[base] || 0) + 1;
     seen[base] = n;
     var parsed = parseCoreMechanic(raw);

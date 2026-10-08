@@ -26,11 +26,14 @@ function parseGddPreview(md) {
   return { title: title, pitch: pitch };
 }
 
-/** 共创卡片的封面位。高度固定，状态只换里面的字或图。 */
+/**
+ * 共创卡片的封面位。高度固定，状态只换里面的字或图。
+ * 服务端给了图就显示：文档改过（stale）、正在重画、重画失败时都先留着这张会话自己的旧图。
+ */
 function coverSlot(meta) {
   var status = meta && meta.status ? String(meta.status) : "";
   var image = meta && meta.imageUrl ? String(meta.imageUrl).trim() : "";
-  if (status === "ready" && image) return "ready";
+  if (image) return "ready";
   if (status === "failed") return "failed";
   if (status === "pending") return "pending";
   return "empty";
@@ -52,7 +55,7 @@ function recordCard(indexItem, state) {
   var title = preview.title && preview.title !== "未命名游戏" ? preview.title : fallback;
   var cover = body.gddView && body.gddView.cover ? body.gddView.cover : null;
   var coverPath = "";
-  if (hasDoc && cover && cover.status === "ready" && cover.imageUrl) {
+  if (hasDoc && cover && cover.imageUrl) {
     coverPath = String(cover.imageUrl).trim();
   }
   return {

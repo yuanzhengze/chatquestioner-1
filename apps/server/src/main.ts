@@ -19,7 +19,12 @@ dotenv.config({ path: resolve(repoRoot, ".env") });
 async function start(): Promise<void> {
   const cfg = loadConfig();
   const skillDir = resolve(repoRoot, "prompts", "game-gdd-clarify");
-  const llm = new OpenAiLlmClient({ baseURL: cfg.LLM_BASE_URL, apiKey: cfg.LLM_API_KEY, model: cfg.LLM_MODEL });
+  const llm = new OpenAiLlmClient({
+    baseURL: cfg.LLM_BASE_URL,
+    apiKey: cfg.LLM_API_KEY,
+    model: cfg.LLM_MODEL,
+    reportUsage: process.env.NODE_ENV !== "production",
+  });
   const imageModel = (cfg.IMAGE_MODEL || "").trim();
   const image = imageModel
     ? new OpenAiImageClient({

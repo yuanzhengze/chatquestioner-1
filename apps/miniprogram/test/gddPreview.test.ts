@@ -39,6 +39,15 @@ describe("文档入口卡片要的标题、亮点和封面状态", () => {
     expect(coverSlot(null)).toBe("empty");
   });
 
+  it("文档改过、正在重画或重画失败时，会话自己的旧封面照样显示", () => {
+    expect(coverSlot({ status: "stale", imageUrl: "/api/session/a/cover?f=1" })).toBe("ready");
+    expect(coverSlot({ status: "pending", imageUrl: "/api/session/a/cover?f=1" })).toBe("ready");
+    expect(coverSlot({ status: "failed", imageUrl: "/api/session/a/cover?f=1" })).toBe("ready");
+    const md = "# 甲\n\n> 一句话 Pitch：甲。\n";
+    const card = recordCard({ id: "a" }, { gddMarkdown: md, gddView: { cover: { status: "stale", imageUrl: "/api/session/a/cover?f=1" } } });
+    expect(card.coverPath).toBe("/api/session/a/cover?f=1");
+  });
+
   it("三条记录各自带自己的封面地址，没有文档则继续", () => {
     const md = (name: string) => `# ${name}\n\n> 一句话 Pitch：${name}。\n`;
     const a = recordCard({ id: "a" }, { gddMarkdown: md("甲"), gddView: { cover: { status: "ready", imageUrl: "/api/session/a/cover" } } });

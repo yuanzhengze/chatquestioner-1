@@ -1,7 +1,8 @@
 import { gameProfileFromModel, type GameProfile } from "./gameProfile.js";
 import { asGddText, type GddModel } from "./model.js";
 
-export type CoverStatus = "idle" | "pending" | "ready" | "failed";
+/** stale：文档改过，封面没重画。旧图照样显示，只有用户点「重新生成封面」才重画。 */
+export type CoverStatus = "idle" | "pending" | "ready" | "failed" | "stale";
 
 export interface GrowthStep {
   id: string;
@@ -110,19 +111,23 @@ export function coreMechanicId(raw: unknown): string {
 }
 
 export function gameplayMomentsFromModel(m: GddModel): GameplayMoment[] {
-  const items = (m.mechanics || []).map(text).filter(Boolean);
+  const ids = Array.isArray(m.mechanicIds) ? m.mechanicIds : [];
   const seen = new Map<string, number>();
-  return items.map((raw) => {
-    const base = coreMechanicId(raw);
+  const out: GameplayMoment[] = [];
+  (m.mechanics || []).forEach((item, i) => {
+    const raw = text(item);
+    if (!raw) return;
+    const base = text(ids[i]) || coreMechanicId(raw);
     const n = (seen.get(base) || 0) + 1;
     seen.set(base, n);
     const parsed = parseCoreMechanic(raw);
-    return {
+    out.push({
       id: n === 1 ? base : `${base}-${n}`,
       title: parsed.title,
       description: parsed.description,
-    };
+    });
   });
+  return out;
 }
 
 export function growthStepsFromModel(m: GddModel): GrowthStep[] {

@@ -5,7 +5,9 @@ import {
   asGddText,
   absorbLabeledConstitution,
   composeInteractionChain,
+  coreMechanicId,
   isConcreteInteractionChain,
+  stripListNumber,
 } from "@cq/gdd";
 import type { ConversationState } from "./state.js";
 import { hasGrowthSkipEvidence } from "./growthSkip.js";
@@ -92,6 +94,15 @@ function nearDuplicate(a: string, b: string): boolean {
 }
 
 /** 给人看的清单：去掉被包含的短句和近义重复，长句优先，保序截断。 */
+/**
+ * 一条机制的身份：改写过的沿用原 id；没记过的按存下来的原文算。
+ * 存下来的原文带着旧序号时也按原文算，这样去掉序号不会换出一个新身份。
+ */
+export function mechanicIdOf(identity: Record<string, string>, raw: string): string {
+  const key = coreMechanicId(raw);
+  return identity[key] || identity[coreMechanicId(stripListNumber(raw))] || key;
+}
+
 export function collapseNearDup(items: string[], max = MAX_DISPLAY_MECHANICS): string[] {
   const cleaned: string[] = [];
   for (const raw of items) {
@@ -218,7 +229,17 @@ export function toGddModel(state: ConversationState): GddModel {
   const mechanics = asList(state.mechanics);
   const engMechs = asList(state.engineering?.mechanics);
   const rawMechs = mechanics.length ? mechanics : engMechs.length ? engMechs : (m.coreAction ? [m.coreAction] : []);
-  m.mechanics = collapseNearDup(rawMechs, MAX_DISPLAY_MECHANICS);
+  /** 旧会话可能存成「1. xxx」：展示时去掉，身份仍按存下来的原文算，玩法图不换绑。 */
+  const rawOf = new Map<string, string>();
+  const cleaned = rawMechs.map((raw) => {
+    const clean = stripListNumber(raw);
+    if (clean && !rawOf.has(clean)) rawOf.set(clean, raw);
+    return clean;
+  }).filter(Boolean);
+  m.mechanics = collapseNearDup(cleaned, MAX_DISPLAY_MECHANICS);
+  const identity = state.mechanicIds || {};
+  const ids = m.mechanics.map((text) => mechanicIdOf(identity, rawOf.get(text) ?? text));
+  if (ids.some((id, i) => id !== coreMechanicId(m.mechanics[i]))) m.mechanicIds = ids;
   m.reward = pick(state.reward);
   m.winRule = pick(state.winRule);
   m.loseRule = pick(state.failRule);

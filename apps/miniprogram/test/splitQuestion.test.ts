@@ -60,4 +60,14 @@ describe("splitQuestion", () => {
     expect(hit.tail).toBe("");
     expect(markedQuestion("> 📌 **暂定名**：《夜班》")).toEqual({ lead: "", question: "", tail: "" });
   });
+
+  it("很长的修改回执渲染进气泡后一个字不少", () => {
+    const { mdToHtml } = createRequire(import.meta.url)("../utils/md.js") as { mdToHtml: (md: string, opts?: { chat?: boolean }) => string };
+    const long = "整理桌面：开局先把散珠按颜色扫进三个小碟，再把纸胶带和小镊子摆回右手边，桌面清爽以后才开始接下一单。";
+    const receipt = `按你刚才说的，文档里会改这些地方：\n\n- 核心机制第 2 条：改成「${long}」`;
+    expect(splitQuestion(receipt)).toEqual({ lead: "", question: "", tail: "" });
+    const html = mdToHtml(receipt, { chat: true });
+    expect(html).toContain(long);
+    expect(html).not.toMatch(/…|\.\.\./);
+  });
 });
