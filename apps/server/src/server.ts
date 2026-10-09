@@ -22,6 +22,7 @@ import { GameplayPipeline } from "./gameplayPipeline.js";
 import { ProfilePipeline } from "./profilePipeline.js";
 import { ImageGenerationQueue } from "./imageQueue.js";
 import { SessionMutex } from "./sessionMutex.js";
+import { shareGameplayImagePath, shareProfile } from "./shareShowcase.js";
 import type { ImageGenerator } from "./imageClient.js";
 
 export interface ServerDeps {
@@ -266,8 +267,30 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid share id" });
     const row = await shareStore.load(req.params.id);
     if (!row) return reply.code(404).send({ error: "share not found" });
-    return publicShare(row);
+    const sessionId = row.sessionId || "";
+    const state = row.v === 2 && row.model != null && SAFE_ID.test(sessionId) ? await deps.store.load(sessionId) : null;
+    if (!state) return publicShare(row);
+    const gameplay = gameplayPipeline.peek(sessionId, state, row.model as GddModel, (mechanicId, revision) =>
+      shareGameplayImagePath(row.id, mechanicId, revision));
+    return {
+      ...publicShare(row),
+      gameplay: gameplay.items.map(({ error: _error, ...item }) => item),
+      profile: shareProfile(state),
+    };
   });
+
+  app.get<{ Params: { id: string; mechanicId: string } }>(
+    "/api/share/:id/gameplay/:mechanicId",
+    async (req, reply) => {
+      if (!SAFE_ID.test(req.params.id) || !SAFE_ID.test(req.params.mechanicId)) {
+        return reply.code(400).send({ error: "invalid id" });
+      }
+      const row = await shareStore.load(req.params.id);
+      const bytes = row?.sessionId ? gameplayFiles.read(row.sessionId, req.params.mechanicId) : null;
+      if (!bytes) return reply.code(404).send({ error: "gameplay image not found" });
+      return reply.header("Cache-Control", "private, max-age=86400").type(covers.mimeOf(bytes)).send(bytes);
+    },
+  );
 
   app.get<{ Params: { id: string } }>("/api/share/:id/cover", async (req, reply) => {
     if (!SAFE_ID.test(req.params.id)) return reply.code(400).send({ error: "invalid share id" });

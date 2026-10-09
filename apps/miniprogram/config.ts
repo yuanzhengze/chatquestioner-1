@@ -123,8 +123,17 @@ export const GDD_PATCH_KEY = "nb.gddPatch";
 /** 本机会话索引（D17）。只存 id/标题/时间，正文在服务端 data/sessions。 */
 export const SESSION_INDEX_KEY = "nb.sessionIndex";
 
-/** 全站品牌静帧。Loader 视频未进包前，首屏/对话/文档/分享卡共用这一张。 */
-export const LOGO_SRC = "/images/forgeax-logo.png";
+/**
+ * 正式 ForgeaX Logo，全站品牌图形只读这一份：首页品牌行、助手头像、加载 / 空状态、记录占位、文档署名、分享卡。
+ * 透明底，颜色和比例保持原稿；各处只换容器大小，不改 Logo 本身。
+ */
+export const LOGO_SRC = "/images/brand/forgeax-logo.png";
+
+/** 首页品牌行的 ForgeAX 英文字标（方案一），深底反白版。 */
+export const BRAND_WORDMARK_SRC = "/images/home/brand-wordmark.png";
+
+/** 首页 Hero 背景位。临时图，换图只换这个文件；构图按「左侧压暗放文字、右侧主体」取景。 */
+export const HOME_HERO_SRC = "/images/home/hero.jpg";
 
 /** 首页协议勾选。拆成 Tab 后必须落盘，共创发送时读取。 */
 export const AGREED_KEY = "nb.agreed";

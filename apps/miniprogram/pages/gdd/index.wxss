@@ -98,17 +98,17 @@ page { background: var(--bg-canvas); color: var(--text); }
 .cover-mark {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 8rpx;
   margin-left: auto;
   flex-shrink: 0;
 }
 .cover-logo {
-  width: 96rpx;
-  height: 96rpx;
+  width: 44rpx;
+  height: 44rpx;
   flex-shrink: 0;
 }
 .cover-mark-name {
-  font-size: 24rpx;
+  font-size: 20rpx;
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.04em;

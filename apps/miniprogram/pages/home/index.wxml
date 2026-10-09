@@ -1,132 +1,80 @@
-<swiper
-  class="pager"
-  vertical
-  circular="{{false}}"
-  current="{{screen}}"
-  duration="520"
-  easing-function="easeInOutCubic"
-  skip-hidden-item-layout="{{true}}"
-  bindchange="onScreenChange"
->
-  <swiper-item>
-    <view class="screen one">
-      <view class="brandrow">
-        <view class="mark">
-          <image class="mark-logo" src="{{logoSrc}}" mode="aspectFit" />
-        </view>
-        <view class="brand-copy">
-          <view class="wordmark">ForgeaX</view>
-          <view class="kicker">游戏创意前置共创</view>
-        </view>
-      </view>
+<view class="topscrim" style="height:{{navTop}}px"></view>
 
-      <view class="window">
-        <view class="window-bar"></view>
-        <view class="window-body">
-          <image
-            wx:if="{{!posterFailed}}"
-            class="face"
-            src="{{gatePoster}}"
-            mode="aspectFit"
-            binderror="onPosterError"
-          />
-          <view wx:if="{{posterFailed}}" class="face face-fallback">?</view>
+<view class="hero">
+  <view class="hero-bg">
+    <image wx:if="{{!heroFailed}}" class="hero-img" src="{{heroSrc}}" mode="heightFix" binderror="onHeroError" />
+    <view class="hero-shade"></view>
+  </view>
+
+  <view class="hero-body" style="padding-top:{{navTop}}px">
+    <view class="brand" style="min-height:{{navHeight}}px;margin-right:{{capsuleRight}}px">
+      <image class="brand-mark" src="{{markSrc}}" mode="aspectFit" />
+      <view class="brand-copy">
+        <image class="brand-word" src="{{wordmarkSrc}}" mode="heightFix" aria-label="ForgeAX" />
+        <view class="brand-kicker">游戏创意前置共创</view>
+      </view>
+    </view>
+
+    <view class="hero-gap"></view>
+
+    <view class="eyebrow">
+      <view class="eyebrow-bar"></view>
+      <text>灵感引导 · 游戏文档</text>
+    </view>
+    <view class="slogan">
+      <view class="slogan-line">{{sloganLines[0]}}</view>
+      <view class="slogan-line">{{sloganLines[1]}}</view>
+      <view class="slogan-line em">{{sloganLines[2]}}</view>
+    </view>
+    <view class="desc">{{subline}}</view>
+
+    <view class="ctas">
+      <view wx:if="{{hasLast}}" class="cta primary" hover-class="press" aria-role="button" bindtap="onStart">
+        <image class="cta-icon" src="/images/home/icon-continue-dark.png" />
+        <text class="cta-label">继续共创</text>
+        <image class="cta-arrow" src="/images/home/icon-arrow-dark.png" />
+      </view>
+      <view class="cta {{hasLast ? 'secondary' : 'primary'}}" hover-class="press" aria-role="button" bindtap="onNewSession">
+        <image class="cta-icon" src="{{hasLast ? '/images/home/icon-start-light.png' : '/images/home/icon-start-dark.png'}}" />
+        <text class="cta-label">开始共创</text>
+        <image class="cta-arrow" src="{{hasLast ? '/images/home/icon-arrow-light.png' : '/images/home/icon-arrow-dark.png'}}" />
+      </view>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{exampleCols[0].items.length}}" class="feed">
+  <view class="feed-title"><view class="feed-bar"></view>示例脑洞</view>
+  <view class="feed-cols">
+    <view wx:for="{{exampleCols}}" wx:for-item="col" wx:key="key" class="feed-col {{col.key}}">
+      <view
+        wx:for="{{col.items}}"
+        wx:key="id"
+        class="ex"
+        hover-class="press"
+        data-share="{{item.shareId}}"
+        bindtap="onOpenExample"
+      >
+        <view class="ex-cover {{item.tall ? 'tall' : ''}}">
+          <image wx:if="{{item.cover}}" class="ex-img" src="{{item.cover}}" mode="aspectFill" />
         </view>
-      </view>
-
-      <view class="copy">
-        <view class="eyebrow">
-          <view class="eyebrow-bar"></view>
-          <text>灵感引导 · 游戏文档</text>
-        </view>
-        <view class="title">
-          <view class="title-line">{{sloganLine1}}</view>
-          <view class="title-line">{{sloganLine2}}<text class="em">{{sloganHighlight}}</text></view>
-        </view>
-        <view class="sub">{{subline}}</view>
-      </view>
-
-      <view class="actions">
-        <button class="btn primary" hover-class="press" bindtap="onStart">{{hasLast ? '继续共创' : '开始共创'}}</button>
-        <button wx:if="{{hasLast}}" class="btn ghost" hover-class="press" bindtap="onNewSession">新的共创</button>
-        <button class="btn ghost" hover-class="press" bindtap="onOpenLink">查看 ForgeaX 开源项目</button>
-      </view>
-
-      <view class="hint" bindtap="onSeeExamples">
-        <view class="hint-float"><view class="hint-chevron"></view></view>
-        <view class="hint-text">上滑看示例</view>
-      </view>
-
-      <view class="consent" bindtap="onToggleAgree">
-        <view class="box {{agreed ? 'on' : ''}}">{{agreed ? '✓' : ''}}</view>
-        <view class="consent-text">
-          我已阅读并同意
-          <text class="link" catchtap="onShowLegal" data-kind="terms">《用户协议》</text>
-          与
-          <text class="link" catchtap="onShowLegal" data-kind="privacy">《隐私政策》</text>
+        <view wx:if="{{item.title}}" class="ex-body">
+          <view class="ex-title">{{item.title}}</view>
+          <view wx:if="{{item.pitch}}" class="ex-pitch">{{item.pitch}}</view>
         </view>
       </view>
     </view>
-  </swiper-item>
-
-  <swiper-item>
-    <scroll-view scroll-y class="screen two">
-      <view class="hint back" bindtap="onSeeCover">
-        <view class="hint-float up"><view class="hint-chevron up"></view></view>
-        <view class="hint-text">下滑回封面</view>
-      </view>
-      <view class="section">
-        <view class="section-label">示例脑洞</view>
-        <view class="section-hint">点一下预填到共创输入框，不会自动发送。</view>
-        <view
-          wx:for="{{ideas}}"
-          wx:key="id"
-          class="idea"
-          data-text="{{item.text}}"
-          bindtap="onUseIdea"
-        >{{item.text}}</view>
-      </view>
-
-      <view class="section">
-        <view class="section-label">示例案例</view>
-        <view class="section-hint">示范文档长什么样，不是真实用户作品。</view>
-        <view
-          wx:for="{{cases}}"
-          wx:key="id"
-          class="case"
-          data-title="{{item.title}}"
-          data-pitch="{{item.pitch}}"
-          bindtap="onUseCase"
-        >
-          <view class="case-badge">示例</view>
-          <view class="case-title">{{item.title}}</view>
-          <view class="case-pitch">{{item.pitch}}</view>
-        </view>
-      </view>
-    </scroll-view>
-  </swiper-item>
-</swiper>
+  </view>
+</view>
 
 <nb-consent show="{{showConsent}}" bind:agree="onAgreeConsent" bind:close="onCloseConsent" bind:legal="onConsentLegal" />
 
-<view wx:if="{{showLegal}}" class="mask" catchtap="onCloseSheets">
+<view wx:if="{{showLegal}}" class="mask" catchtap="onCloseLegal">
   <view class="sheet" catchtap="noop">
     <view class="sheet-title">{{legalTitle}}</view>
     <scroll-view scroll-y class="sheet-body">
       <text class="sheet-text">{{legalBody}}</text>
     </scroll-view>
-    <button class="btn primary sheet-btn" hover-class="press" bindtap="onCloseSheets">知道了</button>
-  </view>
-</view>
-
-<view wx:if="{{showLink}}" class="mask" catchtap="onCloseSheets">
-  <view class="sheet" catchtap="noop">
-    <view class="sheet-title">ForgeaX 开源项目</view>
-    <view class="sheet-body">
-      <text class="sheet-text">小程序里暂时打不开外部网页，复制链接后到浏览器打开。</text>
-      <view class="url">{{siteUrl}}</view>
-    </view>
-    <button class="btn primary sheet-btn" hover-class="press" bindtap="onCopyLink">复制链接</button>
-    <button class="btn ghost sheet-btn" hover-class="press" bindtap="onCloseSheets">关闭</button>
+    <button class="btn primary" hover-class="press" bindtap="onCloseLegal">知道了</button>
   </view>
 </view>

@@ -2,9 +2,9 @@
   "usingComponents": {
     "nb-consent": "../../components/consent/index"
   },
-  "navigationBarTitleText": "首页",
-  "navigationBarBackgroundColor": "#1A1C1F",
+  "navigationStyle": "custom",
   "navigationBarTextStyle": "white",
   "backgroundColor": "#1A1C1F",
-  "disableScroll": true
+  "backgroundColorTop": "#1A1C1F",
+  "backgroundColorBottom": "#1A1C1F"
 }

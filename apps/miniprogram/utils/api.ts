@@ -202,6 +202,15 @@ export function createShare(
   });
 }
 
+export type ShareProfile = { genres: string[]; tags: string[] };
+
+function shareProfile(raw: unknown): ShareProfile | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const list = (rows: unknown) => (Array.isArray(rows) ? rows.map((row) => String(row || "").trim()).filter(Boolean) : []);
+  const profile = { genres: list((raw as { genres?: unknown }).genres), tags: list((raw as { tags?: unknown }).tags) };
+  return profile.genres.length || profile.tags.length ? profile : undefined;
+}
+
 export function getShare(id: string): Promise<{
   id: string;
   title: string;
@@ -210,6 +219,8 @@ export function getShare(id: string): Promise<{
   complete?: boolean;
   v?: number;
   coverImageUrl?: string;
+  gameplay: GameplayImageItem[];
+  profile?: ShareProfile;
 }> {
   return new Promise((resolve, reject) => {
     wx.request({
@@ -226,6 +237,8 @@ export function getShare(id: string): Promise<{
             complete?: boolean;
             v?: number;
             coverImageUrl?: string;
+            gameplay?: unknown;
+            profile?: unknown;
           };
           resolve({
             id: String(body.id || id),
@@ -235,6 +248,8 @@ export function getShare(id: string): Promise<{
             complete: body.complete === true,
             v: typeof body.v === "number" ? body.v : 1,
             coverImageUrl: body.coverImageUrl,
+            gameplay: Array.isArray(body.gameplay) ? (body.gameplay as GameplayImageItem[]) : [],
+            profile: shareProfile(body.profile),
           });
         } else {
           reject(new Error(`getShare failed: ${res.statusCode}`));

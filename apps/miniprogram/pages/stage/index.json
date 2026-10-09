@@ -6,7 +6,7 @@
     "nb-consent": "../../components/consent/index"
   },
   "disableScroll": true,
-  "navigationBarTitleText": "共创",
+  "navigationBarTitleText": "",
   "navigationBarBackgroundColor": "#1A1C1F",
   "navigationBarTextStyle": "white",
   "backgroundColor": "#1A1C1F"

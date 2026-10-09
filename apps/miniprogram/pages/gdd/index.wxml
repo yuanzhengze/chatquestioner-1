@@ -6,13 +6,13 @@
 
 <view wx:if="{{ready && empty}}" class="empty">
   <image class="empty-logo" src="{{logoSrc}}" mode="aspectFit" />
-  <view class="empty-title">{{fromShare ? '找不到这份分享' : '还没有文档'}}</view>
+  <view class="empty-title">{{fromExample ? '这份示例暂时打不开' : (fromShare ? '找不到这份分享' : '还没有文档')}}</view>
   <view class="muted">{{fromShare ? '链接可能已失效。你可以自己开一轮共创。' : '回到聊天里再聊几句，出现文档入口后再进来。'}}</view>
   <button wx:if="{{fromShare}}" class="try-btn" hover-class="press" bindtap="onTryCoCreate">我也来共创</button>
 </view>
 
 <view wx:if="{{ready && !empty}}" class="wrap">
-  <view wx:if="{{fromShare}}" class="share-banner">来自分享的游戏文档</view>
+  <view wx:if="{{fromShare}}" class="share-banner">{{fromExample ? '示例游戏文档' : '来自分享的游戏文档'}}</view>
   <view class="cover">
     <image wx:if="{{coverUrl}}" class="cover-img" src="{{coverUrl}}" mode="aspectFill" binderror="onCoverError" />
     <view class="cover-shade">
@@ -58,10 +58,10 @@
             data-url="{{item.localUrl}}"
             bindtap="onPreviewGameplay"
           />
-          <view wx:if="{{item.imageStatus === 'queued'}}" class="moment-state">等待生成</view>
-          <view wx:if="{{item.imageStatus === 'pending'}}" class="moment-state">正在生成玩法画面…</view>
-          <view wx:if="{{item.imageStatus === 'failed'}}" class="moment-state">没画出来</view>
-          <view wx:if="{{item.imageStatus === 'stale'}}" class="moment-flag">已过期</view>
+          <view wx:if="{{!fromShare && item.imageStatus === 'queued'}}" class="moment-state">等待生成</view>
+          <view wx:if="{{!fromShare && item.imageStatus === 'pending'}}" class="moment-state">正在生成玩法画面…</view>
+          <view wx:if="{{!fromShare && item.imageStatus === 'failed'}}" class="moment-state">没画出来</view>
+          <view wx:if="{{!fromShare && item.imageStatus === 'stale'}}" class="moment-flag">已过期</view>
           <view
             wx:if="{{!fromShare && (item.imageStatus === 'ready' || item.imageStatus === 'failed' || item.imageStatus === 'stale')}}"
             class="moment-redo"

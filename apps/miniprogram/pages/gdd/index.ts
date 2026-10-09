@@ -57,6 +57,7 @@ Page({
     empty: true,
     ready: false,
     fromShare: false,
+    fromExample: false,
     logoSrc: LOGO_SRC,
     draft: false,
     sections: [] as Array<{ id: string; title: string; lines: Array<{ id: string; text: string }> }>,
@@ -99,7 +100,7 @@ Page({
   _profileTimer: 0 as number,
   _profileTries: 0,
 
-  onLoad(query: { s?: string }) {
+  onLoad(query: { s?: string; ex?: string }) {
     try {
       wx.setNavigationBarColor({ frontColor: "#ffffff", backgroundColor: FX_CHROME.canvas });
       wx.setBackgroundColor({ backgroundColor: FX_CHROME.canvas, backgroundColorTop: FX_CHROME.canvas, backgroundColorBottom: FX_CHROME.canvas });
@@ -110,7 +111,7 @@ Page({
     if (shareId) {
       this._shareId = shareId;
       this._fromShare = true;
-      this.setData({ fromShare: true });
+      this.setData({ fromShare: true, fromExample: query.ex === "1" });
       wx.hideShareMenu({ menus: ["shareAppMessage", "shareTimeline"] });
       void this.loadShare(shareId);
       return;
@@ -188,6 +189,8 @@ Page({
         model: snap.model,
         complete: snap.complete,
         coverImageUrl: snap.coverImageUrl,
+        gameplay: snap.gameplay,
+        profile: snap.profile,
       });
     } catch (_e) {
       this._shareId = "";
@@ -218,6 +221,8 @@ Page({
     draftBar?: boolean;
     sessionId?: string;
     coverImageUrl?: string;
+    gameplay?: Array<{ mechanicId?: string; status?: string; imageUrl?: string; imageFingerprint?: string; fingerprint?: string; revision?: string }>;
+    profile?: { genres: string[]; tags: string[] };
   }) {
     this.clearFullDocSettle();
     const markdown = String((payload && payload.markdown) || "").trim();
@@ -311,6 +316,9 @@ Page({
     if (this._fromShare) {
       const shareCover = payload && payload.coverImageUrl ? String(payload.coverImageUrl) : "";
       if (shareCover) this.revealCover(shareCover);
+      const profile = payload && payload.profile;
+      this.setData({ profileGenres: profile ? profile.genres : [], profileTags: profile ? profile.tags : [] });
+      this.applyGameplay(this.mediaOwner(), (payload && payload.gameplay) || []);
       return;
     }
     void this.startShare();
@@ -318,6 +326,12 @@ Page({
     this.startCoverWatch();
     this.refreshGameplay(true);
     this.startProfileWatch();
+  },
+
+  /** 玩法图的归属：自己的文档按会话；分享 / 示例按快照（不拿源会话 id），本地缓存也分开。 */
+  mediaOwner(): string {
+    if (this._fromShare) return this._shareId ? `share-${this._shareId}` : "";
+    return this._sessionId;
   },
 
   stopProfileWatch() {
@@ -461,8 +475,8 @@ Page({
       });
   },
 
-  applyGameplay(sessionId: string, items: Array<{ mechanicId?: string; status?: string; imageUrl?: string; imageFingerprint?: string; fingerprint?: string; revision?: string }>) {
-    if (sessionId !== this._sessionId) return;
+  applyGameplay(owner: string, items: Array<{ mechanicId?: string; status?: string; imageUrl?: string; imageFingerprint?: string; fingerprint?: string; revision?: string }>) {
+    if (!owner || owner !== this.mediaOwner()) return;
     const byId: Record<string, { status: MomentCard["imageStatus"]; imageUrl: string; imageFingerprint: string; revision: string }> = {};
     items.forEach((item) => {
       const id = String(item.mechanicId || "");
@@ -497,9 +511,9 @@ Page({
     next.forEach((moment) => {
       if ((moment.imageStatus !== "ready" && moment.imageStatus !== "stale") || !moment.remoteUrl || moment.localUrl || !moment.revision) return;
       const key = `${moment.id}|${moment.revision}`;
-      void downloadGameplayFile(absUrl(moment.remoteUrl), sessionId, moment.id, moment.revision)
+      void downloadGameplayFile(absUrl(moment.remoteUrl), owner, moment.id, moment.revision)
         .then((local) => {
-          if (sessionId !== this._sessionId) return;
+          if (owner !== this.mediaOwner()) return;
           this._gpLocal[key] = local;
           const cards = this.data.gameplayMoments.map((card) => card.id === moment.id && card.revision === moment.revision
             ? { ...card, localUrl: local }

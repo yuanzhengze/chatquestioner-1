@@ -252,10 +252,29 @@ export class GameplayPipeline {
     return images;
   }
 
+  /**
+   * 只读：用会话里已有的玩法图记录和文件，按 publish 同一套规则给出每张图的状态和地址。
+   * 不对账、不落盘、不排队、不生图。分享快照 / 首页示例用，地址由调用方换成快照自己的路径。
+   */
+  peek(
+    sessionId: string,
+    state: ConversationState,
+    model: GddModel,
+    imageUrl: (mechanicId: string, revision: string) => string,
+  ): PublicGameplay {
+    const images = {
+      lineup: state.gameplayImages?.lineup || [],
+      items: state.gameplayImages?.items || {},
+    };
+    return this.publish(sessionId, model, images, imageUrl);
+  }
+
   private publish(
     sessionId: string,
     model: GddModel,
     images: NonNullable<ConversationState["gameplayImages"]>,
+    imageUrl: (mechanicId: string, revision: string) => string = (mechanicId, revision) =>
+      gameplayImagePath(sessionId, mechanicId, revision),
   ): PublicGameplay {
     const bibleFp = visualBibleFingerprint(model);
     const items = gameplayMomentsFromModel(model).map((moment) => {
@@ -271,7 +290,7 @@ export class GameplayPipeline {
         imageFingerprint: record?.fingerprint,
         revision,
         status,
-        imageUrl: showImage ? gameplayImagePath(sessionId, moment.id, revision) : undefined,
+        imageUrl: showImage ? imageUrl(moment.id, revision) : undefined,
         error: status === "failed" ? record?.error : undefined,
       };
     });
