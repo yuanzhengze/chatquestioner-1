@@ -1,81 +1,99 @@
 <view class="mine">
-  <view class="hero">
-    <image class="hero-logo" src="{{logoSrc}}" mode="aspectFit" />
-    <view class="hero-name">ForgeaX</view>
-    <view class="hero-sub">游戏创意前置共创</view>
-  </view>
+  <view class="topscrim" style="height:{{navTop}}px"></view>
 
-  <view class="card">
-    <view class="login" bindtap="onLogin">
-      <view class="login-title">登录</view>
-      <view class="login-hint">暂时不用登录也能共创</view>
+  <view class="hero" style="padding-top:{{navTop}}px">
+    <view class="hero-bg">
+      <image wx:if="{{!heroFailed}}" class="hero-img" src="{{heroSrc}}" mode="aspectFill" binderror="onHeroError" />
+      <view class="hero-shade"></view>
     </view>
-  </view>
+    <view class="brand" style="min-height:{{navHeight}}px;margin-right:{{capsuleRight}}px">
+      <image class="brand-mark" src="{{logoSrc}}" mode="aspectFit" />
+      <view class="brand-copy">
+        <image class="brand-word" src="{{wordmarkSrc}}" mode="heightFix" aria-label="ForgeAX" />
+        <view class="brand-kicker">游戏创意前置共创</view>
+      </view>
+    </view>
 
-  <view class="hist-card">
-    <view class="hist-toggle" bindtap="onToggleHist">
-      <view class="hist-toggle-title">共创记录</view>
-      <view class="hist-chevron {{histOpen ? 'on' : ''}}"></view>
-    </view>
-    <view class="hist-clip {{histOpen ? 'on' : ''}}" style="height: {{histOpen ? histPanelPx : 0}}px;">
-      <view class="hist-reveal">
-      <view wx:if="{{historyItems.length === 0}}" id="hist-empty" class="hist-empty">还没有保存的共创。先聊一句就会出现在这里。</view>
-      <scroll-view
-        wx:else
-        scroll-y
-        show-scrollbar="{{false}}"
-        class="hist-scroll"
-        style="height: {{histScrollPx}}px;"
-      >
-        <view id="hist-measure" class="hist-cards">
-          <view
-            wx:for="{{historyItems}}"
-            wx:key="id"
-            class="rec {{pickedId === item.id ? 'on' : ''}}"
-            data-id="{{item.id}}"
-            bindtap="onPickCard"
-          >
-            <view class="rec-cover">
-              <image wx:if="{{item.coverUrl}}" class="rec-img" src="{{item.coverUrl}}" mode="aspectFill" />
-              <image wx:else class="rec-ph" src="{{logoSrc}}" mode="aspectFit" />
-            </view>
-            <view class="rec-copy">
-              <view class="rec-title">{{item.title}}</view>
-              <view wx:if="{{item.pitch}}" class="rec-pitch">{{item.pitch}}</view>
-              <view wx:elif="{{!item.hasDoc}}" class="rec-pitch muted">还在共创，文档还没生成</view>
-            </view>
-            <view class="rec-side" catchtap="noop">
-              <view class="rec-go" hover-class="rec-press" data-id="{{item.id}}" catchtap="onRecordAction">{{item.action === 'view' ? '查看' : '继续'}}</view>
-              <view class="rec-del" data-id="{{item.id}}" catchtap="onDeleteSession">删除</view>
-            </view>
-          </view>
-        </view>
-      </scroll-view>
+    <view class="profile">
+      <view class="avatar">
+        <image class="avatar-logo" src="{{logoSrc}}" mode="aspectFit" />
+      </view>
+      <view class="profile-copy">
+        <view class="profile-name">创意玩家</view>
+        <view class="profile-motto">让脑洞，慢慢长成一个世界。</view>
       </view>
     </view>
   </view>
 
-  <view class="list">
-    <view class="row" bindtap="onShowLegal" data-kind="terms">
-      <view class="row-label">用户协议</view>
-      <view class="row-go">></view>
+  <view class="section">
+    <view class="section-title">共创记录</view>
+    <view wx:if="{{historyItems.length}}" class="panel">
+      <scroll-view
+        class="records {{historyItems.length > 2 ? 'capped' : ''}}"
+        scroll-y
+        enhanced
+        bounces="{{false}}"
+        show-scrollbar="{{false}}"
+      >
+        <view
+          wx:for="{{historyItems}}"
+          wx:key="id"
+          class="rec {{index ? 'sep' : ''}}"
+          hover-class="press"
+          data-id="{{item.id}}"
+          bindtap="onOpenRecord"
+          bindlongpress="onDeleteSession"
+        >
+          <view class="rec-cover">
+            <image wx:if="{{item.coverUrl}}" class="rec-img" src="{{item.coverUrl}}" mode="aspectFill" />
+            <image wx:else class="rec-ph" src="{{logoSrc}}" mode="aspectFit" />
+          </view>
+          <view class="rec-copy">
+            <view class="rec-title">{{item.title}}</view>
+            <view wx:if="{{item.pitch}}" class="rec-pitch">{{item.pitch}}</view>
+            <view wx:elif="{{!item.hasDoc}}" class="rec-pitch muted">还在共创，文档还没生成</view>
+          </view>
+          <image class="rec-arrow" src="/images/home/icon-arrow-light.png" />
+        </view>
+      </scroll-view>
     </view>
-    <view class="row" bindtap="onShowLegal" data-kind="privacy">
-      <view class="row-label">隐私政策</view>
-      <view class="row-go">></view>
+    <view wx:else class="panel empty">
+      <view class="empty-title">还没有共创记录</view>
+      <view class="empty-hint">从一个脑洞开始吧</view>
+      <view class="empty-cta" hover-class="press" aria-role="button" bindtap="onStartCocreate">
+        <text>开始共创</text>
+        <image class="empty-arrow" src="/images/home/icon-arrow-light.png" />
+      </view>
     </view>
-    <view class="row" bindtap="onOpenAbout">
-      <view class="row-label">关于 ForgeaX</view>
-      <view class="row-go">></view>
-    </view>
-    <view class="row" bindtap="onSettings">
-      <view class="row-label">设置</view>
-      <view class="row-go">></view>
+  </view>
+
+  <view class="section">
+    <view class="panel">
+      <view class="row" hover-class="press" data-kind="terms" bindtap="onShowLegal">
+        <image class="row-icon" src="/images/mine/icon-terms.png" />
+        <view class="row-label">用户协议</view>
+        <image class="row-arrow" src="/images/home/icon-arrow-light.png" />
+      </view>
+      <view class="row sep" hover-class="press" data-kind="privacy" bindtap="onShowLegal">
+        <image class="row-icon" src="/images/mine/icon-privacy.png" />
+        <view class="row-label">隐私政策</view>
+        <image class="row-arrow" src="/images/home/icon-arrow-light.png" />
+      </view>
+      <view class="row sep" hover-class="press" bindtap="onOpenAbout">
+        <image class="row-icon" src="/images/mine/icon-about.png" />
+        <view class="row-label">关于 ForgeaX</view>
+        <image class="row-arrow" src="/images/home/icon-arrow-light.png" />
+      </view>
+      <view class="row sep" hover-class="press" bindtap="onSettings">
+        <image class="row-icon" src="/images/mine/icon-settings.png" />
+        <view class="row-label">设置</view>
+        <image class="row-arrow" src="/images/home/icon-arrow-light.png" />
+      </view>
     </view>
   </view>
 </view>
 
-<view wx:if="{{showLegal}}" class="mask" catchtap="onCloseSheets">
+<view wx:if="{{showLegal}}" class="mask {{sheetIn ? 'in' : ''}}" catchtap="onCloseSheets">
   <view class="sheet" catchtap="noop">
     <view class="sheet-title">{{legalTitle}}</view>
     <scroll-view scroll-y class="sheet-body">
@@ -85,7 +103,7 @@
   </view>
 </view>
 
-<view wx:if="{{showAbout}}" class="mask" catchtap="onCloseSheets">
+<view wx:if="{{showAbout}}" class="mask {{sheetIn ? 'in' : ''}}" catchtap="onCloseSheets">
   <view class="sheet" catchtap="noop">
     <view class="sheet-title">关于 ForgeaX</view>
     <view class="sheet-body">

@@ -68,15 +68,6 @@ function recordCard(indexItem, state) {
   };
 }
 
-function listViewportHeight(contentPx, windowPx) {
-  var content = Number(contentPx);
-  var win = Number(windowPx);
-  if (!isFinite(content) || content <= 0) return 0;
-  var box = Math.ceil(content);
-  if (!isFinite(win) || win <= 0) return box;
-  return Math.min(box, Math.round(win * 0.52));
-}
-
 function gameplayFileName(sessionId, mechanicId, revision) {
   var clean = function (v) { return String(v || "").replace(/[^A-Za-z0-9_-]/g, ""); };
   var session = clean(sessionId);
@@ -109,7 +100,6 @@ function resolveCoverDownload(sessionId, requestedPath, result) {
 }
 
 module.exports.recordCard = recordCard;
-module.exports.listViewportHeight = listViewportHeight;
 module.exports.gameplayFileName = gameplayFileName;
 module.exports.coverFileName = coverFileName;
 module.exports.coverFileMatches = coverFileMatches;

@@ -135,6 +135,9 @@ export const BRAND_WORDMARK_SRC = "/images/home/brand-wordmark.png";
 /** 首页 Hero 背景位。临时图，换图只换这个文件；构图按「左侧压暗放文字、右侧主体」取景。 */
 export const HOME_HERO_SRC = "/images/home/hero.jpg";
 
+/** 「我的」顶部氛围图位：铺满品牌区和头像区，在「共创记录」标题处渐隐进页面底色；原图不改。 */
+export const MINE_HERO_SRC = "/images/mine/hero.jpg";
+
 /** 首页协议勾选。拆成 Tab 后必须落盘，共创发送时读取。 */
 export const AGREED_KEY = "nb.agreed";
 

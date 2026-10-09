@@ -1,12 +1,16 @@
-import { FORGEAX_SITE_URL, FX_CHROME, GDD_DRAFT_KEY, LOGO_SRC, API_BASE } from "../../config";
+import { API_BASE, BRAND_WORDMARK_SRC, FORGEAX_SITE_URL, FX_CHROME, GDD_DRAFT_KEY, LOGO_SRC, MINE_HERO_SRC } from "../../config";
 import { deleteSession, downloadCoverFile, getSession } from "../../utils/api";
 
 const legal = require("../../utils/legal.js");
 const { applyTabBar } = require("../../utils/tabBar.js");
+const { capsuleInset } = require("../../utils/capsule.js");
 const sessionIndex = require("../../utils/sessionIndex.js");
 const bridge = require("../../utils/bridge.js");
-const { recordCard, listViewportHeight, coverFileMatches } = require("../../utils/gddPreview.js");
+const { recordCard, coverFileMatches } = require("../../utils/gddPreview.js");
 const { SLOGAN } = require("../../utils/brandCopy.js");
+
+/** 抽屉进出时长，与 app.wxss 的 --dur-panel 一致。 */
+const SHEET_MS = 280;
 
 function absUrl(path: string): string {
   const p = String(path || "").trim();
@@ -15,34 +19,39 @@ function absUrl(path: string): string {
   return `${API_BASE}${p.startsWith("/") ? p : `/${p}`}`;
 }
 
+type IndexItem = { id: string; title?: string };
+
 type HistCard = {
   id: string;
   title: string;
   pitch: string;
   hasDoc: boolean;
   coverUrl: string;
-  action: "view" | "continue";
 };
 
 Page({
   data: {
     logoSrc: LOGO_SRC,
+    wordmarkSrc: BRAND_WORDMARK_SRC,
+    heroSrc: MINE_HERO_SRC,
+    heroFailed: false,
+    navTop: 0,
+    navHeight: 32,
+    capsuleRight: 0,
     slogan: SLOGAN,
     siteUrl: FORGEAX_SITE_URL,
     historyItems: [] as HistCard[],
-    histOpen: false,
-    histScrollPx: 0,
-    histPanelPx: 0,
-    pickedId: "",
     showLegal: false,
     legalTitle: "",
     legalBody: "",
     showAbout: false,
+    sheetIn: false,
   },
 
   _deleting: false,
   _listGen: 0,
   _cardCache: {} as Record<string, HistCard & { coverPath?: string }>,
+  _sheetTimer: 0 as number,
 
   onLoad() {
     try {
@@ -51,6 +60,20 @@ Page({
     } catch (_e) {
       // 导航栏着色失败不挡进入
     }
+    let win = null;
+    let menu = null;
+    try {
+      win = typeof wx.getWindowInfo === "function" ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    } catch (_e) {
+      win = null;
+    }
+    try {
+      menu = wx.getMenuButtonBoundingClientRect();
+    } catch (_e) {
+      menu = null;
+    }
+    const inset = capsuleInset(win, menu);
+    this.setData({ navTop: inset.top, navHeight: inset.height, capsuleRight: inset.right });
   },
 
   onShow() {
@@ -58,11 +81,19 @@ Page({
     this.refreshList();
   },
 
+  onUnload() {
+    if (this._sheetTimer) clearTimeout(this._sheetTimer);
+  },
+
+  onHeroError() {
+    this.setData({ heroFailed: true });
+  },
+
   refreshList() {
     const gen = this._listGen + 1;
     this._listGen = gen;
     /** 和共创页历史侧栏同一个顺序：sessionIndex 按内容更新时间排。 */
-    const items = (sessionIndex.load().items || []) as Array<{ id: string; title?: string }>;
+    const items = (sessionIndex.load().items || []) as IndexItem[];
     this.paintCached(items);
     void Promise.all(items.map((it) => this.loadCard(it))).then((cards) => {
       if (gen !== this._listGen) return;
@@ -75,10 +106,13 @@ Page({
         keep[card.id] = card;
       });
       this._cardCache = keep;
-      const picked = cards.some((card) => card.id === this.data.pickedId) ? this.data.pickedId : "";
-      if (this.sameCards(this.data.historyItems, cards) && this.data.pickedId === picked) return;
-      this.setData({ historyItems: cards, pickedId: picked }, () => this.fitHistScroll(false));
+      if (this.sameCards(this.data.historyItems, cards)) return;
+      this.setData({ historyItems: cards.map((card) => this.publicCard(card)) });
     });
+  },
+
+  publicCard(card: HistCard): HistCard {
+    return { id: card.id, title: card.title, pitch: card.pitch, hasDoc: card.hasDoc, coverUrl: card.coverUrl };
   },
 
   sameCards(prev: HistCard[], next: HistCard[]) {
@@ -86,36 +120,25 @@ Page({
     for (let i = 0; i < prev.length; i++) {
       const a = prev[i];
       const b = next[i];
-      if (a.id !== b.id || a.title !== b.title || a.pitch !== b.pitch || a.hasDoc !== b.hasDoc || a.coverUrl !== b.coverUrl || a.action !== b.action) return false;
+      if (a.id !== b.id || a.title !== b.title || a.pitch !== b.pitch || a.hasDoc !== b.hasDoc || a.coverUrl !== b.coverUrl) return false;
     }
     return true;
   },
 
-  paintCached(items: Array<{ id: string; title?: string }>) {
+  paintCached(items: IndexItem[]) {
     const painted: HistCard[] = items.map((it) => {
       const cached = this._cardCache[it.id];
-      if (cached) {
-        return { id: cached.id, title: cached.title, pitch: cached.pitch, hasDoc: cached.hasDoc, coverUrl: cached.coverUrl, action: cached.action };
-      }
-      return { id: it.id, title: it.title || "未命名共创", pitch: "", hasDoc: false, coverUrl: "", action: "continue" as const };
+      if (cached) return this.publicCard(cached);
+      return { id: it.id, title: it.title || "未命名共创", pitch: "", hasDoc: false, coverUrl: "" };
     });
-    const known = painted.every((card) => Boolean(this._cardCache[card.id]));
-    const picked = painted.some((card) => card.id === this.data.pickedId) ? this.data.pickedId : "";
-    if (known && this.sameCards(this.data.historyItems, painted) && this.data.pickedId === picked) return;
-    this.setData({
-      historyItems: painted,
-      histOpen: painted.length === 0 ? false : this.data.histOpen,
-      pickedId: picked,
-    }, () => {
-      if (known && this.data.histScrollPx > 0) return;
-      this.fitHistScroll(true);
-    });
+    if (this.sameCards(this.data.historyItems, painted)) return;
+    this.setData({ historyItems: painted });
   },
 
-  async loadCard(it: { id: string; title?: string }): Promise<HistCard & { coverPath?: string }> {
+  async loadCard(it: IndexItem): Promise<HistCard & { coverPath?: string }> {
     try {
       const state = await getSession(it.id);
-      const card = recordCard(it, state) as HistCard & { coverPath?: string };
+      const card = recordCard(it, state) as { id: string; title: string; pitch: string; hasDoc: boolean; coverPath?: string };
       const prev = this._cardCache[it.id];
       let coverUrl = "";
       if (card.coverPath) {
@@ -128,72 +151,15 @@ Page({
           }
         }
       }
-      return { id: card.id, title: card.title, pitch: card.pitch, hasDoc: card.hasDoc, action: card.action, coverUrl, coverPath: card.coverPath };
+      return { id: card.id, title: card.title, pitch: card.pitch, hasDoc: card.hasDoc, coverUrl, coverPath: card.coverPath };
     } catch (_e) {
       const prev = this._cardCache[it.id];
       if (prev) return prev;
-      return { id: it.id, title: it.title || "未命名共创", pitch: "", hasDoc: false, coverUrl: "", action: "continue" };
+      return { id: it.id, title: it.title || "未命名共创", pitch: "", hasDoc: false, coverUrl: "" };
     }
   },
 
-  fitHistScroll(force: boolean, done?: () => void) {
-    const info = typeof wx.getWindowInfo === "function" ? wx.getWindowInfo() : wx.getSystemInfoSync();
-    const winH = Number(info.windowHeight) || 0;
-    const finish = () => { if (done) done(); };
-    if (this.data.historyItems.length === 0) {
-      this.createSelectorQuery().select("#hist-empty").boundingClientRect().exec((res: Array<{ height?: number } | null>) => {
-        const next = Math.ceil(Number(res && res[0] ? res[0].height : 0));
-        const clip = next > 0 ? next + 1 : 0;
-        if (clip > 0 && Math.abs(clip - Number(this.data.histPanelPx || 0)) > 1) this.setData({ histPanelPx: clip }, finish);
-        else finish();
-      });
-      return;
-    }
-    const width = Number(info.windowWidth) || 375;
-    const guess = listViewportHeight(this.data.historyItems.length * 220 * (width / 750), winH);
-    const apply = (scroll: number, panel: number, cb?: () => void) => {
-      const patch: { histScrollPx?: number; histPanelPx?: number } = {};
-      if (Math.abs(scroll - Number(this.data.histScrollPx || 0)) > 1) patch.histScrollPx = scroll;
-      const clip = panel > 0 ? panel + 1 : 0;
-      if (Math.abs(clip - Number(this.data.histPanelPx || 0)) > 1) patch.histPanelPx = clip;
-      if (patch.histScrollPx || patch.histPanelPx) this.setData(patch, cb);
-      else if (cb) cb();
-    };
-    const measure = () => {
-      this.createSelectorQuery().select("#hist-measure").boundingClientRect().exec((res: Array<{ height?: number } | null>) => {
-        const content = res && res[0] ? Number(res[0].height) : 0;
-        const next = listViewportHeight(content, winH);
-        if (next > 0) apply(next, next);
-      });
-    };
-    if (force || this.data.histScrollPx <= 0) apply(guess, guess, () => { finish(); wx.nextTick(measure); });
-    else { finish(); wx.nextTick(measure); }
-  },
-
-  onToggleHist() {
-    if (this.data.histOpen) {
-      this.setData({ histOpen: false });
-      return;
-    }
-    const open = () => this.setData({ histOpen: true }, () => wx.nextTick(() => this.fitHistScroll(false)));
-    if (this.data.histPanelPx > 0) {
-      open();
-      return;
-    }
-    this.fitHistScroll(true, open);
-  },
-
-  onPickCard(e: { currentTarget: { dataset: { id?: string } } }) {
-    const id = e.currentTarget.dataset.id;
-    if (!id) return;
-    if (this.data.pickedId !== id) {
-      this.setData({ pickedId: id });
-      return;
-    }
-    this.enterSession(id);
-  },
-
-  onRecordAction(e: { currentTarget: { dataset: { id?: string } } }) {
+  onOpenRecord(e: { currentTarget: { dataset: { id?: string } } }) {
     const id = e.currentTarget.dataset.id;
     if (id) this.enterSession(id);
   },
@@ -205,6 +171,14 @@ Page({
     bridge.goChat();
   },
 
+  /** 没有记录时的入口，和首页「开始共创」同一条：交给共创页新开一条，返回仍回「我的」。 */
+  onStartCocreate() {
+    bridge.setEntryOrigin("mine");
+    bridge.setPendingChat({ type: "boot", from: "mine" });
+    bridge.goChat();
+  },
+
+  /** 长按一条记录删除，确认和删除接口沿用原来的。 */
   onDeleteSession(e: { currentTarget: { dataset: { id?: string } } }) {
     const id = e.currentTarget.dataset.id;
     if (!id || this._deleting) return;
@@ -232,7 +206,6 @@ Page({
       return;
     }
     delete this._cardCache[id];
-    if (this.data.pickedId === id) this.setData({ pickedId: "" });
     sessionIndex.remove(id);
     try {
       wx.removeStorageSync(GDD_DRAFT_KEY);
@@ -246,7 +219,7 @@ Page({
 
   onShowLegal(e: { currentTarget: { dataset: { kind?: string } } }) {
     const kind = e.currentTarget.dataset.kind;
-    this.setData({
+    this.openSheet({
       showLegal: true,
       showAbout: false,
       legalTitle: kind === "privacy" ? "隐私政策" : "用户协议",
@@ -255,7 +228,22 @@ Page({
   },
 
   onOpenAbout() {
-    this.setData({ showAbout: true, showLegal: false });
+    this.openSheet({ showAbout: true, showLegal: false });
+  },
+
+  /** 先挂上抽屉（遮罩透明、抽屉在屏幕下方），下一帧再加 in：遮罩淡入、抽屉从底部滑入。 */
+  openSheet(patch: { showLegal: boolean; showAbout: boolean; legalTitle?: string; legalBody?: string }) {
+    if (this._sheetTimer) clearTimeout(this._sheetTimer);
+    this.setData({ ...patch, sheetIn: false }, () => {
+      this._sheetTimer = setTimeout(() => {
+        this._sheetTimer = 0;
+        this.setData({ sheetIn: true });
+      }, 30) as unknown as number;
+    });
+  },
+
+  onSettings() {
+    wx.showToast({ title: "设置功能即将开放", icon: "none" });
   },
 
   onCopyLink() {
@@ -265,16 +253,16 @@ Page({
     });
   },
 
-  onSettings() {
-    wx.showToast({ title: "设置还没开放", icon: "none" });
-  },
-
-  onLogin() {
-    wx.showToast({ title: "暂时不用登录也能共创", icon: "none" });
-  },
-
+  /** 去掉 in：抽屉滑出、遮罩同步淡出；动画结束再卸载。卸载前遮罩一直在，点击不会穿透。 */
   onCloseSheets() {
-    this.setData({ showLegal: false, showAbout: false });
+    if (!this.data.showLegal && !this.data.showAbout) return;
+    if (!this.data.sheetIn && !this._sheetTimer) return;
+    if (this._sheetTimer) clearTimeout(this._sheetTimer);
+    this.setData({ sheetIn: false });
+    this._sheetTimer = setTimeout(() => {
+      this._sheetTimer = 0;
+      this.setData({ showLegal: false, showAbout: false });
+    }, SHEET_MS) as unknown as number;
   },
 
   noop() {},
